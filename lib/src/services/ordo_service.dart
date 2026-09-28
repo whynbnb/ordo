@@ -1,0 +1,112 @@
+import 'dart:convert';
+import 'dart:isolate';
+import 'dart:typed_data';
+
+import '../core/models.dart';
+import '../ffi/native.dart';
+
+/// Ordo 的文件系统门面。所有操作都经由 Rust 核心完成。
+///
+/// 轻量操作直接调用；可能耗时或阻塞的操作放到后台 isolate，避免卡住界面。
+class OrdoService {
+  OrdoService._();
+
+  static final OrdoService instance = OrdoService._();
+
+  static const int defaultReadLimit = 1024 * 1024; // 1 MB
+
+  dynamic _direct(String op, [List<Object?> args = const []]) {
+    return nativeExecute(op, args);
+  }
+
+  Future<dynamic> _background(String op, List<Object?> args) {
+    return Isolate.run(() => nativeExecute(op, args));
+  }
+
+  /// 连通性检查，确认动态库可用。
+  Future<Map<String, dynamic>> ping() async {
+    final data = _direct('ping');
+    return (data as Map).cast<String, dynamic>();
+  }
+
+  Future<List<FileEntry>> listDir(String path) async {
+    final data = await _background('listDir', [path]);
+    return (data as List)
+        .map((e) => FileEntry.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<FileEntry> stat(String path) async {
+    final data = _direct('stat', [path]);
+    return FileEntry.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<TextContent> readText(
+    String path, {
+    int maxBytes = defaultReadLimit,
+  }) async {
+    final data = await _background('readText', [path, maxBytes]);
+    return TextContent.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<FileEntry> writeText(String path, String content) async {
+    final data = _direct('writeText', [path, content]);
+    return FileEntry.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<Uint8List> readBytes(String path) async {
+    final data = await _background('readBytes', [path]);
+    return data as Uint8List;
+  }
+
+  Future<FileEntry> writeBytes(String path, Uint8List bytes) async {
+    final data = _direct('writeBytes', [path, bytes]);
+    return FileEntry.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<FileEntry> createDir(String path) async {
+    final data = _direct('createDir', [path]);
+    return FileEntry.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<FileEntry> createFile(String path) async {
+    final data = _direct('createFile', [path]);
+    return FileEntry.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<FileEntry> rename(String path, String newName) async {
+    final data = _direct('rename', [path, newName]);
+    return FileEntry.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<DeleteResult> delete(List<String> paths) async {
+    final data = await _background('delete', [jsonEncode(paths)]);
+    return DeleteResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<TransferResult> copy(List<String> sources, String dest) async {
+    final data = await _background('copy', [jsonEncode(sources), dest]);
+    return TransferResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<TransferResult> move(List<String> sources, String dest) async {
+    final data = await _background('move', [jsonEncode(sources), dest]);
+    return TransferResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<SearchOutcome> search(
+    String root,
+    String query, {
+    int limit = 500,
+  }) async {
+    final data = await _background('search', [root, query, limit]);
+    return SearchOutcome.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<List<StorageRoot>> storageRoots() async {
+    final data = _direct('storageRoots');
+    return (data as List)
+        .map((e) => StorageRoot.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+}

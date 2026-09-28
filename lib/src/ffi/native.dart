@@ -1,0 +1,305 @@
+import 'dart:convert';
+import 'dart:ffi';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:ffi/ffi.dart';
+
+import '../core/ordo_exception.dart';
+
+// ---------------------------------------------------------------------------
+// C ABI 类型
+// ---------------------------------------------------------------------------
+
+typedef _CStr = Pointer<Utf8>;
+
+typedef _Native1 = _CStr Function(_CStr);
+typedef _Dart1 = _CStr Function(_CStr);
+typedef _Native2 = _CStr Function(_CStr, _CStr);
+typedef _Dart2 = _CStr Function(_CStr, _CStr);
+typedef _NativeReadText = _CStr Function(_CStr, Uint64);
+typedef _DartReadText = _CStr Function(_CStr, int);
+typedef _NativeSearch = _CStr Function(_CStr, _CStr, Uint32);
+typedef _DartSearch = _CStr Function(_CStr, _CStr, int);
+typedef _NativeVoidStr = Void Function(_CStr);
+typedef _DartVoidStr = void Function(_CStr);
+typedef _NativeZero = _CStr Function();
+typedef _DartZero = _CStr Function();
+typedef _NativeReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
+typedef _DartReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
+typedef _NativeFreeBytes = Void Function(Pointer<Uint8>, UintPtr);
+typedef _DartFreeBytes = void Function(Pointer<Uint8>, int);
+typedef _NativeWriteBytes = _CStr Function(_CStr, Pointer<Uint8>, UintPtr);
+typedef _DartWriteBytes = _CStr Function(_CStr, Pointer<Uint8>, int);
+
+DynamicLibrary _openLibrary() {
+  // 桌面端调试 / 测试时可用环境变量指定已编译的动态库路径。
+  final override = Platform.environment['ORDO_CORE_LIB'];
+  if (override != null && override.isNotEmpty) {
+    return DynamicLibrary.open(override);
+  }
+  if (Platform.isAndroid || Platform.isLinux) {
+    return DynamicLibrary.open('libordo_core.so');
+  }
+  if (Platform.isMacOS) {
+    return DynamicLibrary.open('libordo_core.dylib');
+  }
+  if (Platform.isIOS) {
+    return DynamicLibrary.process();
+  }
+  if (Platform.isWindows) {
+    return DynamicLibrary.open('ordo_core.dll');
+  }
+  throw UnsupportedError('当前平台不受支持');
+}
+
+/// 每个 isolate 各自持有一份符号表（`static final` 在每个 isolate 内独立初始化）。
+class _OrdoBindings {
+  _OrdoBindings._(this._lib);
+
+  static final _OrdoBindings instance = _OrdoBindings._(_openLibrary());
+
+  final DynamicLibrary _lib;
+
+  late final _Dart1 listDir = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_list_dir',
+  );
+  late final _Dart1 stat = _lib.lookupFunction<_Native1, _Dart1>('ordo_stat');
+  late final _DartReadText readText = _lib
+      .lookupFunction<_NativeReadText, _DartReadText>('ordo_read_text');
+  late final _Dart2 writeText = _lib.lookupFunction<_Native2, _Dart2>(
+    'ordo_write_text',
+  );
+  late final _Dart1 createDir = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_create_dir',
+  );
+  late final _Dart1 createFile = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_create_file',
+  );
+  late final _Dart1 delete = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_delete',
+  );
+  late final _Dart2 rename = _lib.lookupFunction<_Native2, _Dart2>(
+    'ordo_rename',
+  );
+  late final _Dart2 copy = _lib.lookupFunction<_Native2, _Dart2>('ordo_copy');
+  late final _Dart2 move = _lib.lookupFunction<_Native2, _Dart2>('ordo_move');
+  late final _DartSearch search = _lib
+      .lookupFunction<_NativeSearch, _DartSearch>('ordo_search');
+  late final _DartZero storageRoots = _lib
+      .lookupFunction<_NativeZero, _DartZero>('ordo_storage_roots');
+  late final _DartZero ping = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_ping',
+  );
+  late final _DartVoidStr freeString = _lib
+      .lookupFunction<_NativeVoidStr, _DartVoidStr>('ordo_free_string');
+  late final _DartReadBytes readBytes = _lib
+      .lookupFunction<_NativeReadBytes, _DartReadBytes>('ordo_read_bytes');
+  late final _DartFreeBytes freeBytes = _lib
+      .lookupFunction<_NativeFreeBytes, _DartFreeBytes>('ordo_free_bytes');
+  late final _DartWriteBytes writeBytes = _lib
+      .lookupFunction<_NativeWriteBytes, _DartWriteBytes>('ordo_write_bytes');
+}
+
+// ---------------------------------------------------------------------------
+// 执行入口（可在任意 isolate 中调用）
+// ---------------------------------------------------------------------------
+
+/// 根据操作名调用原生核心并返回已解码的 `data` 字段。
+///
+/// 参数与返回值都必须是可跨 isolate 传递的类型（String / int / bool /
+/// List / Map / Uint8List）。
+dynamic nativeExecute(String op, List<Object?> args) {
+  final bindings = _OrdoBindings.instance;
+  switch (op) {
+    case 'ping':
+      return _decode(_take(bindings, bindings.ping()));
+    case 'listDir':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (p) => bindings.listDir(p)),
+        ),
+      );
+    case 'stat':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (p) => bindings.stat(p)),
+        ),
+      );
+    case 'readText':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (p) => bindings.readText(p, args[1] as int),
+          ),
+        ),
+      );
+    case 'writeText':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (path) {
+            return _withCString(args[1] as String, (content) {
+              return bindings.writeText(path, content);
+            });
+          }),
+        ),
+      );
+    case 'createDir':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (p) => bindings.createDir(p)),
+        ),
+      );
+    case 'createFile':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (p) => bindings.createFile(p)),
+        ),
+      );
+    case 'delete':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (p) => bindings.delete(p)),
+        ),
+      );
+    case 'rename':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (path) {
+            return _withCString(
+              args[1] as String,
+              (name) => bindings.rename(path, name),
+            );
+          }),
+        ),
+      );
+    case 'copy':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (sources) {
+            return _withCString(
+              args[1] as String,
+              (dest) => bindings.copy(sources, dest),
+            );
+          }),
+        ),
+      );
+    case 'move':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (sources) {
+            return _withCString(
+              args[1] as String,
+              (dest) => bindings.move(sources, dest),
+            );
+          }),
+        ),
+      );
+    case 'search':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (root) {
+            return _withCString(args[1] as String, (query) {
+              return bindings.search(root, query, args[2] as int);
+            });
+          }),
+        ),
+      );
+    case 'storageRoots':
+      return _decode(_take(bindings, bindings.storageRoots()));
+    case 'readBytes':
+      return _readBytes(bindings, args[0] as String);
+    case 'writeBytes':
+      return _writeBytes(bindings, args[0] as String, args[1] as Uint8List);
+    default:
+      throw OrdoException('未知操作：$op');
+  }
+}
+
+String _take(_OrdoBindings bindings, Pointer<Utf8> ptr) {
+  if (ptr == nullptr) {
+    throw const OrdoException('原生核心返回空指针');
+  }
+  try {
+    return ptr.toDartString();
+  } finally {
+    bindings.freeString(ptr);
+  }
+}
+
+T _withCString<T>(String value, T Function(Pointer<Utf8>) body) {
+  final ptr = value.toNativeUtf8();
+  try {
+    return body(ptr);
+  } finally {
+    malloc.free(ptr);
+  }
+}
+
+dynamic _decode(String raw) {
+  final dynamic decoded;
+  try {
+    decoded = jsonDecode(raw);
+  } on FormatException {
+    throw const OrdoException('无法解析原生核心返回的数据');
+  }
+  if (decoded is Map && decoded['ok'] == true) {
+    return decoded['data'];
+  }
+  final message = decoded is Map ? decoded['error']?.toString() : null;
+  throw OrdoException(message ?? '原生核心返回未知错误');
+}
+
+Uint8List _readBytes(_OrdoBindings bindings, String path) {
+  final outLen = malloc.allocate<UintPtr>(sizeOf<UintPtr>());
+  try {
+    final pointer = _withCString(path, (p) => bindings.readBytes(p, outLen));
+    final length = outLen.value;
+    if (pointer == nullptr) {
+      throw const OrdoException('无法读取文件内容');
+    }
+    if (length == 0) {
+      return Uint8List(0);
+    }
+    final bytes = Uint8List.fromList(pointer.asTypedList(length));
+    bindings.freeBytes(pointer, length);
+    return bytes;
+  } finally {
+    malloc.free(outLen);
+  }
+}
+
+dynamic _writeBytes(_OrdoBindings bindings, String path, Uint8List data) {
+  if (data.isEmpty) {
+    return _decode(
+      _take(
+        bindings,
+        _withCString(path, (p) => bindings.writeBytes(p, nullptr, 0)),
+      ),
+    );
+  }
+  final buffer = malloc.allocate<Uint8>(data.length);
+  buffer.asTypedList(data.length).setAll(0, data);
+  try {
+    return _decode(
+      _take(
+        bindings,
+        _withCString(path, (p) => bindings.writeBytes(p, buffer, data.length)),
+      ),
+    );
+  } finally {
+    malloc.free(buffer);
+  }
+}
