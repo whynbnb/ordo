@@ -15,10 +15,15 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
+    <!-- 网络访问：WebDAV / FTP / SMB 需要联网（release 包不会自动带上这些权限）。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:label="安序"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true"
         android:preserveLegacyExternalStorage="true">
         <activity

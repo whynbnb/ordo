@@ -88,10 +88,6 @@ class _ConnectionEditScreenState extends State<_ConnectionEditScreen> {
       setState(() => _error = '请填写服务器地址');
       return;
     }
-    if (_kind == 'smb' && _share.text.trim().isEmpty) {
-      setState(() => _error = 'SMB 需要填写共享名');
-      return;
-    }
     final initial = widget.initial ?? ConnectionProfile.empty;
     final profile = initial.copyWith(
       name: _name.text.trim().isEmpty ? host : _name.text.trim(),
@@ -143,16 +139,21 @@ class _ConnectionEditScreenState extends State<_ConnectionEditScreen> {
           ),
           _field(_username, '用户名', Icons.person_outline_rounded),
           _field(_password, '密码', Icons.lock_outline_rounded, obscure: true),
-          _field(
-            _basePath,
-            '初始目录（可选）',
-            Icons.folder_open_rounded,
-            hint: _kind == 'smb' ? '共享内的子目录' : '例如 /public',
-          ),
           if (_kind == 'smb') ...[
-            _field(_share, '共享名', Icons.share_rounded),
+            _field(
+              _share,
+              '共享名（可选）',
+              Icons.share_rounded,
+              hint: '留空则浏览服务器上的全部共享',
+            ),
             _field(_domain, '域（可选）', Icons.badge_outlined),
           ],
+          _field(
+            _basePath,
+            _kind == 'smb' ? '共享内初始目录（可选）' : '初始目录（可选）',
+            Icons.folder_open_rounded,
+            hint: _kind == 'smb' ? '例如 docs（留空为共享根）' : '例如 /public',
+          ),
           if (_kind == 'webdav')
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
