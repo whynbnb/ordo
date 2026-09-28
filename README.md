@@ -23,6 +23,13 @@
 - 显示 / 隐藏隐藏文件
 - 应用内预览文本与图片，其余文件交给系统「打开方式」
 - 分享文件
+- **远程位置**：WebDAV、FTP、SMB，全部由 Rust 实现
+  - 连接管理（增删改、测试连接），配置保存在应用私有目录
+  - 与本地文件列表一致地浏览、新建、重命名、删除
+  - 远程与本地之间复制 / 剪切 / 粘贴（流式读写）
+  - 远程文件可在应用内预览，或下载到缓存后交给系统打开
+
+> 说明：FTP 目前仅支持明文（未实现 FTPS）；WebDAV 支持 HTTPS 且可选择信任自签名证书。
 
 ## 架构
 
@@ -30,17 +37,24 @@
 lib/                      Flutter 界面与 FFI 绑定
   src/ffi/native.dart     dart:ffi 绑定 + 后台 isolate 调度
   src/services/           文件系统门面 / 平台通道
-  src/state/              浏览状态、排序偏好、剪贴板
+  src/state/              浏览状态、排序偏好、剪贴板、连接配置
   src/ui/                 各页面与组件
 rust/                     Rust 核心（cdylib）
   src/lib.rs              C ABI 导出与 panic 防护
-  src/api.rs              文件系统实现
+  src/api.rs              本地文件系统实现
+  src/vfs.rs              统一门面：本地路径与远程 URI 走同一接口
+  src/remote/             WebDAV / FTP / SMB 客户端与连接会话
   src/model.rs            元数据模型
 android/                  Android 工程
   app/.../MainActivity.kt 存储权限申请、FileProvider 打开 / 分享
   app/build.gradle.kts    调用 cargo-ndk 编译 Rust 并放入 jniLibs
 scripts/                  手动构建脚本
 ```
+
+远程位置以 URI 形式表示：`<scheme>://<连接ID>/路径`，例如
+`smb://ab12cd/文档/report.pdf`。Dart 侧只传字符串，协议实现与连接复用都在
+Rust 中完成。连接密码保存在应用私有目录的 `ordo_connections.json`（明文，
+仅本应用可访问）。
 
 所有原生函数的返回值都是 `{"ok":true,"data":...}` 或
 `{"ok":false,"error":"..."}`，字符串内存由 Rust 分配、Dart 释放。

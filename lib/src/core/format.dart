@@ -62,3 +62,9 @@ List<(String, String)> breadcrumbs(String path) {
   }
   return result;
 }
+
+/// 是否为远程 URI（WebDAV / FTP / SMB）。
+bool isRemotePath(String path) =>
+    path.startsWith('webdav://') ||
+    path.startsWith('ftp://') ||
+    path.startsWith('smb://');

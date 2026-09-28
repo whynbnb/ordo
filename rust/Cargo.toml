@@ -14,6 +14,25 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 libc = "0.2"
 
+# 远程协议：全部为纯 Rust 实现（无系统库依赖，便于交叉编译到 Android）。
+smb2 = "0.26"
+suppaftp = { version = "12", default-features = false }
+reqwest = { version = "0.12", default-features = false, features = [
+    "blocking",
+    "rustls-tls-webpki-roots",
+    "charset",
+] }
+quick-xml = "0.37"
+httpdate = "1"
+percent-encoding = "2"
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "net",
+    "time",
+    "io-util",
+    "sync",
+] }
+
 [profile.release]
 lto = true
 opt-level = "z"

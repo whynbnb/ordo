@@ -46,6 +46,22 @@ class PlatformService {
     }
   }
 
+  /// 返回应用私有目录：`filesDir`（配置）与 `cacheDir`（下载缓存）。
+  static Future<({String filesDir, String cacheDir})?> appPaths() async {
+    try {
+      final result = await _channel.invokeMapMethod<String, dynamic>('paths');
+      if (result == null) return null;
+      return (
+        filesDir: result['filesDir'] as String? ?? '',
+        cacheDir: result['cacheDir'] as String? ?? '',
+      );
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
   static Future<bool> _invokeBool(
     String method,
     Map<String, Object?> args,

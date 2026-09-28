@@ -101,12 +101,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         IconButton(
           tooltip: '搜索',
           icon: const Icon(Icons.search_rounded),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) =>
-                  SearchScreen(root: widget.path, title: widget.title),
-            ),
-          ),
+          onPressed: _openSearch,
         ),
         PopupMenuButton<String>(
           tooltip: '更多',
@@ -297,6 +292,18 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   Future<void> _openEntry(FileEntry entry) async {
     await openEntry(context, entry, onReturn: _controller.refresh);
+  }
+
+  void _openSearch() {
+    if (isRemotePath(widget.path)) {
+      _snack('网络位置暂不支持搜索');
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SearchScreen(root: widget.path, title: widget.title),
+      ),
+    );
   }
 
   void _onMenuSelected(String value) {

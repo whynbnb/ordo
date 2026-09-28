@@ -1,17 +1,21 @@
 //! Ordo 安序 —— 文件系统核心。
 //!
-//! 所有文件操作都在 Rust 侧完成，通过一层极简的 C ABI 暴露给 Flutter。
-//! 每个导出函数接收 UTF-8 字符串，返回一段 JSON：`{"ok":true,"data":...}`
-//! 或 `{"ok":false,"error":"..."}`。字符串内存由 Rust 分配，调用方使用
-//! [`ordo_free_string`] 释放。
+//! 所有文件操作（本地与远程 WebDAV / FTP / SMB）都在 Rust 侧完成，通过一层极简
+//! 的 C ABI 暴露给 Flutter。每个导出函数接收 UTF-8 字符串，返回一段 JSON：
+//! `{"ok":true,"data":...}` 或 `{"ok":false,"error":"..."}`。字符串内存由 Rust
+//! 分配，调用方使用 [`ordo_free_string`] 释放。
 
 mod api;
 mod model;
+mod remote;
+mod vfs;
 
+use remote::ProfileSpec;
 use serde::Serialize;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::path::{Path, PathBuf};
 
 // ---------------------------------------------------------------------------
 // JSON 与内存辅助
@@ -37,6 +41,10 @@ fn result<T: Serialize>(r: Result<T, String>) -> *mut c_char {
     }
 }
 
+fn err(msg: impl Into<String>) -> *mut c_char {
+    into_c_string(serde_json::json!({ "ok": false, "error": msg.into() }).to_string())
+}
+
 unsafe fn read_str(ptr: *const c_char) -> Result<String, String> {
     if ptr.is_null() {
         return Err("收到的参数为空".into());
@@ -52,6 +60,11 @@ unsafe fn read_paths(ptr: *const c_char) -> Result<Vec<String>, String> {
     serde_json::from_str::<Vec<String>>(&raw).map_err(|e| format!("路径列表无效：{e}"))
 }
 
+unsafe fn read_profile(ptr: *const c_char) -> Result<ProfileSpec, String> {
+    let raw = read_str(ptr)?;
+    serde_json::from_str::<ProfileSpec>(&raw).map_err(|e| format!("连接配置无效：{e}"))
+}
+
 /// 捕获 panic，避免任何意外让进程崩溃。
 fn guard<F: FnOnce() -> *mut c_char>(f: F) -> *mut c_char {
     match catch_unwind(AssertUnwindSafe(f)) {
@@ -64,19 +77,19 @@ fn guard<F: FnOnce() -> *mut c_char>(f: F) -> *mut c_char {
             } else {
                 "内部错误".to_string()
             };
-            into_c_string(serde_json::json!({ "ok": false, "error": msg }).to_string())
+            err(msg)
         }
     }
 }
 
 // ---------------------------------------------------------------------------
-// 导出函数
+// 导出函数：本地 + 远程统一入口
 // ---------------------------------------------------------------------------
 
 /// 释放由本库返回的字符串。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// `ptr` 必须来自本库的某个返回值，且只能释放一次。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_free_string(ptr: *mut c_char) {
     if !ptr.is_null() {
@@ -84,141 +97,129 @@ pub unsafe extern "C" fn ordo_free_string(ptr: *mut c_char) {
     }
 }
 
-/// 列出目录内容。
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_list_dir(path: *const c_char) -> *mut c_char {
     guard(|| match read_str(path) {
-        Ok(p) => result(api::list_dir(&p)),
-        Err(e) => into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string()),
+        Ok(p) => result(vfs::list(&p)),
+        Err(e) => err(e),
     })
 }
 
-/// 获取单个路径的元数据。
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_stat(path: *const c_char) -> *mut c_char {
     guard(|| match read_str(path) {
-        Ok(p) => result(api::stat(&p)),
-        Err(e) => into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string()),
+        Ok(p) => result(vfs::stat(&p)),
+        Err(e) => err(e),
     })
 }
 
 /// 读取文本文件。`max_bytes` 为 0 表示不限制。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_read_text(path: *const c_char, max_bytes: u64) -> *mut c_char {
     guard(|| match read_str(path) {
-        Ok(p) => result(api::read_text(&p, max_bytes)),
-        Err(e) => into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string()),
+        Ok(p) => result(vfs::read_text(&p, max_bytes)),
+        Err(e) => err(e),
     })
 }
 
 /// 写入文本文件（覆盖）。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_write_text(
     path: *const c_char,
     content: *const c_char,
 ) -> *mut c_char {
     guard(|| match (read_str(path), read_str(content)) {
-        (Ok(p), Ok(c)) => result(api::write_text(&p, &c)),
-        (Err(e), _) | (_, Err(e)) => {
-            into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string())
-        }
+        (Ok(p), Ok(c)) => result(vfs::write_text(&p, &c)),
+        (Err(e), _) | (_, Err(e)) => err(e),
     })
 }
 
 /// 创建文件夹（含父级）。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_create_dir(path: *const c_char) -> *mut c_char {
     guard(|| match read_str(path) {
-        Ok(p) => result(api::create_dir(&p)),
-        Err(e) => into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string()),
+        Ok(p) => result(vfs::create_dir(&p)),
+        Err(e) => err(e),
     })
 }
 
 /// 创建空文件。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_create_file(path: *const c_char) -> *mut c_char {
     guard(|| match read_str(path) {
-        Ok(p) => result(api::create_file(&p)),
-        Err(e) => into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string()),
+        Ok(p) => result(vfs::create_file(&p)),
+        Err(e) => err(e),
     })
 }
 
-/// 递归删除一组路径。入参为 JSON 字符串数组。
+/// 递归删除一组路径。入参为 JSON 字符串数组；支持本地与远程路径。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_delete(paths: *const c_char) -> *mut c_char {
     guard(|| match read_paths(paths) {
-        Ok(list) => ok(api::delete(&list)),
-        Err(e) => into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string()),
+        Ok(list) => ok(vfs::delete(&list)),
+        Err(e) => err(e),
     })
 }
 
 /// 重命名（仅改名，不移动目录）。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_rename(path: *const c_char, new_name: *const c_char) -> *mut c_char {
     guard(|| match (read_str(path), read_str(new_name)) {
-        (Ok(p), Ok(n)) => result(api::rename(&p, &n)),
-        (Err(e), _) | (_, Err(e)) => {
-            into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string())
-        }
+        (Ok(p), Ok(n)) => result(vfs::rename(&p, &n)),
+        (Err(e), _) | (_, Err(e)) => err(e),
     })
 }
 
-/// 复制一组路径到目标文件夹。入参为 JSON 字符串数组。
+/// 复制一组路径到目标位置（支持本地 <-> 远程）。入参为 JSON 字符串数组。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_copy(sources: *const c_char, dest: *const c_char) -> *mut c_char {
     guard(|| match (read_paths(sources), read_str(dest)) {
-        (Ok(src), Ok(d)) => ok(api::copy(&src, &d)),
-        (Err(e), _) | (_, Err(e)) => {
-            into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string())
-        }
+        (Ok(src), Ok(d)) => ok(vfs::copy(&src, &d)),
+        (Err(e), _) | (_, Err(e)) => err(e),
     })
 }
 
-/// 移动一组路径到目标文件夹。入参为 JSON 字符串数组。
+/// 移动一组路径到目标位置（支持本地 <-> 远程）。入参为 JSON 字符串数组。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_move(sources: *const c_char, dest: *const c_char) -> *mut c_char {
     guard(|| match (read_paths(sources), read_str(dest)) {
-        (Ok(src), Ok(d)) => ok(api::move_entries(&src, &d)),
-        (Err(e), _) | (_, Err(e)) => {
-            into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string())
-        }
+        (Ok(src), Ok(d)) => ok(vfs::move_entries(&src, &d)),
+        (Err(e), _) | (_, Err(e)) => err(e),
     })
 }
 
-/// 在 `root` 下按名称递归搜索。
+/// 在 `root` 下按名称递归搜索（仅本地）。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_search(
     root: *const c_char,
@@ -226,14 +227,12 @@ pub unsafe extern "C" fn ordo_search(
     limit: u32,
 ) -> *mut c_char {
     guard(|| match (read_str(root), read_str(query)) {
-        (Ok(r), Ok(q)) => result(api::search(&r, &q, limit as usize)),
-        (Err(e), _) | (_, Err(e)) => {
-            into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string())
-        }
+        (Ok(r), Ok(q)) => result(vfs::search(&r, &q, limit as usize)),
+        (Err(e), _) | (_, Err(e)) => err(e),
     })
 }
 
-/// 列出可用的存储卷。
+/// 列出可用的本地存储卷。
 #[no_mangle]
 pub extern "C" fn ordo_storage_roots() -> *mut c_char {
     guard(|| ok(api::storage_roots()))
@@ -241,9 +240,9 @@ pub extern "C" fn ordo_storage_roots() -> *mut c_char {
 
 /// 读取任意文件的原始字节，返回指针并通过 `out_len` 回传长度。
 /// 调用方处理后必须调用 [`ordo_free_bytes`]。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_read_bytes(path: *const c_char, out_len: *mut usize) -> *mut u8 {
     if !out_len.is_null() {
@@ -253,7 +252,7 @@ pub unsafe extern "C" fn ordo_read_bytes(path: *const c_char, out_len: *mut usiz
         Ok(p) => p,
         Err(_) => return std::ptr::null_mut(),
     };
-    match catch_unwind(AssertUnwindSafe(|| api::read_bytes(&path))) {
+    match catch_unwind(AssertUnwindSafe(|| vfs::read(&path))) {
         Ok(Ok(bytes)) => {
             let boxed = bytes.into_boxed_slice();
             let len = boxed.len();
@@ -267,9 +266,9 @@ pub unsafe extern "C" fn ordo_read_bytes(path: *const c_char, out_len: *mut usiz
 }
 
 /// 释放 [`ordo_read_bytes`] 返回的内存。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：`ptr` 必须来自 [`ordo_read_bytes`]，`len` 为其返回的长度。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_free_bytes(ptr: *mut u8, len: usize) {
     if !ptr.is_null() && len > 0 {
@@ -279,9 +278,9 @@ pub unsafe extern "C" fn ordo_free_bytes(ptr: *mut u8, len: usize) {
 }
 
 /// 写入原始字节。
+///
 /// # Safety
-/// FFI 边界：传入的指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串
-/// （`ordo_read_bytes` / `ordo_write_bytes` 的缓冲区除外），且在本调用期间保持有效。
+/// FFI 边界：`path` 为合法 C 字符串；`data`/`len` 描述一段有效内存。
 #[no_mangle]
 pub unsafe extern "C" fn ordo_write_bytes(
     path: *const c_char,
@@ -291,21 +290,17 @@ pub unsafe extern "C" fn ordo_write_bytes(
     guard(|| {
         let p = match read_str(path) {
             Ok(p) => p,
-            Err(e) => {
-                return into_c_string(serde_json::json!({ "ok": false, "error": e }).to_string())
-            }
+            Err(e) => return err(e),
         };
         if data.is_null() && len > 0 {
-            return into_c_string(
-                serde_json::json!({ "ok": false, "error": "数据为空" }).to_string(),
-            );
+            return err("数据为空");
         }
         let slice = if len == 0 {
             &[][..]
         } else {
             std::slice::from_raw_parts(data, len)
         };
-        result(api::write_bytes(&p, slice))
+        result(vfs::write(&p, slice))
     })
 }
 
@@ -321,6 +316,124 @@ pub extern "C" fn ordo_ping() -> *mut c_char {
             .to_string(),
         )
     })
+}
+
+// ---------------------------------------------------------------------------
+// 导出函数：远程连接
+// ---------------------------------------------------------------------------
+
+/// 设置配置目录与缓存目录（应在启动时调用一次）。
+///
+/// # Safety
+/// FFI 边界：两个指针均为合法的 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_config_init(
+    config_dir: *const c_char,
+    cache_dir: *const c_char,
+) -> *mut c_char {
+    guard(|| match (read_str(config_dir), read_str(cache_dir)) {
+        (Ok(config), Ok(cache)) => {
+            remote::init(&config, &cache);
+            ok(serde_json::Value::Null)
+        }
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
+/// 列出全部连接配置。
+#[no_mangle]
+pub extern "C" fn ordo_profile_list() -> *mut c_char {
+    guard(|| ok(remote::list_profiles()))
+}
+
+/// 新增或更新一条连接配置（入参为 JSON）。
+///
+/// # Safety
+/// FFI 边界：指针为合法的 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_profile_save(profile: *const c_char) -> *mut c_char {
+    guard(|| match read_profile(profile) {
+        Ok(p) => result(remote::save_profile(p)),
+        Err(e) => err(e),
+    })
+}
+
+/// 删除一条连接配置。
+///
+/// # Safety
+/// FFI 边界：指针为合法的 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_profile_remove(id: *const c_char) -> *mut c_char {
+    guard(|| match read_str(id) {
+        Ok(id) => result(remote::remove_profile(&id).map(|_| serde_json::Value::Null)),
+        Err(e) => err(e),
+    })
+}
+
+/// 测试连接（入参为 JSON 配置，不会保存）。
+///
+/// # Safety
+/// FFI 边界：指针为合法的 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_profile_test(profile: *const c_char) -> *mut c_char {
+    guard(|| match read_profile(profile) {
+        Ok(p) => result(remote::test_profile(&p).map(|_| serde_json::Value::Null)),
+        Err(e) => err(e),
+    })
+}
+
+/// 断开指定连接。
+///
+/// # Safety
+/// FFI 边界：指针为合法的 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_net_disconnect(id: *const c_char) -> *mut c_char {
+    guard(|| match read_str(id) {
+        Ok(id) => result(remote::disconnect(&id).map(|_| serde_json::Value::Null)),
+        Err(e) => err(e),
+    })
+}
+
+/// 把远程文件下载到本地缓存目录，返回本地路径（供系统应用打开）。
+///
+/// # Safety
+/// FFI 边界：指针为合法的 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_net_download(uri: *const c_char) -> *mut c_char {
+    guard(|| match read_str(uri) {
+        Ok(uri) => result(download_to_cache(&uri)),
+        Err(e) => err(e),
+    })
+}
+
+fn download_to_cache(uri: &str) -> Result<serde_json::Value, String> {
+    let cache = remote::cache_dir().ok_or_else(|| "缓存目录不可用".to_string())?;
+    std::fs::create_dir_all(&cache).map_err(|e| format!("创建缓存目录失败：{e}"))?;
+    let data = vfs::read(uri)?;
+    let name = uri
+        .trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .filter(|n| !n.is_empty())
+        .unwrap_or("download");
+    let safe: String = name
+        .chars()
+        .map(|c| {
+            if c == '/' || c == '\\' || c == '\0' {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let dest: PathBuf = cache.join(format!("{nanos}-{safe}"));
+    std::fs::write(&dest, data).map_err(|e| format!("写入缓存失败：{e}"))?;
+    let path = Path::new(&dest).to_string_lossy().into_owned();
+    Ok(serde_json::json!({ "path": path, "name": name }))
 }
 
 #[cfg(test)]
@@ -388,7 +501,7 @@ mod tests {
     fn read_text_roundtrip() {
         let dir = temp("text");
         let file = dir.join("note.md");
-        api::write_text(file.to_str().unwrap(), "# 标题").unwrap();
+        fs::write(&file, "# 标题").unwrap();
         let read = api::read_text(file.to_str().unwrap(), 0).unwrap();
         assert_eq!(read["content"], "# 标题");
         fs::remove_dir_all(&dir).unwrap();
@@ -402,6 +515,19 @@ mod tests {
         assert!(api::rename(file.to_str().unwrap(), "a/b").is_err());
         assert!(api::rename(file.to_str().unwrap(), "y").is_ok());
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn remote_uri_parsing() {
+        let (scheme, id, inner) = remote::parse("ftp://abc/dir/file").unwrap();
+        assert_eq!(scheme, "ftp");
+        assert_eq!(id, "abc");
+        assert_eq!(inner, "/dir/file");
+        assert_eq!(remote::parent_inner(&inner), "/dir");
+        assert_eq!(remote::join_inner("/dir", "x"), "/dir/x");
+        assert_eq!(remote::make_path("smb", "1", "a/b"), "smb://1/a/b");
+        assert!(remote::is_remote("webdav://1/"));
+        assert!(!remote::is_remote("/storage/emulated/0"));
     }
 
     #[test]

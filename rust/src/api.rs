@@ -135,15 +135,6 @@ pub fn read_text(path: &str, max_bytes: u64) -> Result<Value, String> {
     }
 }
 
-pub fn write_text(path: &str, content: &str) -> Result<FileEntry, String> {
-    let p = Path::new(path);
-    if p.is_dir() {
-        return Err("目标是文件夹".into());
-    }
-    std::fs::write(p, content.as_bytes()).map_err(|e| format!("写入失败：{e}"))?;
-    stat(path)
-}
-
 pub fn create_dir(path: &str) -> Result<FileEntry, String> {
     if Path::new(path).exists() {
         return Err("路径已存在".into());

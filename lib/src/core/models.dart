@@ -174,3 +174,130 @@ class SearchOutcome {
     );
   }
 }
+
+/// 一条远程连接配置（WebDAV / FTP / SMB）。
+class ConnectionProfile {
+  const ConnectionProfile({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.host,
+    required this.port,
+    required this.username,
+    required this.password,
+    required this.basePath,
+    required this.share,
+    required this.domain,
+    required this.secure,
+    required this.insecureTls,
+  });
+
+  final String id;
+  final String name;
+  final String kind;
+  final String host;
+  final int port;
+  final String username;
+  final String password;
+  final String basePath;
+  final String share;
+  final String domain;
+  final bool secure;
+  final bool insecureTls;
+
+  static const ConnectionProfile empty = ConnectionProfile(
+    id: '',
+    name: '',
+    kind: 'webdav',
+    host: '',
+    port: 0,
+    username: '',
+    password: '',
+    basePath: '',
+    share: '',
+    domain: '',
+    secure: false,
+    insecureTls: false,
+  );
+
+  factory ConnectionProfile.fromJson(Map<String, dynamic> json) {
+    return ConnectionProfile(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      kind: json['kind'] as String? ?? 'webdav',
+      host: json['host'] as String? ?? '',
+      port: (json['port'] as num?)?.toInt() ?? 0,
+      username: json['username'] as String? ?? '',
+      password: json['password'] as String? ?? '',
+      basePath: json['base_path'] as String? ?? '',
+      share: json['share'] as String? ?? '',
+      domain: json['domain'] as String? ?? '',
+      secure: json['secure'] as bool? ?? false,
+      insecureTls: json['insecure_tls'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'kind': kind,
+    'host': host,
+    'port': port,
+    'username': username,
+    'password': password,
+    'base_path': basePath,
+    'share': share,
+    'domain': domain,
+    'secure': secure,
+    'insecure_tls': insecureTls,
+  };
+
+  String get scheme => kind;
+
+  String get rootUri => '$kind://$id/';
+
+  ConnectionProfile copyWith({
+    String? id,
+    String? name,
+    String? kind,
+    String? host,
+    int? port,
+    String? username,
+    String? password,
+    String? basePath,
+    String? share,
+    String? domain,
+    bool? secure,
+    bool? insecureTls,
+  }) {
+    return ConnectionProfile(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      kind: kind ?? this.kind,
+      host: host ?? this.host,
+      port: port ?? this.port,
+      username: username ?? this.username,
+      password: password ?? this.password,
+      basePath: basePath ?? this.basePath,
+      share: share ?? this.share,
+      domain: domain ?? this.domain,
+      secure: secure ?? this.secure,
+      insecureTls: insecureTls ?? this.insecureTls,
+    );
+  }
+}
+
+/// `ordo_net_download` 的结果。
+class CacheFile {
+  const CacheFile({required this.path, required this.name});
+
+  final String path;
+  final String name;
+
+  factory CacheFile.fromJson(Map<String, dynamic> json) {
+    return CacheFile(
+      path: json['path'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+    );
+  }
+}

@@ -109,4 +109,45 @@ class OrdoService {
         .map((e) => StorageRoot.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
+
+  // -------------------------------------------------------------------------
+  // 远程连接（WebDAV / FTP / SMB）
+  // -------------------------------------------------------------------------
+
+  /// 设置配置目录与缓存目录，启动时调用一次。
+  void configInit({required String configDir, required String cacheDir}) {
+    _direct('configInit', [configDir, cacheDir]);
+  }
+
+  Future<List<ConnectionProfile>> profiles() async {
+    final data = _direct('profileList');
+    return (data as List)
+        .map(
+          (e) => ConnectionProfile.fromJson((e as Map).cast<String, dynamic>()),
+        )
+        .toList();
+  }
+
+  Future<ConnectionProfile> saveProfile(ConnectionProfile profile) async {
+    final data = _direct('profileSave', [jsonEncode(profile.toJson())]);
+    return ConnectionProfile.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<void> removeProfile(String id) async {
+    _direct('profileRemove', [id]);
+  }
+
+  Future<void> testProfile(ConnectionProfile profile) async {
+    await _background('profileTest', [jsonEncode(profile.toJson())]);
+  }
+
+  Future<void> disconnect(String id) async {
+    _direct('netDisconnect', [id]);
+  }
+
+  /// 把远程文件下载到本地缓存，返回本地路径。
+  Future<CacheFile> downloadToCache(String uri) async {
+    final data = await _background('netDownload', [uri]);
+    return CacheFile.fromJson((data as Map).cast<String, dynamic>());
+  }
 }

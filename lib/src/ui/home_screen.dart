@@ -4,7 +4,10 @@ import '../core/format.dart';
 import '../core/models.dart';
 import '../core/ordo_exception.dart';
 import '../services/ordo_service.dart';
+import '../state/connections.dart';
 import 'browser_screen.dart';
+import 'connection_edit.dart';
+import 'dialogs.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.version});
@@ -17,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final OrdoService _service = OrdoService.instance;
+  final ConnectionStore _connections = ConnectionStore.instance;
 
   List<StorageRoot> _roots = const [];
   List<_QuickFolder> _quickFolders = const [];
@@ -35,7 +39,19 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _connections.addListener(_onConnectionsChanged);
+    _connections.load();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _connections.removeListener(_onConnectionsChanged);
+    super.dispose();
+  }
+
+  void _onConnectionsChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _load() async {
@@ -170,6 +186,37 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ],
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _sectionTitle('网络位置')),
+            TextButton.icon(
+              onPressed: () => _editConnection(null),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('添加'),
+            ),
+          ],
+        ),
+        for (final profile in _connections.profiles) ...[
+          _ConnectionCard(
+            profile: profile,
+            onTap: () => _openPath(profile.rootUri, profile.name),
+            onEdit: () => _editConnection(profile),
+            onTest: () => _testConnection(profile),
+            onDelete: () => _deleteConnection(profile),
+          ),
+          const SizedBox(height: 10),
+        ],
+        if (_connections.profiles.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              '添加 WebDAV / FTP / SMB 连接后可在此访问。',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         const SizedBox(height: 24),
         Center(
           child: Text(
@@ -180,6 +227,50 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _editConnection(ConnectionProfile? existing) async {
+    final result = await showConnectionEditor(context, initial: existing);
+    if (result == null || !mounted) return;
+    try {
+      await _connections.save(result);
+      _snack('已保存「${result.name}」');
+    } catch (error) {
+      _snack('$error');
+    }
+  }
+
+  Future<void> _testConnection(ConnectionProfile profile) async {
+    _snack('正在测试「${profile.name}」…');
+    try {
+      await _connections.test(profile);
+      _snack('连接成功：${profile.name}');
+    } catch (error) {
+      _snack('连接失败：$error');
+    }
+  }
+
+  Future<void> _deleteConnection(ConnectionProfile profile) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: '删除连接',
+      message: '确定删除「${profile.name}」吗？',
+      confirmLabel: '删除',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await _connections.remove(profile);
+    } catch (error) {
+      _snack('$error');
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _sectionTitle(String text) {
@@ -327,4 +418,68 @@ class _QuickFolder {
 
   _QuickFolder withPath(String value) =>
       _QuickFolder(label, segment, icon, value);
+}
+
+class _ConnectionCard extends StatelessWidget {
+  const _ConnectionCard({
+    required this.profile,
+    required this.onTap,
+    required this.onEdit,
+    required this.onTest,
+    required this.onDelete,
+  });
+
+  final ConnectionProfile profile;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onTest;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final (IconData icon, String label) = switch (profile.kind) {
+      'smb' => (Icons.lan_rounded, 'SMB'),
+      'ftp' => (Icons.cloud_upload_rounded, 'FTP'),
+      _ => (Icons.cloud_rounded, 'WebDAV'),
+    };
+
+    return Card(
+      elevation: 0,
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: scheme.primaryContainer,
+          child: Icon(icon, color: scheme.onPrimaryContainer),
+        ),
+        title: Text(profile.name),
+        subtitle: Text(
+          '$label · ${profile.host}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: PopupMenuButton<String>(
+          tooltip: '更多',
+          onSelected: (value) {
+            switch (value) {
+              case 'edit':
+                onEdit();
+              case 'test':
+                onTest();
+              case 'delete':
+                onDelete();
+            }
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'edit', child: Text('编辑')),
+            PopupMenuItem(value: 'test', child: Text('测试连接')),
+            PopupMenuItem(value: 'delete', child: Text('删除')),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -99,6 +99,26 @@ class _OrdoBindings {
       .lookupFunction<_NativeFreeBytes, _DartFreeBytes>('ordo_free_bytes');
   late final _DartWriteBytes writeBytes = _lib
       .lookupFunction<_NativeWriteBytes, _DartWriteBytes>('ordo_write_bytes');
+  late final _Dart2 configInit = _lib.lookupFunction<_Native2, _Dart2>(
+    'ordo_config_init',
+  );
+  late final _DartZero profileList = _lib
+      .lookupFunction<_NativeZero, _DartZero>('ordo_profile_list');
+  late final _Dart1 profileSave = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_profile_save',
+  );
+  late final _Dart1 profileRemove = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_profile_remove',
+  );
+  late final _Dart1 profileTest = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_profile_test',
+  );
+  late final _Dart1 netDisconnect = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_net_disconnect',
+  );
+  late final _Dart1 netDownload = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_net_download',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -223,6 +243,55 @@ dynamic nativeExecute(String op, List<Object?> args) {
       return _readBytes(bindings, args[0] as String);
     case 'writeBytes':
       return _writeBytes(bindings, args[0] as String, args[1] as Uint8List);
+    case 'configInit':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (dir) {
+            return _withCString(
+              args[1] as String,
+              (cache) => bindings.configInit(dir, cache),
+            );
+          }),
+        ),
+      );
+    case 'profileList':
+      return _decode(_take(bindings, bindings.profileList()));
+    case 'profileSave':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (json) => bindings.profileSave(json)),
+        ),
+      );
+    case 'profileRemove':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (id) => bindings.profileRemove(id)),
+        ),
+      );
+    case 'profileTest':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (json) => bindings.profileTest(json)),
+        ),
+      );
+    case 'netDisconnect':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (id) => bindings.netDisconnect(id)),
+        ),
+      );
+    case 'netDownload':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (uri) => bindings.netDownload(uri)),
+        ),
+      );
     default:
       throw OrdoException('未知操作：$op');
   }

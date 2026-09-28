@@ -41,6 +41,12 @@ class MainActivity : FlutterActivity() {
                         sendFile(call.argument("path"), call.argument("mime"))
                     )
                     "sdkInt" -> result.success(Build.VERSION.SDK_INT)
+                    "paths" -> result.success(
+                        mapOf(
+                            "filesDir" to filesDir.absolutePath,
+                            "cacheDir" to cacheDir.absolutePath,
+                        )
+                    )
                     else -> result.notImplemented()
                 }
             }

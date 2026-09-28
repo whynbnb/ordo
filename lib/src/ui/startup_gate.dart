@@ -60,6 +60,14 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
       return;
     }
 
+    final paths = await PlatformService.appPaths();
+    if (paths != null) {
+      OrdoService.instance.configInit(
+        configDir: paths.filesDir,
+        cacheDir: paths.cacheDir,
+      );
+    }
+
     final granted = await _hasPermission();
     if (!mounted) return;
     setState(() {

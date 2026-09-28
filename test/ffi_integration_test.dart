@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ordo/src/core/models.dart';
 import 'package:ordo/src/services/ordo_service.dart';
 
 /// 端到端验证 Dart <-> Rust 的 C ABI。
@@ -80,5 +81,44 @@ void main() {
 
     final read = await service.readBytes(file);
     expect(read, [1, 2, 3, 4, 5]);
+  });
+
+  // 远程连接配置的增删查（不需要真实服务器）。
+  test('连接配置可保存、读取、删除并持久化', () async {
+    final dir = Directory.systemTemp.createTempSync('ordo_cfg_');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    service.configInit(
+      configDir: '${dir.path}/config',
+      cacheDir: '${dir.path}/cache',
+    );
+
+    final initial = await service.profiles();
+    expect(initial, isEmpty);
+
+    final saved = await service.saveProfile(
+      const ConnectionProfile(
+        id: '',
+        name: '测试 FTP',
+        kind: 'ftp',
+        host: '127.0.0.1',
+        port: 21,
+        username: 'user',
+        password: 'pass',
+        basePath: '/pub',
+        share: '',
+        domain: '',
+        secure: false,
+        insecureTls: false,
+      ),
+    );
+    expect(saved.id, isNotEmpty);
+    expect(saved.name, '测试 FTP');
+
+    final listed = await service.profiles();
+    expect(listed.length, 1);
+    expect(listed.first.host, '127.0.0.1');
+
+    await service.removeProfile(saved.id);
+    expect(await service.profiles(), isEmpty);
   });
 }
