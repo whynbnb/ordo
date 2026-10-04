@@ -119,6 +119,9 @@ class _OrdoBindings {
   late final _Dart1 netDownload = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_net_download',
   );
+  late final _Dart1 storageHints = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_storage_hints',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +242,16 @@ dynamic nativeExecute(String op, List<Object?> args) {
       );
     case 'storageRoots':
       return _decode(_take(bindings, bindings.storageRoots()));
+    case 'storageHints':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (json) => bindings.storageHints(json),
+          ),
+        ),
+      );
     case 'readBytes':
       return _readBytes(bindings, args[0] as String);
     case 'writeBytes':

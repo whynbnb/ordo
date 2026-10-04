@@ -62,6 +62,24 @@ class PlatformService {
     }
   }
 
+  /// Android `StorageManager` 中的卷信息（含可插拔 USB / 存储卡）。
+  ///
+  /// 非 Android 平台或原生层不可用时返回空列表，Rust 侧会退回自动探测。
+  static Future<List<Map<String, dynamic>>> storageVolumes() async {
+    try {
+      final result = await _channel.invokeListMethod<dynamic>('storageVolumes');
+      if (result == null) return const [];
+      return result
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
+    } on PlatformException {
+      return const [];
+    } on MissingPluginException {
+      return const [];
+    }
+  }
+
   static Future<bool> _invokeBool(
     String method,
     Map<String, Object?> args,

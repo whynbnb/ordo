@@ -18,7 +18,7 @@ pub struct FileEntry {
     pub writable: bool,
 }
 
-/// 可浏览的存储卷（内部存储 / 存储卡）。
+/// 可浏览的存储卷（内部存储 / 存储卡 / USB 存储）。
 #[derive(Debug, Clone, Serialize)]
 pub struct StorageRoot {
     pub name: String,
@@ -27,6 +27,8 @@ pub struct StorageRoot {
     pub total: u64,
     pub free: u64,
     pub removable: bool,
+    /// 应用是否有权限读取该卷（部分 USB 卷可能被系统限制访问）。
+    pub readable: bool,
 }
 
 fn to_secs(t: std::io::Result<SystemTime>) -> i64 {

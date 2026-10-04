@@ -8,6 +8,7 @@
 mod api;
 mod model;
 mod remote;
+mod storage;
 mod vfs;
 
 use remote::ProfileSpec;
@@ -232,10 +233,31 @@ pub unsafe extern "C" fn ordo_search(
     })
 }
 
-/// 列出可用的本地存储卷。
+/// 列出可用的本地存储卷（内部存储 / 存储卡 / USB 存储）。
 #[no_mangle]
 pub extern "C" fn ordo_storage_roots() -> *mut c_char {
-    guard(|| ok(api::storage_roots()))
+    guard(|| ok(storage::storage_roots()))
+}
+
+/// 写入来自 Android `StorageManager` 的卷信息（用于命名与兜底）。
+///
+/// 入参为 JSON 数组，元素形如
+/// `{"path":...,"description":...,"removable":...,"primary":...,"state":...,"uuid":...}`。
+///
+/// # Safety
+/// FFI 边界：指针为合法的 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_storage_hints(hints: *const c_char) -> *mut c_char {
+    guard(|| match read_str(hints) {
+        Ok(raw) => match serde_json::from_str::<Vec<storage::StorageHint>>(&raw) {
+            Ok(list) => {
+                storage::set_hints(list);
+                ok(serde_json::Value::Null)
+            }
+            Err(e) => err(format!("存储卷信息无效：{e}")),
+        },
+        Err(e) => err(e),
+    })
 }
 
 /// 读取任意文件的原始字节，返回指针并通过 `out_len` 回传长度。

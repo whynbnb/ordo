@@ -2,11 +2,13 @@ package com.ordo.ordo
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.storage.StorageManager
 import android.provider.Settings
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
@@ -41,6 +43,7 @@ class MainActivity : FlutterActivity() {
                         sendFile(call.argument("path"), call.argument("mime"))
                     )
                     "sdkInt" -> result.success(Build.VERSION.SDK_INT)
+                    "storageVolumes" -> result.success(storageVolumes())
                     "paths" -> result.success(
                         mapOf(
                             "filesDir" to filesDir.absolutePath,
@@ -59,6 +62,34 @@ class MainActivity : FlutterActivity() {
             checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
                 PackageManager.PERMISSION_GRANTED
         }
+    }
+
+    /**
+     * 通过 StorageManager 枚举所有卷（含可插拔 USB / 存储卡）。
+     * 目录路径仅在 Android 11（API 30）及以上可用；更早版本由 Rust 侧自行探测。
+     */
+    private fun storageVolumes(): List<Map<String, Any?>> {
+        val manager = getSystemService(Context.STORAGE_SERVICE) as? StorageManager
+            ?: return emptyList()
+        val volumes = mutableListOf<Map<String, Any?>>()
+        for (volume in manager.storageVolumes) {
+            val directory = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                volume.directory?.absolutePath
+            } else {
+                null
+            }
+            volumes.add(
+                mapOf(
+                    "path" to directory,
+                    "description" to volume.getDescription(this),
+                    "removable" to volume.isRemovable,
+                    "primary" to volume.isPrimary,
+                    "state" to volume.state,
+                    "uuid" to volume.uuid,
+                )
+            )
+        }
+        return volumes
     }
 
     private fun requestStoragePermission(result: MethodChannel.Result) {

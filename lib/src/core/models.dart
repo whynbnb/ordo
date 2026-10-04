@@ -75,6 +75,7 @@ class StorageRoot {
     required this.total,
     required this.free,
     required this.removable,
+    required this.readable,
   });
 
   final String name;
@@ -83,6 +84,7 @@ class StorageRoot {
   final int total;
   final int free;
   final bool removable;
+  final bool readable;
 
   factory StorageRoot.fromJson(Map<String, dynamic> json) {
     return StorageRoot(
@@ -92,8 +94,11 @@ class StorageRoot {
       total: (json['total'] as num?)?.toInt() ?? 0,
       free: (json['free'] as num?)?.toInt() ?? 0,
       removable: json['removable'] as bool? ?? false,
+      readable: json['readable'] as bool? ?? true,
     );
   }
+
+  bool get isUsb => kind == 'usb';
 
   int get used => total - free;
 

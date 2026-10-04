@@ -14,7 +14,7 @@
 
 ## 功能
 
-- 浏览内部存储与存储卡，展示容量占用
+- 浏览内部存储、可移动存储卡与可插拔 USB 存储（U 盘 / 移动硬盘），展示容量占用
 - 常用目录快捷入口（下载 / 图片 / 相机 / 音乐 / 视频 / 文档）
 - 新建文件夹 / 文件、重命名、删除
 - 复制 / 剪切 / 粘贴（跨目录）
@@ -31,6 +31,10 @@
 
 > 说明：FTP 目前仅支持明文（未实现 FTPS）；WebDAV 支持 HTTPS 且可选择信任自签名证书。
 > SMB 的共享名可以留空，此时连接根目录会列出服务器上的全部共享。
+>
+> 外部介质：应用会解析 `/proc/self/mountinfo` 并借助 Android `StorageManager`
+> 识别存储卡与可插拔 USB 存储；插入 / 拔出后回到前台或下拉刷新即可更新列表。
+> 部分设备若未向应用开放 USB 卷的底层路径，会以「无法访问」提示（受系统限制）。
 
 ## 架构
 
@@ -44,6 +48,7 @@ rust/                     Rust 核心（cdylib）
   src/lib.rs              C ABI 导出与 panic 防护
   src/api.rs              本地文件系统实现
   src/vfs.rs              统一门面：本地路径与远程 URI 走同一接口
+  src/storage.rs          存储卷发现（内部 / 存储卡 / USB）
   src/remote/             WebDAV / FTP / SMB 客户端与连接会话
   src/model.rs            元数据模型
 android/                  Android 工程

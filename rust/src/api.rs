@@ -1,11 +1,8 @@
-use crate::model::{build_entry, FileEntry, StorageRoot};
+use crate::model::{build_entry, FileEntry};
 use serde_json::{json, Value};
 use std::cmp::Ordering;
-use std::ffi::CString;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-
-const INTERNAL_STORAGE: &str = "/storage/emulated/0";
 
 // ---------------------------------------------------------------------------
 // 排序
@@ -373,70 +370,6 @@ pub fn search(root: &str, query: &str, limit: usize) -> Result<Value, String> {
 
     sort_entries(&mut results);
     Ok(json!({ "entries": results, "truncated": truncated, "scanned": scanned }))
-}
-
-// ---------------------------------------------------------------------------
-// 存储卷
-// ---------------------------------------------------------------------------
-
-fn disk_space(path: &str) -> (u64, u64) {
-    let Ok(c_path) = CString::new(path) else {
-        return (0, 0);
-    };
-    unsafe {
-        let mut st: libc::statvfs = std::mem::zeroed();
-        if libc::statvfs(c_path.as_ptr(), &mut st) == 0 {
-            let block = st.f_frsize as u64;
-            (st.f_blocks as u64 * block, st.f_bavail as u64 * block)
-        } else {
-            (0, 0)
-        }
-    }
-}
-
-fn make_root(name: &str, path: &str, kind: &str, removable: bool) -> StorageRoot {
-    let (total, free) = disk_space(path);
-    StorageRoot {
-        name: name.to_string(),
-        path: path.to_string(),
-        kind: kind.to_string(),
-        total,
-        free,
-        removable,
-    }
-}
-
-pub fn storage_roots() -> Vec<StorageRoot> {
-    let mut roots: Vec<StorageRoot> = Vec::new();
-
-    if Path::new(INTERNAL_STORAGE).is_dir() {
-        roots.push(make_root("内部存储", INTERNAL_STORAGE, "internal", false));
-    }
-
-    if let Ok(rd) = std::fs::read_dir("/storage") {
-        let mut external: Vec<(String, String)> = Vec::new();
-        for item in rd.flatten() {
-            let name = item.file_name().to_string_lossy().into_owned();
-            if name == "emulated" || name == "self" || name == "enc_emulated" {
-                continue;
-            }
-            let p = item.path();
-            if p.is_dir() {
-                external.push((name, p.to_string_lossy().into_owned()));
-            }
-        }
-        external.sort_by(|a, b| a.0.cmp(&b.0));
-        for (id, path) in external {
-            roots.push(make_root(
-                &format!("存储卡 ({id})"),
-                &path,
-                "external",
-                true,
-            ));
-        }
-    }
-
-    roots
 }
 
 // ---------------------------------------------------------------------------

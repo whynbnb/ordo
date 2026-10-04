@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import '../core/models.dart';
 import '../ffi/native.dart';
+import 'platform_service.dart';
 
 /// Ordo 的文件系统门面。所有操作都经由 Rust 核心完成。
 ///
@@ -104,6 +105,12 @@ class OrdoService {
   }
 
   Future<List<StorageRoot>> storageRoots() async {
+    try {
+      final hints = await PlatformService.storageVolumes();
+      _direct('storageHints', [jsonEncode(hints)]);
+    } catch (_) {
+      // 非 Android 或原生层不可用时忽略，Rust 侧会自行探测。
+    }
     final data = _direct('storageRoots');
     return (data as List)
         .map((e) => StorageRoot.fromJson((e as Map).cast<String, dynamic>()))

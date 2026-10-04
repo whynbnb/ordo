@@ -18,7 +18,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final OrdoService _service = OrdoService.instance;
   final ConnectionStore _connections = ConnectionStore.instance;
 
@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _connections.addListener(_onConnectionsChanged);
     _connections.load();
     _load();
@@ -46,19 +47,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connections.removeListener(_onConnectionsChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 回到前台时重新探测存储卷，以便识别刚插入 / 拔出的 U 盘或存储卡。
+    if (state == AppLifecycleState.resumed) {
+      _load(showSpinner: false);
+    }
   }
 
   void _onConnectionsChanged() {
     if (mounted) setState(() {});
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool showSpinner = true}) async {
+    if (showSpinner) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final roots = await _service.storageRoots();
       final quick = <_QuickFolder>[];
@@ -87,22 +99,29 @@ class _HomeScreenState extends State<HomeScreen> {
         _roots = roots;
         _quickFolders = quick;
         _loading = false;
+        _error = null;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = '$error';
+        // 静默刷新失败时保留原列表。
+        if (showSpinner) _error = '$error';
       });
     }
   }
 
   void _openPath(String path, String title) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => BrowserScreen(path: path, title: title),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (_) => BrowserScreen(path: path, title: title),
+          ),
+        )
+        // 返回时静默刷新，及时反映已拔出的外部介质。
+        .then((_) {
+          if (mounted) _load(showSpinner: false);
+        });
   }
 
   @override
@@ -118,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
+      body: RefreshIndicator(onRefresh: () => _load(), child: _buildBody()),
     );
   }
 
@@ -139,7 +158,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 16),
                   Text(_error!, textAlign: TextAlign.center),
                   const SizedBox(height: 16),
-                  FilledButton.tonal(onPressed: _load, child: const Text('重试')),
+                  FilledButton.tonal(
+                    onPressed: () => _load(),
+                    child: const Text('重试'),
+                  ),
                 ],
               ),
             ),
@@ -318,7 +340,7 @@ class _StorageCard extends StatelessWidget {
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onTap,
+        onTap: root.readable ? onTap : null,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -326,12 +348,14 @@ class _StorageCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(
-                    root.removable
-                        ? Icons.sd_card_rounded
-                        : Icons.smartphone_rounded,
-                    color: scheme.primary,
-                  ),
+                  Icon(switch (root.kind) {
+                    'usb' => Icons.usb_rounded,
+                    'external' => Icons.sd_card_rounded,
+                    _ =>
+                      root.removable
+                          ? Icons.sd_card_rounded
+                          : Icons.smartphone_rounded,
+                  }, color: root.readable ? scheme.primary : scheme.outline),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -372,6 +396,26 @@ class _StorageCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: scheme.onSurfaceVariant),
               ),
+              if (!root.readable) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      size: 14,
+                      color: scheme.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '系统未向本应用开放该卷的访问权限',
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.error),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
