@@ -80,8 +80,34 @@ class OrdoService {
     return FileEntry.fromJson((data as Map).cast<String, dynamic>());
   }
 
-  Future<DeleteResult> delete(List<String> paths) async {
-    final data = await _background('delete', [jsonEncode(paths)]);
+  Future<DeleteResult> delete(List<String> paths, {bool toTrash = true}) async {
+    final data = await _background('delete', [jsonEncode(paths), toTrash]);
+    return DeleteResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  // -------------------------------------------------------------------------
+  // 回收站
+  // -------------------------------------------------------------------------
+
+  Future<List<TrashEntry>> trashList() async {
+    final data = _direct('trashList');
+    return (data as List)
+        .map((e) => TrashEntry.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<TrashRestoreResult> trashRestore(List<String> ids) async {
+    final data = await _background('trashRestore', [jsonEncode(ids)]);
+    return TrashRestoreResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<int> trashEmpty() async {
+    final data = await _background('trashEmpty', const []);
+    return (data as Map)['deleted'] as int? ?? 0;
+  }
+
+  Future<DeleteResult> trashRemove(List<String> ids) async {
+    final data = await _background('trashRemove', [jsonEncode(ids)]);
     return DeleteResult.fromJson((data as Map).cast<String, dynamic>());
   }
 

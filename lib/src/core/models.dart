@@ -142,14 +142,71 @@ class TransferResult {
 }
 
 class DeleteResult {
-  const DeleteResult({required this.deleted, required this.errors});
+  const DeleteResult({
+    required this.deleted,
+    required this.trashed,
+    required this.errors,
+  });
 
   final int deleted;
+  final int trashed;
   final List<String> errors;
 
   factory DeleteResult.fromJson(Map<String, dynamic> json) {
     return DeleteResult(
       deleted: (json['deleted'] as num?)?.toInt() ?? 0,
+      trashed: (json['trashed'] as num?)?.toInt() ?? 0,
+      errors:
+          (json['errors'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
+    );
+  }
+}
+
+/// 回收站条目。
+class TrashEntry {
+  const TrashEntry({
+    required this.id,
+    required this.name,
+    required this.originalPath,
+    required this.deletedAt,
+    required this.isDir,
+    required this.size,
+  });
+
+  final String id;
+  final String name;
+  final String originalPath;
+  final int deletedAt;
+  final bool isDir;
+  final int size;
+
+  factory TrashEntry.fromJson(Map<String, dynamic> json) {
+    return TrashEntry(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      originalPath: json['original_path'] as String? ?? '',
+      deletedAt: (json['deleted_at'] as num?)?.toInt() ?? 0,
+      isDir: json['is_dir'] as bool? ?? false,
+      size: (json['size'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  DateTime? get deletedTime => deletedAt > 0
+      ? DateTime.fromMillisecondsSinceEpoch(deletedAt * 1000)
+      : null;
+}
+
+/// 回收站恢复结果。
+class TrashRestoreResult {
+  const TrashRestoreResult({required this.restored, required this.errors});
+
+  final int restored;
+  final List<String> errors;
+
+  factory TrashRestoreResult.fromJson(Map<String, dynamic> json) {
+    return TrashRestoreResult(
+      restored: (json['restored'] as num?)?.toInt() ?? 0,
       errors:
           (json['errors'] as List?)?.map((e) => e.toString()).toList() ??
           const [],

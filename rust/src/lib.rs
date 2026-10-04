@@ -12,6 +12,7 @@ mod model;
 mod remote;
 mod server;
 mod storage;
+mod trash;
 mod vfs;
 
 use remote::ProfileSpec;
@@ -172,14 +173,15 @@ pub unsafe extern "C" fn ordo_create_file(path: *const c_char) -> *mut c_char {
     })
 }
 
-/// 递归删除一组路径。入参为 JSON 字符串数组；支持本地与远程路径。
+/// 删除一组路径。入参为 JSON 字符串数组；支持本地与远程路径。
+/// `to_trash` 为真时本地文件移入回收站（可恢复）。
 ///
 /// # Safety
 /// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
-pub unsafe extern "C" fn ordo_delete(paths: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn ordo_delete(paths: *const c_char, to_trash: bool) -> *mut c_char {
     guard(|| match read_paths(paths) {
-        Ok(list) => ok(vfs::delete(&list)),
+        Ok(list) => ok(trash::delete(&list, to_trash)),
         Err(e) => err(e),
     })
 }
@@ -566,6 +568,46 @@ pub unsafe extern "C" fn ordo_favorite_add(
 pub unsafe extern "C" fn ordo_favorite_remove(path: *const c_char) -> *mut c_char {
     guard(|| match read_str(path) {
         Ok(path) => result(favorites::remove(&path)),
+        Err(e) => err(e),
+    })
+}
+
+// ---------------------------------------------------------------------------
+// 导出函数：回收站
+// ---------------------------------------------------------------------------
+
+/// 列出回收站内容。
+#[no_mangle]
+pub extern "C" fn ordo_trash_list() -> *mut c_char {
+    guard(|| ok(trash::list()))
+}
+
+/// 恢复回收站中的若干条目（入参为 JSON id 数组）。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_trash_restore(ids: *const c_char) -> *mut c_char {
+    guard(|| match read_paths(ids) {
+        Ok(list) => ok(trash::restore(&list)),
+        Err(e) => err(e),
+    })
+}
+
+/// 清空回收站。
+#[no_mangle]
+pub extern "C" fn ordo_trash_empty() -> *mut c_char {
+    guard(|| ok(trash::empty()))
+}
+
+/// 从回收站彻底删除若干条目（入参为 JSON id 数组）。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_trash_remove(ids: *const c_char) -> *mut c_char {
+    guard(|| match read_paths(ids) {
+        Ok(list) => ok(trash::remove(&list)),
         Err(e) => err(e),
     })
 }

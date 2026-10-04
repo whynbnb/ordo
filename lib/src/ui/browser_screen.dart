@@ -442,22 +442,45 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
 
   Future<void> _delete(List<String> paths) async {
     if (paths.isEmpty) return;
-    final confirmed = await showConfirmDialog(
-      context,
-      title: '删除',
-      message: '确定删除选中的 ${paths.length} 项吗？此操作无法撤销。',
-      confirmLabel: '删除',
-      destructive: true,
+    final allowTrash = paths.every((path) => !isRemotePath(path));
+    final toTrash = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final scheme = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          title: const Text('删除'),
+          content: Text(
+            allowTrash
+                ? '确定删除选中的 ${paths.length} 项吗？\n移入回收站后可在「回收站」中恢复。'
+                : '确定删除选中的 ${paths.length} 项吗？\n网络位置不支持回收站，将永久删除。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text('永久删除', style: TextStyle(color: scheme.error)),
+            ),
+            if (allowTrash)
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('移入回收站'),
+              ),
+          ],
+        );
+      },
     );
-    if (!confirmed || !mounted) return;
+    if (toTrash == null || !mounted) return;
     try {
-      final result = await _service.delete(paths);
+      final result = await _service.delete(paths, toTrash: toTrash);
       _controller.clearSelection();
       await _controller.refresh();
-      _snack(
-        result.deleted > 0 ? '已删除 ${result.deleted} 项' : '删除失败',
-        errors: result.errors,
-      );
+      final parts = <String>[];
+      if (result.trashed > 0) parts.add('移入回收站 ${result.trashed} 项');
+      if (result.deleted > 0) parts.add('永久删除 ${result.deleted} 项');
+      _snack(parts.isEmpty ? '删除失败' : parts.join('，'), errors: result.errors);
     } catch (error) {
       _snack('$error');
     }

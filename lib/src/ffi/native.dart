@@ -28,6 +28,8 @@ typedef _DartZero = _CStr Function();
 typedef _NativeReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
 typedef _NativeImportFd = _CStr Function(Int32, _CStr, _CStr);
 typedef _DartImportFd = _CStr Function(int, _CStr, _CStr);
+typedef _NativeDelete = _CStr Function(_CStr, Bool);
+typedef _DartDelete = _CStr Function(_CStr, bool);
 typedef _DartReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
 typedef _NativeFreeBytes = Void Function(Pointer<Uint8>, UintPtr);
 typedef _DartFreeBytes = void Function(Pointer<Uint8>, int);
@@ -78,9 +80,8 @@ class _OrdoBindings {
   late final _Dart1 createFile = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_create_file',
   );
-  late final _Dart1 delete = _lib.lookupFunction<_Native1, _Dart1>(
-    'ordo_delete',
-  );
+  late final _DartDelete delete = _lib
+      .lookupFunction<_NativeDelete, _DartDelete>('ordo_delete');
   late final _Dart2 rename = _lib.lookupFunction<_Native2, _Dart2>(
     'ordo_rename',
   );
@@ -146,6 +147,18 @@ class _OrdoBindings {
   );
   late final _Dart1 favoriteRemove = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_favorite_remove',
+  );
+  late final _DartZero trashList = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_trash_list',
+  );
+  late final _Dart1 trashRestore = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_trash_restore',
+  );
+  late final _DartZero trashEmpty = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_trash_empty',
+  );
+  late final _Dart1 trashRemove = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_trash_remove',
   );
 }
 
@@ -215,7 +228,10 @@ dynamic nativeExecute(String op, List<Object?> args) {
       return _decode(
         _take(
           bindings,
-          _withCString(args[0] as String, (p) => bindings.delete(p)),
+          _withCString(
+            args[0] as String,
+            (p) => bindings.delete(p, args[1] as bool),
+          ),
         ),
       );
     case 'rename':
@@ -334,6 +350,24 @@ dynamic nativeExecute(String op, List<Object?> args) {
             args[0] as String,
             (path) => bindings.favoriteRemove(path),
           ),
+        ),
+      );
+    case 'trashList':
+      return _decode(_take(bindings, bindings.trashList()));
+    case 'trashRestore':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (ids) => bindings.trashRestore(ids)),
+        ),
+      );
+    case 'trashEmpty':
+      return _decode(_take(bindings, bindings.trashEmpty()));
+    case 'trashRemove':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (ids) => bindings.trashRemove(ids)),
         ),
       );
     case 'readBytes':

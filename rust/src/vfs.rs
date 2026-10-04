@@ -155,18 +155,6 @@ pub fn remove_one(path: &str) -> Result<(), String> {
     }
 }
 
-pub fn delete(paths: &[String]) -> Value {
-    let mut deleted = 0u64;
-    let mut errors: Vec<String> = Vec::new();
-    for path in paths {
-        match remove_one(path) {
-            Ok(_) => deleted += 1,
-            Err(e) => errors.push(format!("{path}：{e}")),
-        }
-    }
-    json!({ "deleted": deleted, "errors": errors })
-}
-
 pub fn rename(path: &str, new_name: &str) -> Result<FileEntry, String> {
     if new_name.is_empty()
         || new_name.contains('/')
