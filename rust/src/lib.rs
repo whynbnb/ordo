@@ -6,6 +6,7 @@
 //! 分配，调用方使用 [`ordo_free_string`] 释放。
 
 mod api;
+mod favorites;
 mod importer;
 mod model;
 mod remote;
@@ -530,6 +531,43 @@ pub unsafe extern "C" fn ordo_server_config_save(config: *const c_char) -> *mut 
 #[no_mangle]
 pub extern "C" fn ordo_server_config_load() -> *mut c_char {
     guard(|| ok(server::load_config()))
+}
+
+// ---------------------------------------------------------------------------
+// 导出函数：收藏夹
+// ---------------------------------------------------------------------------
+
+/// 列出收藏。
+#[no_mangle]
+pub extern "C" fn ordo_favorite_list() -> *mut c_char {
+    guard(|| ok(favorites::list()))
+}
+
+/// 添加收藏（入参为显示名与路径）。
+///
+/// # Safety
+/// FFI 边界：两个指针均为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_favorite_add(
+    name: *const c_char,
+    path: *const c_char,
+) -> *mut c_char {
+    guard(|| match (read_str(name), read_str(path)) {
+        (Ok(name), Ok(path)) => result(favorites::add(&name, &path)),
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
+/// 移除收藏（按路径）。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_favorite_remove(path: *const c_char) -> *mut c_char {
+    guard(|| match read_str(path) {
+        Ok(path) => result(favorites::remove(&path)),
+        Err(e) => err(e),
+    })
 }
 
 #[cfg(test)]

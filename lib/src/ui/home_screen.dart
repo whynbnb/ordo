@@ -6,6 +6,7 @@ import '../core/ordo_exception.dart';
 import '../services/ordo_service.dart';
 import '../state/connections.dart';
 import '../state/drop_controller.dart';
+import '../state/favorites.dart';
 import '../state/route_observer.dart';
 import 'browser_screen.dart';
 import 'connection_edit.dart';
@@ -26,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen>
     with WidgetsBindingObserver, RouteAware {
   final OrdoService _service = OrdoService.instance;
   final ConnectionStore _connections = ConnectionStore.instance;
+  final FavoritesStore _favorites = FavoritesStore.instance;
 
   List<StorageRoot> _roots = const [];
   List<_QuickFolder> _quickFolders = const [];
@@ -45,8 +47,10 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _connections.addListener(_onConnectionsChanged);
+    _connections.addListener(_onStoreChanged);
+    _favorites.addListener(_onStoreChanged);
     _connections.load();
+    _favorites.loadIfNeeded();
     _load();
   }
 
@@ -81,7 +85,8 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     ordoRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
-    _connections.removeListener(_onConnectionsChanged);
+    _connections.removeListener(_onStoreChanged);
+    _favorites.removeListener(_onStoreChanged);
     super.dispose();
   }
 
@@ -93,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void _onConnectionsChanged() {
+  void _onStoreChanged() {
     if (mounted) setState(() {});
   }
 
@@ -261,6 +266,19 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
             ],
           ),
+        ],
+        if (_favorites.items.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _sectionTitle('收藏'),
+          const SizedBox(height: 8),
+          for (final favorite in _favorites.items) ...[
+            _FavoriteCard(
+              favorite: favorite,
+              onTap: () => _openPath(favorite.path, favorite.name),
+              onRemove: () => _favorites.remove(favorite.path),
+            ),
+            const SizedBox(height: 10),
+          ],
         ],
         const SizedBox(height: 16),
         Row(
@@ -576,6 +594,51 @@ class _ConnectionCard extends StatelessWidget {
             PopupMenuItem(value: 'test', child: Text('测试连接')),
             PopupMenuItem(value: 'delete', child: Text('删除')),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FavoriteCard extends StatelessWidget {
+  const _FavoriteCard({
+    required this.favorite,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  final Favorite favorite;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final remote = isRemotePath(favorite.path);
+    return Card(
+      elevation: 0,
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: scheme.secondaryContainer,
+          child: Icon(
+            remote ? Icons.cloud_rounded : Icons.star_rounded,
+            color: scheme.onSecondaryContainer,
+          ),
+        ),
+        title: Text(favorite.name),
+        subtitle: Text(
+          favorite.path,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: IconButton(
+          tooltip: '移除收藏',
+          icon: const Icon(Icons.close_rounded),
+          onPressed: onRemove,
         ),
       ),
     );

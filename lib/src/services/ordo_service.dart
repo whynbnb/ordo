@@ -198,4 +198,29 @@ class OrdoService {
     final data = await _background('importFd', [fd, destDir, name]);
     return FileEntry.fromJson((data as Map).cast<String, dynamic>());
   }
+
+  // -------------------------------------------------------------------------
+  // 收藏夹
+  // -------------------------------------------------------------------------
+
+  Future<List<Favorite>> favorites() async {
+    final data = _direct('favoriteList');
+    return (data as List)
+        .map((e) => Favorite.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<List<Favorite>> addFavorite(String name, String path) async {
+    final data = _direct('favoriteAdd', [name, path]);
+    return (data as List)
+        .map((e) => Favorite.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<List<Favorite>> removeFavorite(String path) async {
+    final data = _direct('favoriteRemove', [path]);
+    return (data as List)
+        .map((e) => Favorite.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/breadcrumbs.dart';
 import '../core/file_types.dart';
 import '../core/format.dart';
 import '../core/models.dart';
@@ -7,6 +8,7 @@ import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
 import '../state/browser_controller.dart';
 import '../state/drop_controller.dart';
+import '../state/favorites.dart';
 import '../state/route_observer.dart';
 import '../state/settings.dart';
 import '../state/transfer_clipboard.dart';
@@ -14,6 +16,7 @@ import 'dialogs.dart';
 import 'drop_overlay.dart';
 import 'entry_tile.dart';
 import 'open_entry.dart';
+import 'path_breadcrumb.dart';
 import 'search_screen.dart';
 
 class BrowserScreen extends StatefulWidget {
@@ -36,6 +39,7 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
     _controller = BrowserController(initialPath: widget.path);
     _controller.load();
     DropController.instance.revision.addListener(_onDropRevision);
+    FavoritesStore.instance.loadIfNeeded();
   }
 
   @override
@@ -73,7 +77,11 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_controller, TransferClipboard.instance]),
+      listenable: Listenable.merge([
+        _controller,
+        TransferClipboard.instance,
+        FavoritesStore.instance,
+      ]),
       builder: (context, _) {
         return Scaffold(
           appBar: _buildAppBar(context),
@@ -122,17 +130,17 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text(
-            widget.path,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
+          PathBreadcrumb(path: widget.path, onNavigate: _navigateTo),
         ],
       ),
       actions: [
+        IconButton(
+          tooltip: _isFavorite ? '取消收藏' : '收藏',
+          icon: Icon(
+            _isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+          ),
+          onPressed: _toggleFavorite,
+        ),
         IconButton(
           tooltip: '搜索',
           icon: const Icon(Icons.search_rounded),
@@ -327,6 +335,30 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
 
   Future<void> _openEntry(FileEntry entry) async {
     await openEntry(context, entry, onReturn: _controller.refresh);
+  }
+
+  bool get _isFavorite => FavoritesStore.instance.contains(widget.path);
+
+  Future<void> _toggleFavorite() async {
+    try {
+      if (_isFavorite) {
+        await FavoritesStore.instance.remove(widget.path);
+        _snack('已取消收藏');
+      } else {
+        await FavoritesStore.instance.add(widget.title, widget.path);
+        _snack('已收藏「${widget.title}」');
+      }
+    } catch (error) {
+      _snack('$error');
+    }
+  }
+
+  void _navigateTo(PathCrumb crumb) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => BrowserScreen(path: crumb.path, title: crumb.label),
+      ),
+    );
   }
 
   void _openSearch() {

@@ -139,6 +139,14 @@ class _OrdoBindings {
       .lookupFunction<_NativeZero, _DartZero>('ordo_server_config_load');
   late final _DartImportFd importFd = _lib
       .lookupFunction<_NativeImportFd, _DartImportFd>('ordo_import_fd');
+  late final _DartZero favoriteList = _lib
+      .lookupFunction<_NativeZero, _DartZero>('ordo_favorite_list');
+  late final _Dart2 favoriteAdd = _lib.lookupFunction<_Native2, _Dart2>(
+    'ordo_favorite_add',
+  );
+  late final _Dart1 favoriteRemove = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_favorite_remove',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +310,30 @@ dynamic nativeExecute(String op, List<Object?> args) {
               (name) => bindings.importFd(args[0] as int, dir, name),
             );
           }),
+        ),
+      );
+    case 'favoriteList':
+      return _decode(_take(bindings, bindings.favoriteList()));
+    case 'favoriteAdd':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (name) {
+            return _withCString(
+              args[1] as String,
+              (path) => bindings.favoriteAdd(name, path),
+            );
+          }),
+        ),
+      );
+    case 'favoriteRemove':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (path) => bindings.favoriteRemove(path),
+          ),
         ),
       );
     case 'readBytes':

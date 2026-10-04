@@ -307,6 +307,23 @@ class CacheFile {
   }
 }
 
+/// 收藏夹条目。
+class Favorite {
+  const Favorite({required this.name, required this.path});
+
+  final String name;
+  final String path;
+
+  factory Favorite.fromJson(Map<String, dynamic> json) {
+    return Favorite(
+      name: json['name'] as String? ?? '',
+      path: json['path'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {'name': name, 'path': path};
+}
+
 /// 本地文件服务器配置（HTTP/WebDAV + FTP）。
 class ServerConfig {
   const ServerConfig({
