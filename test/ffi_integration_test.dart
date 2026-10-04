@@ -169,4 +169,21 @@ void main() {
     service.jobCleanup(id);
     expect(service.jobStatus(id).total, 0);
   });
+
+  test('ZIP 压缩与解压', () async {
+    final root = Directory.systemTemp.createTempSync('ordo_zip_');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final file = '${root.path}/a.txt';
+    await service.writeText(file, 'hello zip');
+
+    final zip = '${root.path}/out.zip';
+    await service.zipCreate([file], zip);
+    final entries = await service.zipList(zip);
+    expect(entries.any((e) => e.name.contains('a.txt')), isTrue);
+
+    final outDir = '${root.path}/out';
+    await service.zipExtract(zip, outDir);
+    final content = await service.readText('$outDir/a.txt');
+    expect(content.content, 'hello zip');
+  });
 }

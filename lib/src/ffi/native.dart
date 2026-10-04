@@ -178,6 +178,13 @@ class _OrdoBindings {
   late final _DartJob jobCleanup = _lib.lookupFunction<_NativeJob, _DartJob>(
     'ordo_job_cleanup',
   );
+  late final _DartCopyMove zipCreate = _lib
+      .lookupFunction<_NativeCopyMove, _DartCopyMove>('ordo_zip_create');
+  late final _DartCopyMove zipExtract = _lib
+      .lookupFunction<_NativeCopyMove, _DartCopyMove>('ordo_zip_extract');
+  late final _Dart1 zipList = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_zip_list',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -396,6 +403,40 @@ dynamic nativeExecute(String op, List<Object?> args) {
       return _decode(_take(bindings, bindings.jobCancel(args[0] as int)));
     case 'jobCleanup':
       return _decode(_take(bindings, bindings.jobCleanup(args[0] as int)));
+    case 'zipCreate':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (sources) {
+            return _withCString(
+              args[1] as String,
+              (dest) => bindings.zipCreate(sources, dest, args[2] as int),
+            );
+          }),
+        ),
+      );
+    case 'zipExtract':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (zipPath) {
+            return _withCString(
+              args[1] as String,
+              (dest) => bindings.zipExtract(zipPath, dest, args[2] as int),
+            );
+          }),
+        ),
+      );
+    case 'zipList':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (zipPath) => bindings.zipList(zipPath),
+          ),
+        ),
+      );
     case 'readBytes':
       return _readBytes(bindings, args[0] as String);
     case 'writeBytes':

@@ -6,6 +6,7 @@
 //! 分配，调用方使用 [`ordo_free_string`] 释放。
 
 mod api;
+mod archive;
 mod favorites;
 mod importer;
 mod jobs;
@@ -669,6 +670,68 @@ pub extern "C" fn ordo_job_cleanup(id: u64) -> *mut c_char {
     guard(|| {
         jobs::cleanup(id);
         ok(serde_json::Value::Null)
+    })
+}
+
+// ---------------------------------------------------------------------------
+// 导出函数：ZIP 压缩 / 解压
+// ---------------------------------------------------------------------------
+
+/// 创建 zip。入参为 JSON 路径数组与目标 zip 路径；`job_id` 为 0 表示不跟踪进度。
+///
+/// # Safety
+/// FFI 边界：指针均为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_zip_create(
+    sources: *const c_char,
+    dest_zip: *const c_char,
+    job_id: u64,
+) -> *mut c_char {
+    guard(|| match (read_paths(sources), read_str(dest_zip)) {
+        (Ok(src), Ok(dest)) => {
+            let job = jobs::get(job_id);
+            let outcome = archive::create(&src, &dest, job.as_deref());
+            if let Some(job) = &job {
+                job.complete();
+            }
+            result(outcome)
+        }
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
+/// 解压 zip 到目标目录。
+///
+/// # Safety
+/// FFI 边界：指针均为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_zip_extract(
+    zip_path: *const c_char,
+    dest_dir: *const c_char,
+    job_id: u64,
+) -> *mut c_char {
+    guard(|| match (read_str(zip_path), read_str(dest_dir)) {
+        (Ok(zip), Ok(dest)) => {
+            let job = jobs::get(job_id);
+            let outcome = archive::extract(&zip, &dest, job.as_deref());
+            if let Some(job) = &job {
+                job.complete();
+            }
+            result(outcome)
+        }
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
+/// 列出 zip 内容。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_zip_list(zip_path: *const c_char) -> *mut c_char {
+    guard(|| match read_str(zip_path) {
+        Ok(zip) => result(archive::list(&zip)),
+        Err(e) => err(e),
     })
 }
 

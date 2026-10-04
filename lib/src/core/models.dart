@@ -364,6 +364,30 @@ class CacheFile {
   }
 }
 
+/// 压缩包条目。
+class ArchiveEntry {
+  const ArchiveEntry({
+    required this.name,
+    required this.size,
+    required this.compressed,
+    required this.isDir,
+  });
+
+  final String name;
+  final int size;
+  final int compressed;
+  final bool isDir;
+
+  factory ArchiveEntry.fromJson(Map<String, dynamic> json) {
+    return ArchiveEntry(
+      name: json['name'] as String? ?? '',
+      size: (json['size'] as num?)?.toInt() ?? 0,
+      compressed: (json['compressed'] as num?)?.toInt() ?? 0,
+      isDir: json['is_dir'] as bool? ?? false,
+    );
+  }
+}
+
 /// 长任务（复制 / 移动 / 压缩 / 分析）的进度。
 class JobProgress {
   const JobProgress({

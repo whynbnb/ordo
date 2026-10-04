@@ -19,6 +19,7 @@ import 'job_progress.dart';
 import 'open_entry.dart';
 import 'path_breadcrumb.dart';
 import 'search_screen.dart';
+import 'zip_viewer.dart';
 
 class BrowserScreen extends StatefulWidget {
   const BrowserScreen({super.key, required this.path, required this.title});
@@ -428,6 +429,68 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
     }
   }
 
+  String _stem(String path) {
+    final base = path.replaceAll(RegExp(r'/+$'), '').split('/').last;
+    final dot = base.lastIndexOf('.');
+    return dot > 0 ? base.substring(0, dot) : base;
+  }
+
+  Future<void> _zipCompress(List<String> paths) async {
+    if (paths.isEmpty) return;
+    final defaultName = paths.length == 1
+        ? '${_stem(paths.first)}.zip'
+        : '${widget.title.isEmpty ? 'archive' : widget.title}.zip';
+    final name = await showNameDialog(
+      context,
+      title: '压缩为 ZIP',
+      initialText: defaultName,
+      confirmLabel: '压缩',
+    );
+    if (name == null || name.isEmpty || !mounted) return;
+    final fileName = name.toLowerCase().endsWith('.zip') ? name : '$name.zip';
+    final dest = joinPath(_controller.path, fileName);
+    try {
+      await runWithJobProgress<void>(
+        context,
+        '正在压缩',
+        (jobId) => _service.zipCreate(paths, dest, jobId: jobId),
+      );
+      await _controller.refresh();
+      _snack('已创建「$fileName」');
+    } catch (error) {
+      _snack('$error');
+    }
+  }
+
+  Future<void> _zipExtract(FileEntry entry) async {
+    final folder = _stem(entry.name);
+    final dest = joinPath(_controller.path, folder);
+    try {
+      await runWithJobProgress<void>(
+        context,
+        '正在解压',
+        (jobId) => _service.zipExtract(entry.path, dest, jobId: jobId),
+      );
+      await _controller.refresh();
+      _snack('已解压到「$folder」');
+    } catch (error) {
+      _snack('$error');
+    }
+  }
+
+  void _openZip(FileEntry entry) {
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                ZipViewerScreen(entry: entry, parentDir: _controller.path),
+          ),
+        )
+        .then((_) {
+          if (mounted) _controller.refresh();
+        });
+  }
+
   void _copySelection({required bool move}) {
     final paths = _controller.selectedEntries.map((e) => e.path).toList();
     if (paths.isEmpty) return;
@@ -642,6 +705,32 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.archive_outlined),
+                title: const Text('压缩为 ZIP'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _zipCompress([entry.path]);
+                },
+              ),
+              if (entry.extension == 'zip') ...[
+                ListTile(
+                  leading: const Icon(Icons.unarchive_outlined),
+                  title: const Text('解压到此处'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _zipExtract(entry);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.list_alt_rounded),
+                  title: const Text('查看压缩包内容'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openZip(entry);
+                  },
+                ),
+              ],
+              ListTile(
                 leading: const Icon(Icons.copy_rounded),
                 title: const Text('复制'),
                 onTap: () {
@@ -716,6 +805,17 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
                   final entry = _controller.singleSelected;
                   Navigator.pop(sheetContext);
                   if (entry != null) _rename(entry);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.archive_outlined),
+                title: const Text('压缩为 ZIP'),
+                onTap: () {
+                  final paths = _controller.selectedEntries
+                      .map((e) => e.path)
+                      .toList();
+                  Navigator.pop(sheetContext);
+                  _zipCompress(paths);
                 },
               ),
               ListTile(

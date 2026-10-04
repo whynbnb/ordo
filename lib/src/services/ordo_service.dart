@@ -126,6 +126,33 @@ class OrdoService {
 
   void jobCleanup(int id) => _direct('jobCleanup', [id]);
 
+  // -------------------------------------------------------------------------
+  // ZIP 压缩 / 解压
+  // -------------------------------------------------------------------------
+
+  Future<void> zipCreate(
+    List<String> sources,
+    String destZip, {
+    int jobId = 0,
+  }) async {
+    await _background('zipCreate', [jsonEncode(sources), destZip, jobId]);
+  }
+
+  Future<void> zipExtract(
+    String zipPath,
+    String destDir, {
+    int jobId = 0,
+  }) async {
+    await _background('zipExtract', [zipPath, destDir, jobId]);
+  }
+
+  Future<List<ArchiveEntry>> zipList(String zipPath) async {
+    final data = await _background('zipList', [zipPath]);
+    return (data as List)
+        .map((e) => ArchiveEntry.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
   Future<TransferResult> copy(
     List<String> sources,
     String dest, {
