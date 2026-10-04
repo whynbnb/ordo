@@ -5,6 +5,7 @@
 //! `{"ok":true,"data":...}` 或 `{"ok":false,"error":"..."}`。字符串内存由 Rust
 //! 分配，调用方使用 [`ordo_free_string`] 释放。
 
+mod analyze;
 mod api;
 mod archive;
 mod favorites;
@@ -763,6 +764,29 @@ pub unsafe extern "C" fn ordo_zip_extract(
 pub unsafe extern "C" fn ordo_zip_list(zip_path: *const c_char) -> *mut c_char {
     guard(|| match read_str(zip_path) {
         Ok(zip) => result(archive::list(&zip)),
+        Err(e) => err(e),
+    })
+}
+
+// ---------------------------------------------------------------------------
+// 导出函数：存储分析
+// ---------------------------------------------------------------------------
+
+/// 分析存储占用（分类 / 最大文件 / 重复文件）。`job_id` 为 0 表示不跟踪进度。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_analyze(root: *const c_char, job_id: u64) -> *mut c_char {
+    guard(|| match read_str(root) {
+        Ok(root) => {
+            let job = jobs::get(job_id);
+            let outcome = analyze::analyze(&root, job.as_deref());
+            if let Some(job) = &job {
+                job.complete();
+            }
+            result(outcome)
+        }
         Err(e) => err(e),
     })
 }

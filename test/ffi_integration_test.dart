@@ -186,4 +186,24 @@ void main() {
     final content = await service.readText('$outDir/a.txt');
     expect(content.content, 'hello zip');
   });
+
+  test('存储分析', () async {
+    final root = Directory.systemTemp.createTempSync('ordo_an_');
+    addTearDown(() => root.deleteSync(recursive: true));
+
+    await service.writeText('${root.path}/a.txt', 'hello');
+    await service.writeBytes(
+      '${root.path}/big.bin',
+      Uint8List.fromList(List.filled(9000, 1)),
+    );
+    final duplicate = Uint8List.fromList(List.filled(5000, 2));
+    await service.writeBytes('${root.path}/dup1.bin', duplicate);
+    await service.writeBytes('${root.path}/dup2.bin', duplicate);
+
+    final result = await service.analyze(root.path);
+    expect(result.fileCount, 4);
+    expect(result.largest.first.name, 'big.bin');
+    expect(result.duplicates.length, 1);
+    expect(result.duplicates.first.files.length, 2);
+  });
 }

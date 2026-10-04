@@ -40,6 +40,8 @@ typedef _NativeThumbnail = Pointer<Uint8> Function(
   Pointer<UintPtr>,
 );
 typedef _DartThumbnail = Pointer<Uint8> Function(_CStr, int, Pointer<UintPtr>);
+typedef _NativeAnalyze = _CStr Function(_CStr, Uint64);
+typedef _DartAnalyze = _CStr Function(_CStr, int);
 typedef _DartReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
 typedef _NativeFreeBytes = Void Function(Pointer<Uint8>, UintPtr);
 typedef _DartFreeBytes = void Function(Pointer<Uint8>, int);
@@ -193,6 +195,8 @@ class _OrdoBindings {
   );
   late final _DartThumbnail thumbnail = _lib
       .lookupFunction<_NativeThumbnail, _DartThumbnail>('ordo_thumbnail');
+  late final _DartAnalyze analyze = _lib
+      .lookupFunction<_NativeAnalyze, _DartAnalyze>('ordo_analyze');
 }
 
 // ---------------------------------------------------------------------------
@@ -442,6 +446,16 @@ dynamic nativeExecute(String op, List<Object?> args) {
           _withCString(
             args[0] as String,
             (zipPath) => bindings.zipList(zipPath),
+          ),
+        ),
+      );
+    case 'analyze':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (root) => bindings.analyze(root, args[1] as int),
           ),
         ),
       );

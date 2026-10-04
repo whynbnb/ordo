@@ -163,6 +163,15 @@ class OrdoService {
     return data as Uint8List?;
   }
 
+  // -------------------------------------------------------------------------
+  // 存储分析
+  // -------------------------------------------------------------------------
+
+  Future<AnalyzeResult> analyze(String root, {int jobId = 0}) async {
+    final data = await _background('analyze', [root, jobId]);
+    return AnalyzeResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
   Future<TransferResult> copy(
     List<String> sources,
     String dest, {

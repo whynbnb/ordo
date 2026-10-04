@@ -12,6 +12,7 @@ import 'browser_screen.dart';
 import 'connection_edit.dart';
 import 'dialogs.dart';
 import 'drop_overlay.dart';
+import 'analyzer_screen.dart';
 import 'server_screen.dart';
 import 'trash_screen.dart';
 
@@ -336,6 +337,25 @@ class _HomeScreenState extends State<HomeScreen>
                   .then((_) {
                     if (mounted) _load(showSpinner: false);
                   });
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 0,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.5),
+          clipBehavior: Clip.antiAlias,
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: const Icon(Icons.pie_chart_outline_rounded),
+            title: const Text('存储分析'),
+            subtitle: const Text('分类占用、大文件与重复文件'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AnalyzerScreen()),
+              );
             },
           ),
         ),

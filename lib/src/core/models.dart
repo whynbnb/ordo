@@ -214,6 +214,115 @@ class TrashRestoreResult {
   }
 }
 
+/// 存储分析：分类占用。
+class CategoryStat {
+  const CategoryStat({
+    required this.category,
+    required this.size,
+    required this.count,
+  });
+
+  final String category;
+  final int size;
+  final int count;
+
+  factory CategoryStat.fromJson(Map<String, dynamic> json) {
+    return CategoryStat(
+      category: json['category'] as String? ?? 'other',
+      size: (json['size'] as num?)?.toInt() ?? 0,
+      count: (json['count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// 存储分析中的文件引用。
+class AnalysisFile {
+  const AnalysisFile({
+    required this.path,
+    required this.name,
+    required this.size,
+    required this.category,
+  });
+
+  final String path;
+  final String name;
+  final int size;
+  final String category;
+
+  factory AnalysisFile.fromJson(Map<String, dynamic> json) {
+    return AnalysisFile(
+      path: json['path'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      size: (json['size'] as num?)?.toInt() ?? 0,
+      category: json['category'] as String? ?? 'other',
+    );
+  }
+}
+
+/// 一组重复文件。
+class DuplicateGroup {
+  const DuplicateGroup({
+    required this.size,
+    required this.hash,
+    required this.files,
+  });
+
+  final int size;
+  final String hash;
+  final List<AnalysisFile> files;
+
+  factory DuplicateGroup.fromJson(Map<String, dynamic> json) {
+    final raw = json['files'] as List? ?? const [];
+    return DuplicateGroup(
+      size: (json['size'] as num?)?.toInt() ?? 0,
+      hash: json['hash'] as String? ?? '',
+      files: raw
+          .map((e) => AnalysisFile.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+    );
+  }
+
+  int get reclaimable => size * (files.length - 1);
+}
+
+/// 存储分析结果。
+class AnalyzeResult {
+  const AnalyzeResult({
+    required this.root,
+    required this.totalSize,
+    required this.fileCount,
+    required this.dirCount,
+    required this.categories,
+    required this.largest,
+    required this.duplicates,
+  });
+
+  final String root;
+  final int totalSize;
+  final int fileCount;
+  final int dirCount;
+  final List<CategoryStat> categories;
+  final List<AnalysisFile> largest;
+  final List<DuplicateGroup> duplicates;
+
+  factory AnalyzeResult.fromJson(Map<String, dynamic> json) {
+    List<T> parse<T>(String key, T Function(Map<String, dynamic>) build) {
+      final raw = json[key] as List? ?? const [];
+      return raw.map((e) => build((e as Map).cast<String, dynamic>())).toList();
+    }
+
+    return AnalyzeResult(
+      root: json['root'] as String? ?? '',
+      totalSize: (json['total_size'] as num?)?.toInt() ?? 0,
+      fileCount: (json['file_count'] as num?)?.toInt() ?? 0,
+      dirCount: (json['dir_count'] as num?)?.toInt() ?? 0,
+      categories: parse('categories', CategoryStat.fromJson),
+      largest: parse('largest', AnalysisFile.fromJson),
+      duplicates: parse('duplicates', DuplicateGroup.fromJson),
+    );
+  }
+}
+
 class SearchOutcome {
   const SearchOutcome({
     required this.entries,
