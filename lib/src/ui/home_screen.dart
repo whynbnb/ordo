@@ -8,6 +8,7 @@ import '../state/connections.dart';
 import 'browser_screen.dart';
 import 'connection_edit.dart';
 import 'dialogs.dart';
+import 'server_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.version});
@@ -130,6 +131,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: const Text('安序'),
         actions: [
+          IconButton(
+            tooltip: '文件服务器',
+            icon: const Icon(Icons.router_rounded),
+            onPressed: () {
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ServerScreen(),
+                    ),
+                  )
+                  .then((_) {
+                    if (mounted) _load(showSpinner: false);
+                  });
+            },
+          ),
           IconButton(
             tooltip: '关于',
             icon: const Icon(Icons.info_outline_rounded),

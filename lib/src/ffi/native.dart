@@ -122,6 +122,19 @@ class _OrdoBindings {
   late final _Dart1 storageHints = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_storage_hints',
   );
+  late final _Dart1 serverStart = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_server_start',
+  );
+  late final _DartZero serverStop = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_server_stop',
+  );
+  late final _DartZero serverStatus = _lib
+      .lookupFunction<_NativeZero, _DartZero>('ordo_server_status');
+  late final _Dart1 serverConfigSave = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_server_config_save',
+  );
+  late final _DartZero serverConfigLoad = _lib
+      .lookupFunction<_NativeZero, _DartZero>('ordo_server_config_load');
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +265,29 @@ dynamic nativeExecute(String op, List<Object?> args) {
           ),
         ),
       );
+    case 'serverStart':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (json) => bindings.serverStart(json)),
+        ),
+      );
+    case 'serverStop':
+      return _decode(_take(bindings, bindings.serverStop()));
+    case 'serverStatus':
+      return _decode(_take(bindings, bindings.serverStatus()));
+    case 'serverConfigSave':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (json) => bindings.serverConfigSave(json),
+          ),
+        ),
+      );
+    case 'serverConfigLoad':
+      return _decode(_take(bindings, bindings.serverConfigLoad()));
     case 'readBytes':
       return _readBytes(bindings, args[0] as String);
     case 'writeBytes':

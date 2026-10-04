@@ -157,4 +157,35 @@ class OrdoService {
     final data = await _background('netDownload', [uri]);
     return CacheFile.fromJson((data as Map).cast<String, dynamic>());
   }
+
+  // -------------------------------------------------------------------------
+  // 本地文件服务器（HTTP/WebDAV + FTP）
+  // -------------------------------------------------------------------------
+
+  Future<ServerConfig> serverLoadConfig() async {
+    final data = _direct('serverConfigLoad');
+    return ServerConfig.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<ServerConfig> serverSaveConfig(ServerConfig config) async {
+    final data = _direct('serverConfigSave', [jsonEncode(config.toJson())]);
+    return ServerConfig.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<ServerStatus> serverStart(ServerConfig config) async {
+    final data = await _background('serverStart', [
+      jsonEncode(config.toJson()),
+    ]);
+    return ServerStatus.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<ServerStatus> serverStop() async {
+    final data = await _background('serverStop', const []);
+    return ServerStatus.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<ServerStatus> serverStatus() async {
+    final data = _direct('serverStatus');
+    return ServerStatus.fromJson((data as Map).cast<String, dynamic>());
+  }
 }

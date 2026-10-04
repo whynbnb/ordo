@@ -8,6 +8,7 @@
 mod api;
 mod model;
 mod remote;
+mod server;
 mod storage;
 mod vfs;
 
@@ -456,6 +457,60 @@ fn download_to_cache(uri: &str) -> Result<serde_json::Value, String> {
     std::fs::write(&dest, data).map_err(|e| format!("写入缓存失败：{e}"))?;
     let path = Path::new(&dest).to_string_lossy().into_owned();
     Ok(serde_json::json!({ "path": path, "name": name }))
+}
+
+// ---------------------------------------------------------------------------
+// 导出函数：本地文件服务器（HTTP/WebDAV + FTP）
+// ---------------------------------------------------------------------------
+
+unsafe fn read_server_config(ptr: *const c_char) -> Result<server::ServerConfig, String> {
+    let raw = read_str(ptr)?;
+    serde_json::from_str::<server::ServerConfig>(&raw).map_err(|e| format!("服务器配置无效：{e}"))
+}
+
+/// 启动服务器（入参为 JSON 配置），返回当前状态。
+///
+/// # Safety
+/// FFI 边界：指针为合法的 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_server_start(config: *const c_char) -> *mut c_char {
+    guard(|| match read_server_config(config) {
+        Ok(cfg) => result(server::start(cfg)),
+        Err(e) => err(e),
+    })
+}
+
+/// 停止所有服务器，返回当前状态。
+#[no_mangle]
+pub extern "C" fn ordo_server_stop() -> *mut c_char {
+    guard(|| {
+        server::stop();
+        ok(server::status())
+    })
+}
+
+/// 查询服务器状态。
+#[no_mangle]
+pub extern "C" fn ordo_server_status() -> *mut c_char {
+    guard(|| ok(server::status()))
+}
+
+/// 保存服务器配置（不启动）。
+///
+/// # Safety
+/// FFI 边界：指针为合法的 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_server_config_save(config: *const c_char) -> *mut c_char {
+    guard(|| match read_server_config(config) {
+        Ok(cfg) => result(server::save_config(&cfg).map(|_| cfg)),
+        Err(e) => err(e),
+    })
+}
+
+/// 读取已保存的服务器配置。
+#[no_mangle]
+pub extern "C" fn ordo_server_config_load() -> *mut c_char {
+    guard(|| ok(server::load_config()))
 }
 
 #[cfg(test)]

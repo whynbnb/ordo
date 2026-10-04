@@ -306,3 +306,134 @@ class CacheFile {
     );
   }
 }
+
+/// 本地文件服务器配置（HTTP/WebDAV + FTP）。
+class ServerConfig {
+  const ServerConfig({
+    required this.root,
+    required this.http,
+    required this.httpPort,
+    required this.ftp,
+    required this.ftpPort,
+    required this.auth,
+    required this.username,
+    required this.password,
+    required this.readOnly,
+  });
+
+  final String root;
+  final bool http;
+  final int httpPort;
+  final bool ftp;
+  final int ftpPort;
+  final bool auth;
+  final String username;
+  final String password;
+  final bool readOnly;
+
+  static const ServerConfig empty = ServerConfig(
+    root: '',
+    http: true,
+    httpPort: 8080,
+    ftp: false,
+    ftpPort: 2121,
+    auth: false,
+    username: '',
+    password: '',
+    readOnly: false,
+  );
+
+  factory ServerConfig.fromJson(Map<String, dynamic> json) {
+    return ServerConfig(
+      root: json['root'] as String? ?? '',
+      http: json['http'] as bool? ?? false,
+      httpPort: (json['http_port'] as num?)?.toInt() ?? 0,
+      ftp: json['ftp'] as bool? ?? false,
+      ftpPort: (json['ftp_port'] as num?)?.toInt() ?? 0,
+      auth: json['auth'] as bool? ?? false,
+      username: json['username'] as String? ?? '',
+      password: json['password'] as String? ?? '',
+      readOnly: json['read_only'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'root': root,
+    'http': http,
+    'http_port': httpPort,
+    'ftp': ftp,
+    'ftp_port': ftpPort,
+    'auth': auth,
+    'username': username,
+    'password': password,
+    'read_only': readOnly,
+  };
+
+  ServerConfig copyWith({
+    String? root,
+    bool? http,
+    int? httpPort,
+    bool? ftp,
+    int? ftpPort,
+    bool? auth,
+    String? username,
+    String? password,
+    bool? readOnly,
+  }) {
+    return ServerConfig(
+      root: root ?? this.root,
+      http: http ?? this.http,
+      httpPort: httpPort ?? this.httpPort,
+      ftp: ftp ?? this.ftp,
+      ftpPort: ftpPort ?? this.ftpPort,
+      auth: auth ?? this.auth,
+      username: username ?? this.username,
+      password: password ?? this.password,
+      readOnly: readOnly ?? this.readOnly,
+    );
+  }
+}
+
+/// 文件服务器运行状态。
+class ServerStatus {
+  const ServerStatus({
+    required this.running,
+    required this.httpPort,
+    required this.ftpPort,
+    required this.root,
+    required this.auth,
+    required this.readOnly,
+    required this.addresses,
+    required this.error,
+  });
+
+  final bool running;
+  final int? httpPort;
+  final int? ftpPort;
+  final String root;
+  final bool auth;
+  final bool readOnly;
+  final List<String> addresses;
+  final String? error;
+
+  factory ServerStatus.fromJson(Map<String, dynamic> json) {
+    return ServerStatus(
+      running: json['running'] as bool? ?? false,
+      httpPort: (json['http_port'] as num?)?.toInt(),
+      ftpPort: (json['ftp_port'] as num?)?.toInt(),
+      root: json['root'] as String? ?? '',
+      auth: json['auth'] as bool? ?? false,
+      readOnly: json['read_only'] as bool? ?? false,
+      addresses:
+          (json['addresses'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
+      error: json['error'] as String?,
+    );
+  }
+
+  String get host => addresses.isNotEmpty ? addresses.first : '127.0.0.1';
+
+  String? get httpUrl => httpPort == null ? null : 'http://$host:$httpPort/';
+
+  String? get ftpUrl => ftpPort == null ? null : 'ftp://$host:$ftpPort/';
+}

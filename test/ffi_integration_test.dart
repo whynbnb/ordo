@@ -121,4 +121,43 @@ void main() {
     await service.removeProfile(saved.id);
     expect(await service.profiles(), isEmpty);
   });
+
+  test('文件服务器可保存配置、启动与停止', () async {
+    final share = Directory.systemTemp.createTempSync('ordo_share_');
+    final cfgDir = Directory.systemTemp.createTempSync('ordo_srvcfg_');
+    addTearDown(() {
+      share.deleteSync(recursive: true);
+      cfgDir.deleteSync(recursive: true);
+    });
+    service.configInit(
+      configDir: cfgDir.path,
+      cacheDir: '${cfgDir.path}/cache',
+    );
+
+    const config = ServerConfig(
+      root: '',
+      http: true,
+      httpPort: 18080,
+      ftp: true,
+      ftpPort: 12121,
+      auth: false,
+      username: '',
+      password: '',
+      readOnly: false,
+    );
+    final withRoot = config.copyWith(root: share.path);
+    final saved = await service.serverSaveConfig(withRoot);
+    expect(saved.root, share.path);
+    expect((await service.serverLoadConfig()).httpPort, 18080);
+
+    final status = await service.serverStart(withRoot);
+    expect(status.running, isTrue);
+    expect(status.httpPort, 18080);
+    expect(status.ftpPort, 12121);
+    expect(status.httpUrl, contains('http://'));
+
+    final stopped = await service.serverStop();
+    expect(stopped.running, isFalse);
+    expect(stopped.httpPort, isNull);
+  });
 }

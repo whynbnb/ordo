@@ -155,6 +155,14 @@ pub fn cache_dir() -> Option<PathBuf> {
     }
 }
 
+/// 应用私有配置目录（由 [`init`] 设置）。
+pub fn config_dir() -> Option<PathBuf> {
+    match paths().lock() {
+        Ok(guard) => guard.config.clone(),
+        Err(_) => None,
+    }
+}
+
 fn config_file() -> Option<PathBuf> {
     let guard = paths().lock().ok()?;
     let dir = guard.config.clone()?;

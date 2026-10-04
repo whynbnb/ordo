@@ -28,9 +28,14 @@
   - 与本地文件列表一致地浏览、新建、重命名、删除
   - 远程与本地之间复制 / 剪切 / 粘贴（流式读写）
   - 远程文件可在应用内预览，或下载到缓存后交给系统打开
+- **本机文件服务器**：在手机上直接开启 HTTP/WebDAV 与 FTP，供同一局域网设备访问
+  - 浏览器可直接浏览 / 下载；Windows / macOS / Linux 可映射为网络驱动器（WebDAV）
+  - FTP 客户端 / 文件管理器可读写，支持被动（PASV/EPSV）与主动（PORT/EPRT）模式
+  - 可选用户名密码、只读模式；配置持久化，端口可自定义
 
 > 说明：FTP 目前仅支持明文（未实现 FTPS）；WebDAV 支持 HTTPS 且可选择信任自签名证书。
 > SMB 的共享名可以留空，此时连接根目录会列出服务器上的全部共享。
+> 作为服务端时，FTP 同样为明文传输，请仅在可信局域网中使用。
 >
 > 外部介质：应用会解析 `/proc/self/mountinfo` 并借助 Android `StorageManager`
 > 识别存储卡与可插拔 USB 存储；插入 / 拔出后回到前台或下拉刷新即可更新列表。
@@ -50,6 +55,7 @@ rust/                     Rust 核心（cdylib）
   src/vfs.rs              统一门面：本地路径与远程 URI 走同一接口
   src/storage.rs          存储卷发现（内部 / 存储卡 / USB）
   src/remote/             WebDAV / FTP / SMB 客户端与连接会话
+  src/server/             HTTP/WebDAV 与 FTP 服务端
   src/model.rs            元数据模型
 android/                  Android 工程
   app/.../MainActivity.kt 存储权限申请、FileProvider 打开 / 分享
