@@ -32,6 +32,11 @@
   - 浏览器可直接浏览 / 下载；Windows / macOS / Linux 可映射为网络驱动器（WebDAV）
   - FTP 客户端 / 文件管理器可读写，支持被动（PASV/EPSV）与主动（PORT/EPRT）模式
   - 可选用户名密码、只读模式；配置持久化，端口可自定义
+- **跨应用拖放导入**：在分屏 / 多窗口下，把相册等其它应用里的文件直接拖入安序窗口，
+  即可复制到当前浏览的目录（Android 系统拖放由原生层接收，文件写入仍由 Rust 完成）
+
+> 说明：跨应用拖放依赖 Android 的多窗口能力（Android 7.0+，分屏或 Android 14+ 的
+> 系统拖放）；Flutter 框架本身不提供该能力，这里用原生 `View.OnDragListener` 自行实现。
 
 > 说明：FTP 目前仅支持明文（未实现 FTPS）；WebDAV 支持 HTTPS 且可选择信任自签名证书。
 > SMB 的共享名可以留空，此时连接根目录会列出服务器上的全部共享。
@@ -54,11 +59,12 @@ rust/                     Rust 核心（cdylib）
   src/api.rs              本地文件系统实现
   src/vfs.rs              统一门面：本地路径与远程 URI 走同一接口
   src/storage.rs          存储卷发现（内部 / 存储卡 / USB）
+  src/importer.rs         跨应用拖放文件的导入（fd → 文件）
   src/remote/             WebDAV / FTP / SMB 客户端与连接会话
   src/server/             HTTP/WebDAV 与 FTP 服务端
   src/model.rs            元数据模型
 android/                  Android 工程
-  app/.../MainActivity.kt 存储权限申请、FileProvider 打开 / 分享
+  app/.../MainActivity.kt 存储权限、文件打开 / 分享、跨应用拖放接收
   app/build.gradle.kts    调用 cargo-ndk 编译 Rust 并放入 jniLibs
 scripts/                  手动构建脚本
 ```

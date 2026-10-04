@@ -5,9 +5,12 @@ import '../core/models.dart';
 import '../core/ordo_exception.dart';
 import '../services/ordo_service.dart';
 import '../state/connections.dart';
+import '../state/drop_controller.dart';
+import '../state/route_observer.dart';
 import 'browser_screen.dart';
 import 'connection_edit.dart';
 import 'dialogs.dart';
+import 'drop_overlay.dart';
 import 'server_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,7 +22,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver, RouteAware {
   final OrdoService _service = OrdoService.instance;
   final ConnectionStore _connections = ConnectionStore.instance;
 
@@ -47,7 +51,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      ordoRouteObserver.subscribe(this, route);
+      if (route.isCurrent) _updateDropTarget();
+    }
+  }
+
+  @override
+  void didPush() => _updateDropTarget();
+
+  @override
+  void didPopNext() => _updateDropTarget();
+
+  void _updateDropTarget() {
+    String path = '/storage/emulated/0';
+    for (final root in _roots) {
+      if (root.kind == 'internal') {
+        path = root.path;
+        break;
+      }
+    }
+    DropController.instance.setActive(path, '内部存储');
+  }
+
+  @override
   void dispose() {
+    ordoRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _connections.removeListener(_onConnectionsChanged);
     super.dispose();
@@ -102,6 +134,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _loading = false;
         _error = null;
       });
+      _updateDropTarget();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -153,7 +186,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
-      body: RefreshIndicator(onRefresh: () => _load(), child: _buildBody()),
+      body: Stack(
+        children: [
+          RefreshIndicator(onRefresh: () => _load(), child: _buildBody()),
+          const DropOverlay(),
+        ],
+      ),
     );
   }
 

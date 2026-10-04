@@ -80,6 +80,36 @@ class PlatformService {
     }
   }
 
+  /// 注册来自 Android 的拖放事件（跨应用拖入文件）。
+  static void setDropHandler({
+    required void Function() onStarted,
+    required void Function() onEntered,
+    required void Function() onExited,
+    required Future<void> Function(List<Map<String, dynamic>>) onDropped,
+  }) {
+    _channel.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'dragStarted':
+          onStarted();
+        case 'dragEntered':
+          onEntered();
+        case 'dragExited':
+        case 'dragEnded':
+          onExited();
+        case 'dragDropped':
+          final items = <Map<String, dynamic>>[];
+          final raw = call.arguments;
+          if (raw is List) {
+            for (final entry in raw) {
+              if (entry is Map) items.add(entry.cast<String, dynamic>());
+            }
+          }
+          await onDropped(items);
+      }
+      return null;
+    });
+  }
+
   static Future<bool> _invokeBool(
     String method,
     Map<String, Object?> args,

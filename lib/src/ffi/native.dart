@@ -26,6 +26,8 @@ typedef _DartVoidStr = void Function(_CStr);
 typedef _NativeZero = _CStr Function();
 typedef _DartZero = _CStr Function();
 typedef _NativeReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
+typedef _NativeImportFd = _CStr Function(Int32, _CStr, _CStr);
+typedef _DartImportFd = _CStr Function(int, _CStr, _CStr);
 typedef _DartReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
 typedef _NativeFreeBytes = Void Function(Pointer<Uint8>, UintPtr);
 typedef _DartFreeBytes = void Function(Pointer<Uint8>, int);
@@ -135,6 +137,8 @@ class _OrdoBindings {
   );
   late final _DartZero serverConfigLoad = _lib
       .lookupFunction<_NativeZero, _DartZero>('ordo_server_config_load');
+  late final _DartImportFd importFd = _lib
+      .lookupFunction<_NativeImportFd, _DartImportFd>('ordo_import_fd');
 }
 
 // ---------------------------------------------------------------------------
@@ -288,6 +292,18 @@ dynamic nativeExecute(String op, List<Object?> args) {
       );
     case 'serverConfigLoad':
       return _decode(_take(bindings, bindings.serverConfigLoad()));
+    case 'importFd':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[1] as String, (dir) {
+            return _withCString(
+              args[2] as String,
+              (name) => bindings.importFd(args[0] as int, dir, name),
+            );
+          }),
+        ),
+      );
     case 'readBytes':
       return _readBytes(bindings, args[0] as String);
     case 'writeBytes':

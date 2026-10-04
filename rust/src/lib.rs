@@ -6,6 +6,7 @@
 //! 分配，调用方使用 [`ordo_free_string`] 释放。
 
 mod api;
+mod importer;
 mod model;
 mod remote;
 mod server;
@@ -338,6 +339,24 @@ pub extern "C" fn ordo_ping() -> *mut c_char {
             })
             .to_string(),
         )
+    })
+}
+
+/// 把外部应用拖入的文件描述符内容导入到 `dest_dir`，`name` 为建议文件名。
+///
+/// `fd` 的所有权会移交给本函数（结束时关闭）。用于接收 Android 跨应用拖放。
+///
+/// # Safety
+/// FFI 边界：`fd` 必须为可读且已移交所有权的文件描述符；两个指针需为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_import_fd(
+    fd: i32,
+    dest_dir: *const c_char,
+    name: *const c_char,
+) -> *mut c_char {
+    guard(|| match (read_str(dest_dir), read_str(name)) {
+        (Ok(dir), Ok(name)) => result(importer::import_fd(fd, &dir, &name)),
+        (Err(e), _) | (_, Err(e)) => err(e),
     })
 }
 

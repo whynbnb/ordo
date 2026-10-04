@@ -8,8 +8,12 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.ParcelFileDescriptor
 import android.os.storage.StorageManager
+import android.provider.OpenableColumns
 import android.provider.Settings
+import android.view.DragEvent
+import android.view.View
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
@@ -27,32 +31,137 @@ import java.io.File
 class MainActivity : FlutterActivity() {
 
     private var pendingPermissionResult: MethodChannel.Result? = null
+    private var channel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "hasStoragePermission" -> result.success(hasStoragePermission())
-                    "requestStoragePermission" -> requestStoragePermission(result)
-                    "openFile" -> result.success(
-                        viewFile(call.argument("path"), call.argument("mime"))
+        val methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        channel = methodChannel
+        methodChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "hasStoragePermission" -> result.success(hasStoragePermission())
+                "requestStoragePermission" -> requestStoragePermission(result)
+                "openFile" -> result.success(
+                    viewFile(call.argument("path"), call.argument("mime"))
+                )
+                "shareFile" -> result.success(
+                    sendFile(call.argument("path"), call.argument("mime"))
+                )
+                "sdkInt" -> result.success(Build.VERSION.SDK_INT)
+                "storageVolumes" -> result.success(storageVolumes())
+                "paths" -> result.success(
+                    mapOf(
+                        "filesDir" to filesDir.absolutePath,
+                        "cacheDir" to cacheDir.absolutePath,
                     )
-                    "shareFile" -> result.success(
-                        sendFile(call.argument("path"), call.argument("mime"))
+                )
+                else -> result.notImplemented()
+            }
+        }
+
+        setupDragAndDrop()
+    }
+
+    // -----------------------------------------------------------------------
+    // 跨应用拖放：接收其它应用（如相册）拖入的文件
+    // -----------------------------------------------------------------------
+
+    /**
+     * Flutter 框架不暴露 Android 的系统拖放，这里直接监听根视图的 [DragEvent]。
+     * 拖入时把 `content://` URI 打开成文件描述符并交给 Dart / Rust 落盘。
+     */
+    private fun setupDragAndDrop() {
+        val target = findViewById<View>(android.R.id.content) ?: return
+        target.setOnDragListener { _, event ->
+            when (event.action) {
+                DragEvent.ACTION_DRAG_STARTED -> {
+                    channel?.invokeMethod("dragStarted", null)
+                    true
+                }
+                DragEvent.ACTION_DRAG_ENTERED -> {
+                    channel?.invokeMethod("dragEntered", null)
+                    true
+                }
+                DragEvent.ACTION_DRAG_EXITED -> {
+                    channel?.invokeMethod("dragExited", null)
+                    true
+                }
+                DragEvent.ACTION_DRAG_ENDED -> {
+                    channel?.invokeMethod("dragEnded", null)
+                    true
+                }
+                DragEvent.ACTION_DROP -> {
+                    handleDrop(event)
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun handleDrop(event: DragEvent) {
+        // 先申请对拖入 URI 的临时读取权限，再打开描述符。
+        try {
+            requestDragAndDropPermissions(event)
+        } catch (_: Exception) {
+            // 部分场景（如 file://）无需申请。
+        }
+
+        val clip = event.clipData
+        val items = mutableListOf<Map<String, Any?>>()
+        if (clip != null) {
+            val fallbackMime = clip.description?.getMimeType(0)
+            for (index in 0 until clip.itemCount) {
+                val uri = clip.getItemAt(index).uri ?: continue
+                val fd = openReadDescriptor(uri) ?: continue
+                items.add(
+                    mapOf(
+                        "fd" to fd,
+                        "name" to (queryDisplayName(uri) ?: "imported"),
+                        "mime" to (contentResolver.getType(uri) ?: fallbackMime ?: "*/*"),
                     )
-                    "sdkInt" -> result.success(Build.VERSION.SDK_INT)
-                    "storageVolumes" -> result.success(storageVolumes())
-                    "paths" -> result.success(
-                        mapOf(
-                            "filesDir" to filesDir.absolutePath,
-                            "cacheDir" to cacheDir.absolutePath,
-                        )
-                    )
-                    else -> result.notImplemented()
+                )
+            }
+        }
+        channel?.invokeMethod("dragDropped", items)
+    }
+
+    /** 打开只读描述符并把所有权（fd）移交给 Rust。失败返回 null。 */
+    private fun openReadDescriptor(uri: Uri): Int? {
+        return try {
+            if (uri.scheme == "file") {
+                val path = uri.path ?: return null
+                ParcelFileDescriptor.open(File(path), ParcelFileDescriptor.MODE_READ_ONLY)
+                    .detachFd()
+            } else {
+                contentResolver.openFileDescriptor(uri, "r")?.detachFd()
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun queryDisplayName(uri: Uri): String? {
+        if (uri.scheme == "file") return uri.lastPathSegment
+        return try {
+            contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (column >= 0) cursor.getString(column) else null
+                } else {
+                    null
                 }
             }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun hasStoragePermission(): Boolean {

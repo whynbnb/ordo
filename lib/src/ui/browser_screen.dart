@@ -6,9 +6,12 @@ import '../core/models.dart';
 import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
 import '../state/browser_controller.dart';
+import '../state/drop_controller.dart';
+import '../state/route_observer.dart';
 import '../state/settings.dart';
 import '../state/transfer_clipboard.dart';
 import 'dialogs.dart';
+import 'drop_overlay.dart';
 import 'entry_tile.dart';
 import 'open_entry.dart';
 import 'search_screen.dart';
@@ -23,7 +26,7 @@ class BrowserScreen extends StatefulWidget {
   State<BrowserScreen> createState() => _BrowserScreenState();
 }
 
-class _BrowserScreenState extends State<BrowserScreen> {
+class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
   final OrdoService _service = OrdoService.instance;
   late final BrowserController _controller;
 
@@ -32,12 +35,39 @@ class _BrowserScreenState extends State<BrowserScreen> {
     super.initState();
     _controller = BrowserController(initialPath: widget.path);
     _controller.load();
+    DropController.instance.revision.addListener(_onDropRevision);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      ordoRouteObserver.subscribe(this, route);
+      if (route.isCurrent) _updateDropTarget();
+    }
   }
 
   @override
   void dispose() {
+    ordoRouteObserver.unsubscribe(this);
+    DropController.instance.revision.removeListener(_onDropRevision);
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPush() => _updateDropTarget();
+
+  @override
+  void didPopNext() => _updateDropTarget();
+
+  void _updateDropTarget() {
+    DropController.instance.setActive(_controller.path, widget.title);
+  }
+
+  void _onDropRevision() {
+    if (mounted) _controller.refresh();
   }
 
   @override
@@ -47,9 +77,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
       builder: (context, _) {
         return Scaffold(
           appBar: _buildAppBar(context),
-          body: RefreshIndicator(
-            onRefresh: _controller.refresh,
-            child: _buildBody(context),
+          body: Stack(
+            children: [
+              RefreshIndicator(
+                onRefresh: _controller.refresh,
+                child: _buildBody(context),
+              ),
+              const DropOverlay(),
+            ],
           ),
           floatingActionButton: _controller.selectionMode
               ? null

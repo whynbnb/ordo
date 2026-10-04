@@ -188,4 +188,14 @@ class OrdoService {
     final data = _direct('serverStatus');
     return ServerStatus.fromJson((data as Map).cast<String, dynamic>());
   }
+
+  /// 导入外部拖入的文件（由 Android 原生移交的文件描述符）。
+  Future<FileEntry> importFd({
+    required int fd,
+    required String destDir,
+    required String name,
+  }) async {
+    final data = await _background('importFd', [fd, destDir, name]);
+    return FileEntry.fromJson((data as Map).cast<String, dynamic>());
+  }
 }
