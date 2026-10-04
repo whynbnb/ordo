@@ -1,3 +1,4 @@
+use crate::jobs::Job;
 use crate::model::{build_entry, FileEntry};
 use serde_json::{json, Value};
 use std::cmp::Ordering;
@@ -202,7 +203,16 @@ pub fn rename(path: &str, new_name: &str) -> Result<FileEntry, String> {
 // 复制 / 移动
 // ---------------------------------------------------------------------------
 
-fn copy_recursive(src: &Path, dest: &Path) -> std::io::Result<()> {
+fn cancelled_err() -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::Interrupted, "已取消")
+}
+
+fn copy_recursive(src: &Path, dest: &Path, job: Option<&Job>) -> std::io::Result<()> {
+    if let Some(job) = job {
+        if job.is_cancelled() {
+            return Err(cancelled_err());
+        }
+    }
     let meta = std::fs::symlink_metadata(src)?;
     if meta.file_type().is_symlink() {
         // 跳过符号链接，避免循环与越权复制。
@@ -212,7 +222,7 @@ fn copy_recursive(src: &Path, dest: &Path) -> std::io::Result<()> {
         std::fs::create_dir_all(dest)?;
         for item in std::fs::read_dir(src)? {
             let item = item?;
-            copy_recursive(&item.path(), &dest.join(item.file_name()))?;
+            copy_recursive(&item.path(), &dest.join(item.file_name()), job)?;
         }
         Ok(())
     } else {
@@ -220,8 +230,45 @@ fn copy_recursive(src: &Path, dest: &Path) -> std::io::Result<()> {
             std::fs::create_dir_all(parent)?;
         }
         std::fs::copy(src, dest)?;
+        if let Some(job) = job {
+            job.add(meta.len());
+        }
         Ok(())
     }
+}
+
+/// 递归统计本地路径的字节数（用于进度总量）。
+pub fn path_size(path: &str) -> u64 {
+    let p = Path::new(path);
+    let Ok(meta) = std::fs::symlink_metadata(p) else {
+        return 0;
+    };
+    if meta.file_type().is_symlink() {
+        return 0;
+    }
+    if !meta.is_dir() {
+        return meta.len();
+    }
+    let mut total = 0u64;
+    let mut stack = vec![p.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let Ok(reader) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for item in reader.flatten() {
+            if let Ok(file_type) = item.file_type() {
+                if file_type.is_symlink() {
+                    continue;
+                }
+                if file_type.is_dir() {
+                    stack.push(item.path());
+                } else if let Ok(meta) = item.metadata() {
+                    total += meta.len();
+                }
+            }
+        }
+    }
+    total
 }
 
 fn split_name(name: &str, is_dir: bool) -> (String, String) {
@@ -255,7 +302,7 @@ fn unique_dest(dest_dir: &Path, name: &str, is_dir: bool) -> PathBuf {
     }
 }
 
-fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
+fn transfer(sources: &[String], dest: &str, is_move: bool, job: Option<&Job>) -> Value {
     let dest_dir = Path::new(dest);
     if !dest_dir.is_dir() {
         return json!({ "done": 0, "errors": ["目标不是文件夹"] });
@@ -265,6 +312,12 @@ fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
     let mut errors: Vec<String> = Vec::new();
 
     for src_str in sources {
+        if let Some(job) = job {
+            if job.is_cancelled() {
+                errors.push("已取消".into());
+                break;
+            }
+        }
         let src = Path::new(src_str);
         if !src.exists() && std::fs::symlink_metadata(src).is_err() {
             errors.push(format!("{src_str}：源不存在"));
@@ -284,13 +337,19 @@ fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
             }
         };
         let src_is_dir = src.is_dir();
+        let src_size = path_size(src_str);
         let target = unique_dest(dest_dir, &base_name, src_is_dir);
 
         let result = if is_move {
             match std::fs::rename(src, &target) {
-                Ok(_) => Ok(()),
+                Ok(_) => {
+                    if let Some(job) = job {
+                        job.add(src_size);
+                    }
+                    Ok(())
+                }
                 // 跨文件系统时退化为复制 + 删除。
-                Err(_) => copy_recursive(src, &target).and_then(|_| {
+                Err(_) => copy_recursive(src, &target, job).and_then(|_| {
                     if src_is_dir {
                         std::fs::remove_dir_all(src)
                     } else {
@@ -299,7 +358,7 @@ fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
                 }),
             }
         } else {
-            copy_recursive(src, &target)
+            copy_recursive(src, &target, job)
         };
 
         match result {
@@ -311,12 +370,12 @@ fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
     json!({ "done": done, "errors": errors })
 }
 
-pub fn copy(sources: &[String], dest: &str) -> Value {
-    transfer(sources, dest, false)
+pub fn copy(sources: &[String], dest: &str, job: Option<&Job>) -> Value {
+    transfer(sources, dest, false, job)
 }
 
-pub fn move_entries(sources: &[String], dest: &str) -> Value {
-    transfer(sources, dest, true)
+pub fn move_entries(sources: &[String], dest: &str, job: Option<&Job>) -> Value {
+    transfer(sources, dest, true, job)
 }
 
 // ---------------------------------------------------------------------------

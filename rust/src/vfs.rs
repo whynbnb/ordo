@@ -2,6 +2,7 @@
 //! 走同一套接口，远程部分全部由 Rust 实现。
 
 use crate::api;
+use crate::jobs::Job;
 use crate::model::FileEntry;
 use crate::remote::{self, RemoteEntry};
 use serde_json::{json, Value};
@@ -187,23 +188,31 @@ pub fn rename(path: &str, new_name: &str) -> Result<FileEntry, String> {
             return api::rename(path, new_name);
         }
         _ => {
-            copy_entry(path, &dest)?;
+            copy_entry(path, &dest, None)?;
             remove_one(path)?;
         }
     }
     stat(&dest)
 }
 
-fn copy_entry(source: &str, dest: &str) -> Result<(), String> {
+fn copy_entry(source: &str, dest: &str, job: Option<&Job>) -> Result<(), String> {
+    if let Some(job) = job {
+        if job.is_cancelled() {
+            return Err("已取消".into());
+        }
+    }
     let meta = stat(source)?;
     if meta.is_dir {
         ensure_dir(dest)?;
         for child in list(source)? {
             let target = join_uri(dest, &child.name);
-            copy_entry(&child.path, &target)?;
+            copy_entry(&child.path, &target, job)?;
         }
     } else {
         let data = read(source)?;
+        if let Some(job) = job {
+            job.add(data.len() as u64);
+        }
         write(dest, &data)?;
     }
     Ok(())
@@ -253,15 +262,38 @@ fn split_name(name: &str, is_dir: bool) -> (String, String) {
     }
 }
 
-fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
+fn source_size(source: &str) -> u64 {
+    if let Some((_, id, inner)) = remote::parse(source) {
+        remote::stat(&id, &inner)
+            .map(|entry| if entry.is_dir { 0 } else { entry.size })
+            .unwrap_or(0)
+    } else {
+        api::path_size(source)
+    }
+}
+
+fn measure(sources: &[String]) -> u64 {
+    sources.iter().map(|source| source_size(source)).sum()
+}
+
+fn transfer(sources: &[String], dest: &str, is_move: bool, job: Option<&Job>) -> Value {
     if stat(dest).map(|e| !e.is_dir).unwrap_or(true) {
         return json!({ "done": 0, "errors": ["目标不是文件夹"] });
+    }
+    if let Some(job) = job {
+        job.set_total(measure(sources));
     }
 
     let mut done = 0u64;
     let mut errors: Vec<String> = Vec::new();
 
     for source in sources {
+        if let Some(job) = job {
+            if job.is_cancelled() {
+                errors.push("已取消".into());
+                break;
+            }
+        }
         if !exists(source) {
             errors.push(format!("{source}：源不存在"));
             continue;
@@ -286,7 +318,7 @@ fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
         if !same_location {
             // 跨存储：先复制再按需删除。
             let target = unique_target(dest, &name, is_dir);
-            let result = copy_entry(source, &target).and_then(|_| {
+            let result = copy_entry(source, &target, job).and_then(|_| {
                 if is_move {
                     remove_one(source)
                 } else {
@@ -307,7 +339,7 @@ fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
                 let (_, _, to_inner) = remote::parse(&target).expect("target is remote");
                 remote::rename(&id, &from_inner, &to_inner)
             } else {
-                copy_entry(source, &target)
+                copy_entry(source, &target, job)
             };
             match result {
                 Ok(_) => done += 1,
@@ -315,9 +347,9 @@ fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
             }
         } else {
             let result = if is_move {
-                api::move_entries(std::slice::from_ref(source), dest)
+                api::move_entries(std::slice::from_ref(source), dest, job)
             } else {
-                api::copy(std::slice::from_ref(source), dest)
+                api::copy(std::slice::from_ref(source), dest, job)
             };
             let count = result["done"].as_u64().unwrap_or(0);
             if count > 0 {
@@ -334,12 +366,12 @@ fn transfer(sources: &[String], dest: &str, is_move: bool) -> Value {
     json!({ "done": done, "errors": errors })
 }
 
-pub fn copy(sources: &[String], dest: &str) -> Value {
-    transfer(sources, dest, false)
+pub fn copy(sources: &[String], dest: &str, job: Option<&Job>) -> Value {
+    transfer(sources, dest, false, job)
 }
 
-pub fn move_entries(sources: &[String], dest: &str) -> Value {
-    transfer(sources, dest, true)
+pub fn move_entries(sources: &[String], dest: &str, job: Option<&Job>) -> Value {
+    transfer(sources, dest, true, job)
 }
 
 pub fn search(root: &str, query: &str, limit: usize) -> Result<Value, String> {

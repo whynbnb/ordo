@@ -63,7 +63,7 @@ void main() {
     final deleted = await service.delete([
       '${root.path}/demo',
       '${root.path}/dest',
-    ]);
+    ], toTrash: false);
     expect(deleted.deleted, 2);
     expect(deleted.errors, isEmpty);
   });
@@ -159,5 +159,14 @@ void main() {
     final stopped = await service.serverStop();
     expect(stopped.running, isFalse);
     expect(stopped.httpPort, isNull);
+  });
+
+  test('任务进度可查询与取消', () async {
+    final id = service.jobCreate();
+    expect(service.jobStatus(id).progress, 0);
+    service.jobCancel(id);
+    expect(service.jobStatus(id).cancelled, isTrue);
+    service.jobCleanup(id);
+    expect(service.jobStatus(id).total, 0);
   });
 }

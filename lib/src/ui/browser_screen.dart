@@ -15,6 +15,7 @@ import '../state/transfer_clipboard.dart';
 import 'dialogs.dart';
 import 'drop_overlay.dart';
 import 'entry_tile.dart';
+import 'job_progress.dart';
 import 'open_entry.dart';
 import 'path_breadcrumb.dart';
 import 'search_screen.dart';
@@ -492,9 +493,14 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
     final paths = clipboard.paths;
     final move = clipboard.isMove;
     try {
-      final result = move
-          ? await _service.move(paths, _controller.path)
-          : await _service.copy(paths, _controller.path);
+      final result = await runWithJobProgress<TransferResult>(
+        context,
+        move ? '正在移动' : '正在复制',
+        (jobId) => move
+            ? _service.move(paths, _controller.path, jobId: jobId)
+            : _service.copy(paths, _controller.path, jobId: jobId),
+      );
+      if (!mounted) return;
       clipboard.clear();
       await _controller.refresh();
       _snack(

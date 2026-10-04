@@ -111,13 +111,36 @@ class OrdoService {
     return DeleteResult.fromJson((data as Map).cast<String, dynamic>());
   }
 
-  Future<TransferResult> copy(List<String> sources, String dest) async {
-    final data = await _background('copy', [jsonEncode(sources), dest]);
+  // -------------------------------------------------------------------------
+  // 长任务进度
+  // -------------------------------------------------------------------------
+
+  int jobCreate() => _direct('jobCreate') as int;
+
+  JobProgress jobStatus(int id) {
+    final data = _direct('jobStatus', [id]);
+    return JobProgress.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  void jobCancel(int id) => _direct('jobCancel', [id]);
+
+  void jobCleanup(int id) => _direct('jobCleanup', [id]);
+
+  Future<TransferResult> copy(
+    List<String> sources,
+    String dest, {
+    int jobId = 0,
+  }) async {
+    final data = await _background('copy', [jsonEncode(sources), dest, jobId]);
     return TransferResult.fromJson((data as Map).cast<String, dynamic>());
   }
 
-  Future<TransferResult> move(List<String> sources, String dest) async {
-    final data = await _background('move', [jsonEncode(sources), dest]);
+  Future<TransferResult> move(
+    List<String> sources,
+    String dest, {
+    int jobId = 0,
+  }) async {
+    final data = await _background('move', [jsonEncode(sources), dest, jobId]);
     return TransferResult.fromJson((data as Map).cast<String, dynamic>());
   }
 

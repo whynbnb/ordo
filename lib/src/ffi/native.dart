@@ -30,6 +30,10 @@ typedef _NativeImportFd = _CStr Function(Int32, _CStr, _CStr);
 typedef _DartImportFd = _CStr Function(int, _CStr, _CStr);
 typedef _NativeDelete = _CStr Function(_CStr, Bool);
 typedef _DartDelete = _CStr Function(_CStr, bool);
+typedef _NativeCopyMove = _CStr Function(_CStr, _CStr, Uint64);
+typedef _DartCopyMove = _CStr Function(_CStr, _CStr, int);
+typedef _NativeJob = _CStr Function(Uint64);
+typedef _DartJob = _CStr Function(int);
 typedef _DartReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
 typedef _NativeFreeBytes = Void Function(Pointer<Uint8>, UintPtr);
 typedef _DartFreeBytes = void Function(Pointer<Uint8>, int);
@@ -85,8 +89,10 @@ class _OrdoBindings {
   late final _Dart2 rename = _lib.lookupFunction<_Native2, _Dart2>(
     'ordo_rename',
   );
-  late final _Dart2 copy = _lib.lookupFunction<_Native2, _Dart2>('ordo_copy');
-  late final _Dart2 move = _lib.lookupFunction<_Native2, _Dart2>('ordo_move');
+  late final _DartCopyMove copy = _lib
+      .lookupFunction<_NativeCopyMove, _DartCopyMove>('ordo_copy');
+  late final _DartCopyMove move = _lib
+      .lookupFunction<_NativeCopyMove, _DartCopyMove>('ordo_move');
   late final _DartSearch search = _lib
       .lookupFunction<_NativeSearch, _DartSearch>('ordo_search');
   late final _DartZero storageRoots = _lib
@@ -159,6 +165,18 @@ class _OrdoBindings {
   );
   late final _Dart1 trashRemove = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_trash_remove',
+  );
+  late final _DartZero jobCreate = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_job_create',
+  );
+  late final _DartJob jobStatus = _lib.lookupFunction<_NativeJob, _DartJob>(
+    'ordo_job_status',
+  );
+  late final _DartJob jobCancel = _lib.lookupFunction<_NativeJob, _DartJob>(
+    'ordo_job_cancel',
+  );
+  late final _DartJob jobCleanup = _lib.lookupFunction<_NativeJob, _DartJob>(
+    'ordo_job_cleanup',
   );
 }
 
@@ -253,7 +271,7 @@ dynamic nativeExecute(String op, List<Object?> args) {
           _withCString(args[0] as String, (sources) {
             return _withCString(
               args[1] as String,
-              (dest) => bindings.copy(sources, dest),
+              (dest) => bindings.copy(sources, dest, args[2] as int),
             );
           }),
         ),
@@ -265,7 +283,7 @@ dynamic nativeExecute(String op, List<Object?> args) {
           _withCString(args[0] as String, (sources) {
             return _withCString(
               args[1] as String,
-              (dest) => bindings.move(sources, dest),
+              (dest) => bindings.move(sources, dest, args[2] as int),
             );
           }),
         ),
@@ -370,6 +388,14 @@ dynamic nativeExecute(String op, List<Object?> args) {
           _withCString(args[0] as String, (ids) => bindings.trashRemove(ids)),
         ),
       );
+    case 'jobCreate':
+      return _decode(_take(bindings, bindings.jobCreate()));
+    case 'jobStatus':
+      return _decode(_take(bindings, bindings.jobStatus(args[0] as int)));
+    case 'jobCancel':
+      return _decode(_take(bindings, bindings.jobCancel(args[0] as int)));
+    case 'jobCleanup':
+      return _decode(_take(bindings, bindings.jobCleanup(args[0] as int)));
     case 'readBytes':
       return _readBytes(bindings, args[0] as String);
     case 'writeBytes':

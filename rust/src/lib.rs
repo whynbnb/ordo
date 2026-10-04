@@ -8,6 +8,7 @@
 mod api;
 mod favorites;
 mod importer;
+mod jobs;
 mod model;
 mod remote;
 mod server;
@@ -198,26 +199,48 @@ pub unsafe extern "C" fn ordo_rename(path: *const c_char, new_name: *const c_cha
     })
 }
 
-/// 复制一组路径到目标位置（支持本地 <-> 远程）。入参为 JSON 字符串数组。
+/// 复制一组路径到目标位置（支持本地 <-> 远程）。入参为 JSON 字符串数组；`job_id` 为 0 表示不跟踪进度。
 ///
 /// # Safety
 /// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
-pub unsafe extern "C" fn ordo_copy(sources: *const c_char, dest: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn ordo_copy(
+    sources: *const c_char,
+    dest: *const c_char,
+    job_id: u64,
+) -> *mut c_char {
     guard(|| match (read_paths(sources), read_str(dest)) {
-        (Ok(src), Ok(d)) => ok(vfs::copy(&src, &d)),
+        (Ok(src), Ok(d)) => {
+            let job = jobs::get(job_id);
+            let value = vfs::copy(&src, &d, job.as_deref());
+            if let Some(job) = &job {
+                job.complete();
+            }
+            ok(value)
+        }
         (Err(e), _) | (_, Err(e)) => err(e),
     })
 }
 
-/// 移动一组路径到目标位置（支持本地 <-> 远程）。入参为 JSON 字符串数组。
+/// 移动一组路径到目标位置（支持本地 <-> 远程）。入参为 JSON 字符串数组；`job_id` 为 0 表示不跟踪进度。
 ///
 /// # Safety
 /// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
 #[no_mangle]
-pub unsafe extern "C" fn ordo_move(sources: *const c_char, dest: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn ordo_move(
+    sources: *const c_char,
+    dest: *const c_char,
+    job_id: u64,
+) -> *mut c_char {
     guard(|| match (read_paths(sources), read_str(dest)) {
-        (Ok(src), Ok(d)) => ok(vfs::move_entries(&src, &d)),
+        (Ok(src), Ok(d)) => {
+            let job = jobs::get(job_id);
+            let value = vfs::move_entries(&src, &d, job.as_deref());
+            if let Some(job) = &job {
+                job.complete();
+            }
+            ok(value)
+        }
         (Err(e), _) | (_, Err(e)) => err(e),
     })
 }
@@ -612,6 +635,43 @@ pub unsafe extern "C" fn ordo_trash_remove(ids: *const c_char) -> *mut c_char {
     })
 }
 
+// ---------------------------------------------------------------------------
+// 导出函数：长任务进度
+// ---------------------------------------------------------------------------
+
+/// 创建一个任务，返回其 id（用于轮询进度 / 取消）。
+#[no_mangle]
+pub extern "C" fn ordo_job_create() -> *mut c_char {
+    guard(|| {
+        let (id, _) = jobs::create();
+        ok(id)
+    })
+}
+
+/// 查询任务进度：`{progress, total, cancelled, done}`。
+#[no_mangle]
+pub extern "C" fn ordo_job_status(id: u64) -> *mut c_char {
+    guard(|| ok(jobs::snapshot(id)))
+}
+
+/// 请求取消任务。
+#[no_mangle]
+pub extern "C" fn ordo_job_cancel(id: u64) -> *mut c_char {
+    guard(|| {
+        jobs::cancel(id);
+        ok(serde_json::Value::Null)
+    })
+}
+
+/// 释放任务记录。
+#[no_mangle]
+pub extern "C" fn ordo_job_cleanup(id: u64) -> *mut c_char {
+    guard(|| {
+        jobs::cleanup(id);
+        ok(serde_json::Value::Null)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -645,11 +705,19 @@ mod tests {
         let dst = dir.join("sub");
         fs::create_dir(&dst).unwrap();
 
-        let copied = api::copy(&[src.to_string_lossy().into_owned()], dst.to_str().unwrap());
+        let copied = api::copy(
+            &[src.to_string_lossy().into_owned()],
+            dst.to_str().unwrap(),
+            None,
+        );
         assert_eq!(copied["done"], 1);
         assert!(dst.join("a.txt").exists());
 
-        let moved = api::move_entries(&[src.to_string_lossy().into_owned()], dst.to_str().unwrap());
+        let moved = api::move_entries(
+            &[src.to_string_lossy().into_owned()],
+            dst.to_str().unwrap(),
+            None,
+        );
         assert_eq!(moved["done"], 1);
         assert!(dst.join("a (1).txt").exists());
         assert!(!src.exists());

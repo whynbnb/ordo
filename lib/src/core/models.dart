@@ -364,6 +364,40 @@ class CacheFile {
   }
 }
 
+/// 长任务（复制 / 移动 / 压缩 / 分析）的进度。
+class JobProgress {
+  const JobProgress({
+    required this.progress,
+    required this.total,
+    required this.cancelled,
+    required this.done,
+  });
+
+  final int progress;
+  final int total;
+  final bool cancelled;
+  final bool done;
+
+  static const JobProgress idle = JobProgress(
+    progress: 0,
+    total: 0,
+    cancelled: false,
+    done: false,
+  );
+
+  factory JobProgress.fromJson(Map<String, dynamic> json) {
+    return JobProgress(
+      progress: (json['progress'] as num?)?.toInt() ?? 0,
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      cancelled: json['cancelled'] as bool? ?? false,
+      done: json['done'] as bool? ?? false,
+    );
+  }
+
+  /// 0..1；总量未知时为 null（界面显示不确定进度）。
+  double? get fraction => total > 0 ? (progress / total).clamp(0.0, 1.0) : null;
+}
+
 /// 收藏夹条目。
 class Favorite {
   const Favorite({required this.name, required this.path});
