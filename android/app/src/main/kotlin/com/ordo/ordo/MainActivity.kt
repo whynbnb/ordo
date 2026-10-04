@@ -5,6 +5,8 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -15,6 +17,7 @@ import android.provider.Settings
 import android.view.DragEvent
 import android.view.View
 import android.webkit.MimeTypeMap
+import java.io.ByteArrayOutputStream
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -50,6 +53,7 @@ class MainActivity : FlutterActivity() {
                 )
                 "sdkInt" -> result.success(Build.VERSION.SDK_INT)
                 "storageVolumes" -> result.success(storageVolumes())
+                "videoThumbnail" -> result.success(videoThumbnail(call.argument("path")))
                 "paths" -> result.success(
                     mapOf(
                         "filesDir" to filesDir.absolutePath,
@@ -199,6 +203,41 @@ class MainActivity : FlutterActivity() {
             )
         }
         return volumes
+    }
+
+    /**
+     * 借用系统媒体框架为视频抽一帧（JPEG）。视频解码不在 Rust 能力范围内，
+     * 图片缩略图仍由 Rust 生成。
+     */
+    private fun videoThumbnail(path: String?): ByteArray? {
+        if (path == null) return null
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(path)
+            val frame = retriever.getFrameAtTime(0) ?: return null
+            val scaled = scaleToMax(frame, 256)
+            val output = ByteArrayOutputStream()
+            scaled.compress(Bitmap.CompressFormat.JPEG, 80, output)
+            output.toByteArray()
+        } catch (_: Exception) {
+            null
+        } finally {
+            try {
+                retriever.release()
+            } catch (_: Exception) {
+                // 忽略释放异常。
+            }
+        }
+    }
+
+    private fun scaleToMax(bitmap: Bitmap, max: Int): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        if (width <= max && height <= max) return bitmap
+        val ratio = max.toFloat() / maxOf(width, height)
+        val targetWidth = (width * ratio).toInt().coerceAtLeast(1)
+        val targetHeight = (height * ratio).toInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
     }
 
     private fun requestStoragePermission(result: MethodChannel.Result) {

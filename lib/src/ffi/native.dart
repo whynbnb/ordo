@@ -34,6 +34,12 @@ typedef _NativeCopyMove = _CStr Function(_CStr, _CStr, Uint64);
 typedef _DartCopyMove = _CStr Function(_CStr, _CStr, int);
 typedef _NativeJob = _CStr Function(Uint64);
 typedef _DartJob = _CStr Function(int);
+typedef _NativeThumbnail = Pointer<Uint8> Function(
+  _CStr,
+  Uint32,
+  Pointer<UintPtr>,
+);
+typedef _DartThumbnail = Pointer<Uint8> Function(_CStr, int, Pointer<UintPtr>);
 typedef _DartReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
 typedef _NativeFreeBytes = Void Function(Pointer<Uint8>, UintPtr);
 typedef _DartFreeBytes = void Function(Pointer<Uint8>, int);
@@ -185,6 +191,8 @@ class _OrdoBindings {
   late final _Dart1 zipList = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_zip_list',
   );
+  late final _DartThumbnail thumbnail = _lib
+      .lookupFunction<_NativeThumbnail, _DartThumbnail>('ordo_thumbnail');
 }
 
 // ---------------------------------------------------------------------------
@@ -439,6 +447,8 @@ dynamic nativeExecute(String op, List<Object?> args) {
       );
     case 'readBytes':
       return _readBytes(bindings, args[0] as String);
+    case 'thumbnail':
+      return _thumbnail(bindings, args[0] as String, args[1] as int);
     case 'writeBytes':
       return _writeBytes(bindings, args[0] as String, args[1] as Uint8List);
     case 'configInit':
@@ -539,6 +549,25 @@ Uint8List _readBytes(_OrdoBindings bindings, String path) {
     }
     if (length == 0) {
       return Uint8List(0);
+    }
+    final bytes = Uint8List.fromList(pointer.asTypedList(length));
+    bindings.freeBytes(pointer, length);
+    return bytes;
+  } finally {
+    malloc.free(outLen);
+  }
+}
+
+Uint8List? _thumbnail(_OrdoBindings bindings, String path, int maxPx) {
+  final outLen = malloc.allocate<UintPtr>(sizeOf<UintPtr>());
+  try {
+    final pointer = _withCString(
+      path,
+      (p) => bindings.thumbnail(p, maxPx, outLen),
+    );
+    final length = outLen.value;
+    if (pointer == nullptr || length == 0) {
+      return null;
     }
     final bytes = Uint8List.fromList(pointer.asTypedList(length));
     bindings.freeBytes(pointer, length);

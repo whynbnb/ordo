@@ -14,6 +14,7 @@ mod model;
 mod remote;
 mod server;
 mod storage;
+mod thumbnail;
 mod trash;
 mod vfs;
 
@@ -325,6 +326,37 @@ pub unsafe extern "C" fn ordo_free_bytes(ptr: *mut u8, len: usize) {
     if !ptr.is_null() && len > 0 {
         let slice = std::slice::from_raw_parts_mut(ptr, len);
         drop(Box::from_raw(slice as *mut [u8]));
+    }
+}
+
+/// 生成图片缩略图（JPEG 字节）。失败或非图片时返回空指针。
+/// 调用方处理后必须调用 [`ordo_free_bytes`]。
+///
+/// # Safety
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_thumbnail(
+    path: *const c_char,
+    max_px: u32,
+    out_len: *mut usize,
+) -> *mut u8 {
+    if !out_len.is_null() {
+        *out_len = 0;
+    }
+    let path = match read_str(path) {
+        Ok(p) => p,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    match catch_unwind(AssertUnwindSafe(|| thumbnail::thumbnail(&path, max_px))) {
+        Ok(Ok(bytes)) => {
+            let boxed = bytes.into_boxed_slice();
+            let len = boxed.len();
+            if !out_len.is_null() {
+                *out_len = len;
+            }
+            Box::into_raw(boxed) as *mut u8
+        }
+        _ => std::ptr::null_mut(),
     }
 }
 

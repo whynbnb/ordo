@@ -153,6 +153,16 @@ class OrdoService {
         .toList();
   }
 
+  // -------------------------------------------------------------------------
+  // 缩略图
+  // -------------------------------------------------------------------------
+
+  /// 生成图片缩略图（JPEG 字节）；不支持的格式返回 null。
+  Future<Uint8List?> thumbnail(String path, int maxPx) async {
+    final data = await _background('thumbnail', [path, maxPx]);
+    return data as Uint8List?;
+  }
+
   Future<TransferResult> copy(
     List<String> sources,
     String dest, {

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../core/file_types.dart';
 import '../core/format.dart';
 import '../core/models.dart';
 import 'entry_visuals.dart';
+import 'thumbnail.dart';
 
 class EntryTile extends StatelessWidget {
   const EntryTile({
@@ -49,15 +51,19 @@ class EntryTile extends StatelessWidget {
                     color: selected ? scheme.primary : scheme.outline,
                   ),
                 ),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+              if (isImageExtension(entry.extension) ||
+                  isVideoExtension(entry.extension))
+                ThumbnailImage(entry: entry, size: 44)
+              else
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(iconForEntry(entry), color: accent),
                 ),
-                child: Icon(iconForEntry(entry), color: accent),
-              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

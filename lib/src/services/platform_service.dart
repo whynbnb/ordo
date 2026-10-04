@@ -110,6 +110,22 @@ class PlatformService {
     });
   }
 
+  /// 通过 Android 媒体框架为视频生成一帧缩略图（JPEG 字节）。
+  ///
+  /// Rust 目前不解码视频流，这里借用系统 `MediaMetadataRetriever`；图片缩略图
+  /// 仍由 Rust 完成。
+  static Future<Uint8List?> videoThumbnail(String path) async {
+    try {
+      return await _channel.invokeMethod<Uint8List>('videoThumbnail', {
+        'path': path,
+      });
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
   static Future<bool> _invokeBool(
     String method,
     Map<String, Object?> args,

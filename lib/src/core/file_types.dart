@@ -112,6 +112,10 @@ bool isTextExtension(String extension) =>
 bool isImageExtension(String extension) =>
     _image.contains(extension.toLowerCase());
 
+/// 是否为视频（用于生成缩略图）。
+bool isVideoExtension(String extension) =>
+    _video.contains(extension.toLowerCase());
+
 const Map<String, String> _mimeByExtension = {
   'txt': 'text/plain',
   'md': 'text/markdown',

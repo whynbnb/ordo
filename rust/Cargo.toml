@@ -40,6 +40,16 @@ base64 = "0.22"
 # 压缩 / 解压：纯 Rust zip（仅 deflate）。
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
+# 缩略图：纯 Rust 图片解码；sha2 用于生成缩略图缓存键。
+image = { version = "0.25", default-features = false, features = [
+    "jpeg",
+    "png",
+    "webp",
+    "gif",
+    "bmp",
+] }
+sha2 = "0.11"
+
 [profile.release]
 lto = true
 opt-level = "z"
