@@ -242,6 +242,8 @@ class _OrdoBindings {
   late final _Dart2 copyFile = _lib.lookupFunction<_Native2, _Dart2>(
     'ordo_copy_file',
   );
+  late final _DartThumbnail qrPng = _lib
+      .lookupFunction<_NativeThumbnail, _DartThumbnail>('ordo_qr_png');
 }
 
 // ---------------------------------------------------------------------------
@@ -607,6 +609,8 @@ dynamic nativeExecute(String op, List<Object?> args) {
           }),
         ),
       );
+    case 'qrPng':
+      return _qrPng(bindings, args[0] as String, args[1] as int);
     case 'readBytes':
       return _readBytes(bindings, args[0] as String);
     case 'thumbnail':
@@ -726,6 +730,25 @@ Uint8List? _thumbnail(_OrdoBindings bindings, String path, int maxPx) {
     final pointer = _withCString(
       path,
       (p) => bindings.thumbnail(p, maxPx, outLen),
+    );
+    final length = outLen.value;
+    if (pointer == nullptr || length == 0) {
+      return null;
+    }
+    final bytes = Uint8List.fromList(pointer.asTypedList(length));
+    bindings.freeBytes(pointer, length);
+    return bytes;
+  } finally {
+    malloc.free(outLen);
+  }
+}
+
+Uint8List? _qrPng(_OrdoBindings bindings, String text, int scale) {
+  final outLen = malloc.allocate<UintPtr>(sizeOf<UintPtr>());
+  try {
+    final pointer = _withCString(
+      text,
+      (p) => bindings.qrPng(p, scale, outLen),
     );
     final length = outLen.value;
     if (pointer == nullptr || length == 0) {

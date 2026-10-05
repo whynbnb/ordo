@@ -97,6 +97,11 @@ class OrdoService {
     return FileEntry.fromJson((data as Map).cast<String, dynamic>());
   }
 
+  /// 生成二维码 PNG 字节。
+  Future<Uint8List?> qrPng(String text, {int scale = 6}) async {
+    return await _background('qrPng', [text, scale]) as Uint8List?;
+  }
+
   Future<FileEntry> rename(String path, String newName) async {
     final data = _direct('rename', [path, newName]);
     return FileEntry.fromJson((data as Map).cast<String, dynamic>());

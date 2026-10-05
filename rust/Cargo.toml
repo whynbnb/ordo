@@ -61,6 +61,9 @@ md5 = "0.7"
 # 图片 EXIF / 媒体信息（纯 Rust；包名 kamadak-exif，库名 exif）。
 kamadak-exif = "0.6"
 
+# 二维码（仅生成矩阵，PNG 由 image 编码）。
+qrcode = { version = "0.14", default-features = false }
+
 [profile.release]
 lto = true
 opt-level = "z"

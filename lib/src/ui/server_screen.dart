@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'directory_picker.dart';
+import 'qr_dialog.dart';
 
 /// 在本机开启 HTTP/WebDAV 与 FTP 服务器，供同一局域网内的其他设备访问。
 class ServerScreen extends StatefulWidget {
@@ -350,6 +351,11 @@ class _ServerScreenState extends State<ServerScreen> {
                 SelectableText(url),
               ],
             ),
+          ),
+          IconButton(
+            tooltip: '二维码',
+            icon: const Icon(Icons.qr_code_rounded, size: 18),
+            onPressed: () => showQrDialog(context, title: label, data: url),
           ),
           IconButton(
             tooltip: '复制',

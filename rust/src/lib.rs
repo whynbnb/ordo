@@ -15,6 +15,7 @@ mod jobs;
 mod media;
 mod model;
 mod prefs;
+mod qr;
 mod remote;
 mod server;
 mod storage;
@@ -307,6 +308,36 @@ pub unsafe extern "C" fn ordo_media_info(path: *const c_char) -> *mut c_char {
         Ok(p) => result(media::info(&p)),
         Err(e) => err(e),
     })
+}
+
+/// 生成二维码 PNG（字节）。调用方处理后调用 [`ordo_free_bytes`]。
+///
+/// # Safety
+/// FFI 边界：指针必须指向合法的、以 NUL 结尾的 UTF-8 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_qr_png(
+    text: *const c_char,
+    scale: u32,
+    out_len: *mut usize,
+) -> *mut u8 {
+    if !out_len.is_null() {
+        *out_len = 0;
+    }
+    let text = match read_str(text) {
+        Ok(value) => value,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    match catch_unwind(AssertUnwindSafe(|| qr::png(&text, scale))) {
+        Ok(Ok(bytes)) => {
+            let boxed = bytes.into_boxed_slice();
+            let len = boxed.len();
+            if !out_len.is_null() {
+                *out_len = len;
+            }
+            Box::into_raw(boxed) as *mut u8
+        }
+        _ => std::ptr::null_mut(),
+    }
 }
 
 /// 旋转图片（`left` / `right` / `180`）。

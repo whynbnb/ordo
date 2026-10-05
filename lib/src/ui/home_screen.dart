@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../core/format.dart';
@@ -12,8 +14,11 @@ import '../state/storage_events.dart';
 import 'browser_screen.dart';
 import 'connection_edit.dart';
 import 'dialogs.dart';
+import 'directory_picker.dart';
 import 'drop_overlay.dart';
+import 'file_picker.dart';
 import 'analyzer_screen.dart';
+import 'qr_dialog.dart';
 import 'recent_screen.dart';
 import 'server_screen.dart';
 import 'settings_screen.dart';
@@ -358,6 +363,15 @@ class _HomeScreenState extends State<HomeScreen>
         Row(
           children: [
             Expanded(child: _sectionTitle('网络位置')),
+            PopupMenuButton<String>(
+              tooltip: '更多',
+              icon: const Icon(Icons.more_vert_rounded),
+              onSelected: _onNetworkMenu,
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'import', child: Text('导入连接')),
+                PopupMenuItem(value: 'export', child: Text('导出连接')),
+              ],
+            ),
             TextButton.icon(
               onPressed: () => _editConnection(null),
               icon: const Icon(Icons.add_rounded, size: 18),
@@ -371,6 +385,7 @@ class _HomeScreenState extends State<HomeScreen>
             onTap: () => _openPath(profile.rootUri, profile.name),
             onEdit: () => _editConnection(profile),
             onTest: () => _testConnection(profile),
+            onQr: () => _showConnectionQr(profile),
             onDelete: () => _deleteConnection(profile),
           ),
           const SizedBox(height: 10),
@@ -460,6 +475,54 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ],
     );
+  }
+
+  void _onNetworkMenu(String value) {
+    switch (value) {
+      case 'import':
+        _importConnections();
+      case 'export':
+        _exportConnections();
+    }
+  }
+
+  Future<void> _exportConnections() async {
+    final dir = await pickDirectory(
+      context,
+      initial: '/storage/emulated/0/Download',
+    );
+    if (dir == null || !mounted) return;
+    final path = joinPath(dir, 'ordo_connections.json');
+    try {
+      await _service.writeText(path, _connections.exportJson());
+      _snack('已导出到 $path');
+    } catch (error) {
+      _snack('导出失败：$error');
+    }
+  }
+
+  Future<void> _importConnections() async {
+    final file = await pickFile(
+      context,
+      initial: '/storage/emulated/0/Download',
+    );
+    if (file == null || !mounted) return;
+    try {
+      final text = (await _service.readText(file)).content;
+      final count = await _connections.importJson(text);
+      _snack('已导入 $count 个连接');
+    } catch (error) {
+      _snack('导入失败：$error');
+    }
+  }
+
+  Future<void> _showConnectionQr(ConnectionProfile profile) async {
+    final json = profile.toJson()
+      ..remove('id')
+      ..remove('password');
+    final data = jsonEncode({'app': 'ordo', 'version': 1, 'profile': json});
+    if (!mounted) return;
+    await showQrDialog(context, title: '连接二维码', data: data);
   }
 
   Future<void> _editConnection(ConnectionProfile? existing) async {
@@ -711,6 +774,7 @@ class _ConnectionCard extends StatelessWidget {
     required this.onTap,
     required this.onEdit,
     required this.onTest,
+    required this.onQr,
     required this.onDelete,
   });
 
@@ -718,6 +782,7 @@ class _ConnectionCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onTest;
+  final VoidCallback onQr;
   final VoidCallback onDelete;
 
   @override
@@ -725,6 +790,7 @@ class _ConnectionCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final (IconData icon, String label) = switch (profile.kind) {
       'smb' => (Icons.lan_rounded, 'SMB'),
+      'sftp' => (Icons.terminal_rounded, 'SFTP'),
       'ftp' => (Icons.cloud_upload_rounded, 'FTP'),
       _ => (Icons.cloud_rounded, 'WebDAV'),
     };
@@ -754,6 +820,8 @@ class _ConnectionCard extends StatelessWidget {
                 onEdit();
               case 'test':
                 onTest();
+              case 'qr':
+                onQr();
               case 'delete':
                 onDelete();
             }
@@ -761,6 +829,7 @@ class _ConnectionCard extends StatelessWidget {
           itemBuilder: (_) => const [
             PopupMenuItem(value: 'edit', child: Text('编辑')),
             PopupMenuItem(value: 'test', child: Text('测试连接')),
+            PopupMenuItem(value: 'qr', child: Text('二维码')),
             PopupMenuItem(value: 'delete', child: Text('删除')),
           ],
         ),

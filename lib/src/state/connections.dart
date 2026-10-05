@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/models.dart';
@@ -59,5 +61,35 @@ class ConnectionStore extends ChangeNotifier {
 
   Future<void> test(ConnectionProfile profile) async {
     await _service.testProfile(profile);
+  }
+
+  /// 导出为 JSON 文本（包含密码，注意妥善保管）。
+  String exportJson() {
+    return const JsonEncoder.withIndent('  ').convert({
+      'app': 'ordo',
+      'version': 1,
+      'profiles': [for (final profile in _profiles) profile.toJson()],
+    });
+  }
+
+  /// 从 JSON 文本导入（为新连接生成新 ID），返回导入数量。
+  Future<int> importJson(String text) async {
+    final decoded = jsonDecode(text);
+    final raw = decoded is Map ? decoded['profiles'] : decoded;
+    if (raw is! List) {
+      throw const FormatException('文件格式不正确');
+    }
+    var count = 0;
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final profile = ConnectionProfile.fromJson(
+        item.cast<String, dynamic>(),
+      );
+      if (profile.host.trim().isEmpty) continue;
+      await _service.saveProfile(profile.copyWith(id: ''));
+      count++;
+    }
+    await load();
+    return count;
   }
 }
