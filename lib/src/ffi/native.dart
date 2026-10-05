@@ -47,6 +47,8 @@ typedef _NativeAnalyze = _CStr Function(_CStr, Uint64);
 typedef _DartAnalyze = _CStr Function(_CStr, int);
 typedef _NativeStrU32 = _CStr Function(_CStr, Uint32);
 typedef _DartStrU32 = _CStr Function(_CStr, int);
+typedef _NativeU32Str2 = _CStr Function(Uint32, _CStr, _CStr);
+typedef _DartU32Str2 = _CStr Function(int, _CStr, _CStr);
 typedef _DartReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
 typedef _NativeFreeBytes = Void Function(Pointer<Uint8>, UintPtr);
 typedef _DartFreeBytes = void Function(Pointer<Uint8>, int);
@@ -172,6 +174,13 @@ class _OrdoBindings {
   late final _Dart2 configInit = _lib.lookupFunction<_Native2, _Dart2>(
     'ordo_config_init',
   );
+  late final _DartU32Str2 privConfigure = _lib
+      .lookupFunction<_NativeU32Str2, _DartU32Str2>('ordo_priv_configure');
+  late final _DartZero privClear = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_priv_clear',
+  );
+  late final _DartZero privStatus = _lib
+      .lookupFunction<_NativeZero, _DartZero>('ordo_priv_status');
   late final _DartZero profileList = _lib
       .lookupFunction<_NativeZero, _DartZero>('ordo_profile_list');
   late final _Dart1 profileSave = _lib.lookupFunction<_Native1, _Dart1>(
@@ -301,6 +310,22 @@ dynamic nativeExecute(String op, List<Object?> args) {
   switch (op) {
     case 'ping':
       return _decode(_take(bindings, bindings.ping()));
+    case 'privConfigure':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[1] as String, (token) {
+            return _withCString(
+              args[2] as String,
+              (mode) => bindings.privConfigure(args[0] as int, token, mode),
+            );
+          }),
+        ),
+      );
+    case 'privClear':
+      return _decode(_take(bindings, bindings.privClear()));
+    case 'privStatus':
+      return _decode(_take(bindings, bindings.privStatus()));
     case 'listDir':
       return _decode(
         _take(

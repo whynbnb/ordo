@@ -65,6 +65,39 @@ class MainActivity : FlutterActivity() {
         channel = methodChannel
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "privDetect" -> Thread {
+                    val info = PrivilegeManager.detect()
+                    runOnUiThread { result.success(info) }
+                }.start()
+                "privStart" -> {
+                    val mode = call.argument<String>("mode") ?: ""
+                    Thread {
+                        try {
+                            val session = PrivilegeManager.start(applicationContext, mode)
+                            runOnUiThread {
+                                result.success(
+                                    mapOf(
+                                        "port" to session.port,
+                                        "token" to session.token,
+                                        "mode" to session.mode,
+                                    )
+                                )
+                            }
+                        } catch (error: Exception) {
+                            runOnUiThread {
+                                result.error("PRIV_START", error.message ?: "启动失败", null)
+                            }
+                        }
+                    }.start()
+                }
+                "privStop" -> {
+                    PrivilegeManager.stop()
+                    result.success(null)
+                }
+                "privShizukuRequest" -> Thread {
+                    val granted = PrivilegeManager.requestShizukuPermission()
+                    runOnUiThread { result.success(granted) }
+                }.start()
                 "hasStoragePermission" -> result.success(hasStoragePermission())
                 "requestStoragePermission" -> requestStoragePermission(result)
                 "openFile" -> result.success(

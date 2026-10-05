@@ -28,6 +28,57 @@ class PlatformService {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // 高权限模式（Root / Shizuku / ADB）
+  // -------------------------------------------------------------------------
+
+  /// 探测各高权限模式是否可用。
+  static Future<Map<String, dynamic>> privDetect() async {
+    try {
+      final result = await _channel.invokeMapMethod<String, dynamic>(
+        'privDetect',
+      );
+      return result ?? const {};
+    } on PlatformException {
+      return const {};
+    } on MissingPluginException {
+      return const {};
+    }
+  }
+
+  /// 启动指定模式，返回 `{port, token, mode}`。
+  static Future<Map<String, dynamic>> privStart(String mode) async {
+    final result = await _channel.invokeMapMethod<String, dynamic>(
+      'privStart',
+      {'mode': mode},
+    );
+    if (result == null) {
+      throw Exception('启动高权限服务失败');
+    }
+    return result;
+  }
+
+  static Future<void> privStop() async {
+    try {
+      await _channel.invokeMethod<void>('privStop');
+    } on PlatformException {
+      // 忽略：停止失败不影响后续。
+    } on MissingPluginException {
+      // 忽略。
+    }
+  }
+
+  /// 请求 Shizuku 授权，返回是否已授权。
+  static Future<bool> privShizukuRequest() async {
+    try {
+      return await _channel.invokeMethod<bool>('privShizukuRequest') ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   static Future<bool> openFile(
     String path, {
     String? mime,

@@ -52,6 +52,7 @@ app.*.map.json
 
 # Rust 交叉编译产物（由 cargo-ndk / Gradle 生成）
 /android/app/src/main/jniLibs/
+/android/app/src/main/assets/privd/
 
 # 打包输出
 /dist/

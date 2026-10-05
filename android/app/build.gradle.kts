@@ -68,6 +68,10 @@ kotlin {
 dependencies {
     // 仅用于 FileProvider（打开文件 / 分享），与文件读取无关。
     implementation("androidx.core:core-ktx:1.15.0")
+
+    // Shizuku：把 ADB / root 级权限借给普通应用（用于访问 Android/data 等）。
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
 }
 
 flutter {
@@ -115,9 +119,34 @@ val cargoNdkBuild = tasks.register<Exec>("cargoNdkBuild") {
         args.add("--release")
         commandLine(args)
     }
+
+    // 把以 shell / root 身份运行的辅助进程打包进 assets，供原生层部署到
+    // /data/local/tmp 后启动。
+    doLast {
+        val tripleOf = mapOf(
+            "arm64-v8a" to "aarch64-linux-android",
+            "armeabi-v7a" to "armv7-linux-androideabi",
+            "x86_64" to "x86_64-linux-android",
+        )
+        val assetsDir = File(projectDir, "src/main/assets/privd")
+        assetsDir.mkdirs()
+        rustAbis.forEach { abi ->
+            val triple = tripleOf[abi] ?: return@forEach
+            val binary = File(rustCrateDir, "target/$triple/release/ordo-privd")
+            if (binary.exists()) {
+                val destDir = File(assetsDir, abi).apply { mkdirs() }
+                binary.copyTo(File(destDir, "ordo-privd"), overwrite = true)
+            } else {
+                logger.warn("ordo-privd 未生成，跳过：${binary.absolutePath}")
+            }
+        }
+    }
 }
 
 tasks.matching { it.name.startsWith("merge") && it.name.endsWith("JniLibFolders") }
+    .configureEach { dependsOn(cargoNdkBuild) }
+
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
     .configureEach { dependsOn(cargoNdkBuild) }
 
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(cargoNdkBuild) }

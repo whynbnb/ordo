@@ -6,7 +6,7 @@
 //! 分配，调用方使用 [`ordo_free_string`] 释放。
 
 mod analyze;
-mod api;
+pub mod api;
 mod archive;
 mod cleanup;
 mod crash;
@@ -15,8 +15,9 @@ mod image_ops;
 mod importer;
 mod jobs;
 mod media;
-mod model;
+pub mod model;
 mod prefs;
+mod privileged;
 mod qr;
 mod remote;
 mod secure;
@@ -658,6 +659,38 @@ pub extern "C" fn ordo_ping() -> *mut c_char {
             .to_string(),
         )
     })
+}
+
+/// 配置高权限后端。`port` 为辅助进程 `ordo-privd` 监听的本地端口，
+/// `token` 为访问令牌，`mode` 为 `root` / `shizuku` / `adb`。
+///
+/// # Safety
+/// FFI 边界：`token`、`mode` 为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_priv_configure(
+    port: u32,
+    token: *const c_char,
+    mode: *const c_char,
+) -> *mut c_char {
+    guard(|| match (read_str(token), read_str(mode)) {
+        (Ok(t), Ok(m)) => result(privileged::configure(port as u16, t, m)),
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
+/// 关闭高权限后端。
+#[no_mangle]
+pub extern "C" fn ordo_priv_clear() -> *mut c_char {
+    guard(|| {
+        privileged::clear();
+        into_c_string(serde_json::json!({ "ok": true, "data": {} }).to_string())
+    })
+}
+
+/// 查询高权限后端状态，返回 `{mode, active}`。
+#[no_mangle]
+pub extern "C" fn ordo_priv_status() -> *mut c_char {
+    guard(|| ok(privileged::status()))
 }
 
 /// 把外部应用拖入的文件描述符内容导入到 `dest_dir`，`name` 为建议文件名。

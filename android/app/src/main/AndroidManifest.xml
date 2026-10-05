@@ -28,6 +28,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Shizuku：用户主动启用后借用 ADB 级权限访问 Android/data 等受保护目录。 -->
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+
     <!-- 声明支持 USB Host，用于识别并提示打开插入的 U 盘 / 移动硬盘。 -->
     <uses-feature
         android:name="android.hardware.usb.host"
@@ -109,6 +112,7 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <package android:name="moe.shizuku.privileged.api" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

@@ -532,6 +532,26 @@ const Map<String, String> enTranslations = {
   '首页布局': 'Home layout',
   '调整工具与常用目录的顺序 / 显隐':
       'Reorder or hide tools and quick folders',
+  '权限模式': 'Privilege mode',
+  '重新检测': 'Re-detect',
+  '用于访问系统限制的目录（如 Android/data、Android/obb）；需要 Root 或 Shizuku。':
+      'Used to access restricted folders (such as Android/data, Android/obb); requires Root or Shizuku.',
+  '不使用': 'Off',
+  '仅访问常规存储，不使用高权限。': 'Only regular storage, no privileged access.',
+  '可访问全部文件，包括其它应用的私有数据。':
+      'Access all files, including other apps\u2019 private data.',
+  '未检测到 Root。': 'Root not detected.',
+  '通过无线调试直接连接，能力与 Shizuku 相同（即将支持）。':
+      'Connect directly via wireless debugging; same capability as Shizuku (coming soon).',
+  'Shizuku 未运行。': 'Shizuku is not running.',
+  'Shizuku 已运行，点击以请求授权。':
+      'Shizuku is running; tap to request permission.',
+  '可访问 Android/data 与 Android/obb。':
+      'Access Android/data and Android/obb.',
+  '请先启动并授权 Shizuku': 'Start and grant Shizuku first',
+  '启用失败：{p0}': 'Failed to enable: {p0}',
+  'Root / Shizuku 访问系统限制目录':
+      'Root / Shizuku access to restricted folders',
   '黄': 'Yellow',
   '默认 2121': 'Default 2121',
   '默认 8080': 'Default 8080',
@@ -549,6 +569,15 @@ const Map<String, String> enTranslations = {
 /// Rust 错误信息（整条）-> 英文。
 const Map<String, String> enErrorMessages = {
   '已取消': 'Cancelled',
+  '高权限模式未启用': 'Privilege mode is not enabled',
+  '高权限服务鉴权失败': 'Privilege service authentication failed',
+  '高权限服务参数无效': 'Invalid privilege service parameters',
+  '未知的权限模式': 'Unknown privilege mode',
+  '高权限服务响应过大': 'Privilege service response too large',
+  '高权限操作失败': 'Privilege operation failed',
+  'Shizuku 未运行': 'Shizuku is not running',
+  '未授予 Shizuku 权限': 'Shizuku permission not granted',
+  '高权限服务启动超时': 'Privilege service startup timed out',
   '配置目录不可用': 'Config directory unavailable',
   '请先进入一个共享': 'Open a share first',
   '回收站不可用': 'Recycle bin unavailable',
@@ -613,6 +642,11 @@ const Map<String, String> enErrorMessages = {
 /// Rust 错误信息前缀（含分隔符）-> 英文前缀。
 /// 按前缀长度降序排列，保证更具体的前缀优先匹配。
 const List<(String, String)> enErrorPrefixes = [
+  ('连接高权限服务失败：', 'Failed to connect to privilege service: '),
+  ('读取高权限服务响应失败：', 'Failed to read privilege service response: '),
+  ('发送高权限服务请求失败：', 'Failed to send privilege service request: '),
+  ('解析高权限服务响应失败：', 'Failed to parse privilege service response: '),
+  ('暂不支持的权限模式：', 'Unsupported privilege mode: '),
   ('写入压缩包失败：', 'Failed to write archive: '),
   ('初始化 HTTP 客户端失败：', 'Failed to init HTTP client: '),
   ('启动 HTTP 线程失败：', 'Failed to start HTTP thread: '),

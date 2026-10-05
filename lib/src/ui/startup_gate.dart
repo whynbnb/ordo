@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
 import '../state/navigation.dart';
 import '../state/prefs_store.dart';
+import '../state/privilege_store.dart';
 import '../state/theme_store.dart';
 import 'home_screen.dart';
 import '../i18n/i18n.dart';
@@ -88,6 +90,7 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
       // 配置目录就绪后再载入持久化偏好（主题 / 语言 / 应用锁）。
       await ThemeStore.instance.load();
       await LocaleStore.instance.load();
+      await PrivilegeStore.instance.load();
     }
 
     final granted = await _hasPermission();
@@ -101,6 +104,8 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
       if (lockEnabled) _unlocked = false;
       _bootstrapped = true;
     });
+    // 恢复上次启用的高权限模式（辅助进程可能已随系统重启消失）。
+    unawaited(PrivilegeStore.instance.restore());
     if (granted) {
       if (lockEnabled) {
         await _unlock();

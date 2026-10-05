@@ -7,6 +7,7 @@ import '../state/theme_store.dart';
 import 'about_dialog.dart';
 import 'crash_log_screen.dart';
 import 'home_layout_screen.dart';
+import 'privilege_screen.dart';
 import '../i18n/i18n.dart';
 
 /// 选择应用的结果：`null` 表示取消选择动作本身。
@@ -275,6 +276,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => const CrashLogScreen(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.admin_panel_settings_outlined),
+            title: Text(tr('权限模式')),
+            subtitle: Text(tr('Root / Shizuku 访问系统限制目录')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PrivilegeScreen(),
                 ),
               );
             },

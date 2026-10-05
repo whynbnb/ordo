@@ -69,7 +69,8 @@ pub fn delete(paths: &[String], to_trash: bool) -> Value {
     let mut errors: Vec<String> = Vec::new();
 
     for path in paths {
-        let use_trash = to_trash && !crate::remote::is_remote(path);
+        let use_trash =
+            to_trash && !crate::remote::is_remote(path) && !crate::privileged::should_route(path);
         let result = if use_trash {
             trash_one(path).map(|_| trashed += 1)
         } else {

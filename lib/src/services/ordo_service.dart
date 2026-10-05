@@ -374,6 +374,22 @@ class OrdoService {
   /// 配置目录是否已初始化；未初始化前读写偏好都没有意义。
   bool get configReady => _configReady;
 
+  /// 配置高权限后端（Root / Shizuku / ADB 辅助进程的本地端口与令牌）。
+  void privConfigure({required int port, required String token, required String mode}) {
+    _direct('privConfigure', [port, token, mode]);
+  }
+
+  /// 关闭高权限后端。
+  void privClear() {
+    _direct('privClear');
+  }
+
+  /// 查询高权限后端状态，返回 `{mode, active}`。
+  Map<String, dynamic> privStatus() {
+    final data = _direct('privStatus');
+    return (data as Map).cast<String, dynamic>();
+  }
+
   Future<List<ConnectionProfile>> profiles() async {
     final data = _direct('profileList');
     return (data as List)

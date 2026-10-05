@@ -9,6 +9,11 @@ license = "MIT"
 name = "ordo_core"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
+# 以 shell / root 身份运行的辅助进程，复用同一个文件系统核心。
+[[bin]]
+name = "ordo-privd"
+path = "src/bin/ordo_privd.rs"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
