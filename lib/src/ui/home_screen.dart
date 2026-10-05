@@ -79,6 +79,10 @@ class _HomeScreenState extends State<HomeScreen>
   void didPopNext() => _updateDropTarget();
 
   void _updateDropTarget() {
+    // 只有当前可见页面才决定拖放目标：首页会一直挂载在浏览页下方，
+    // 应用恢复前台时（例如开始跨应用拖放）不能把正在浏览的目录覆盖掉。
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
     String path = '/storage/emulated/0';
     for (final root in _roots) {
       if (root.kind == 'internal') {

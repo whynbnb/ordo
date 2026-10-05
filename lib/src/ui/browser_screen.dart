@@ -31,13 +31,15 @@ class BrowserScreen extends StatefulWidget {
   State<BrowserScreen> createState() => _BrowserScreenState();
 }
 
-class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
+class _BrowserScreenState extends State<BrowserScreen>
+    with RouteAware, WidgetsBindingObserver {
   final OrdoService _service = OrdoService.instance;
   late final BrowserController _controller;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = BrowserController(initialPath: widget.path);
     _controller.load();
     DropController.instance.revision.addListener(_onDropRevision);
@@ -57,9 +59,16 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
   @override
   void dispose() {
     ordoRouteObserver.unsubscribe(this);
+    WidgetsBinding.instance.removeObserver(this);
     DropController.instance.revision.removeListener(_onDropRevision);
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 恢复前台时重新声明拖放目标，确保跨应用拖入落在当前浏览的目录。
+    if (state == AppLifecycleState.resumed) _updateDropTarget();
   }
 
   @override
@@ -69,6 +78,9 @@ class _BrowserScreenState extends State<BrowserScreen> with RouteAware {
   void didPopNext() => _updateDropTarget();
 
   void _updateDropTarget() {
+    // 栈中可能同时存在多个浏览页，只有当前可见的那个才设置目标。
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
     DropController.instance.setActive(_controller.path, widget.title);
   }
 
