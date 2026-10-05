@@ -295,6 +295,18 @@ pub unsafe extern "C" fn ordo_dir_size(path: *const c_char) -> *mut c_char {
     })
 }
 
+/// 创建符号链接（仅本地）。
+///
+/// # Safety
+/// FFI 边界：两个指针均为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_symlink(target: *const c_char, link: *const c_char) -> *mut c_char {
+    guard(|| match (read_str(target), read_str(link)) {
+        (Ok(t), Ok(l)) => result(vfs::symlink(&t, &l)),
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
 /// 写入来自 Android `StorageManager` 的卷信息（用于命名与兜底）。
 ///
 /// 入参为 JSON 数组，元素形如

@@ -647,6 +647,58 @@ class _BrowserScreenState extends State<BrowserScreen>
     }
   }
 
+  Future<void> _createSymlink() async {
+    final targetController = TextEditingController();
+    final nameController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('新建符号链接'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: targetController,
+                decoration: const InputDecoration(
+                  labelText: '链接目标',
+                  hintText: '绝对路径或相对路径',
+                ),
+              ),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: '链接名称'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('创建'),
+          ),
+        ],
+      ),
+    );
+    final target = targetController.text.trim();
+    final name = nameController.text.trim();
+    targetController.dispose();
+    nameController.dispose();
+    if (confirmed != true || target.isEmpty || name.isEmpty || !mounted) return;
+    final link = joinPath(_controller.path, name);
+    try {
+      await _service.symlink(target, link);
+      await _controller.refresh();
+      _snack('已创建符号链接');
+    } catch (error) {
+      _snack('$error');
+    }
+  }
+
   Future<void> _rename(FileEntry entry) async {
     final name = await showNameDialog(
       context,
@@ -861,6 +913,14 @@ class _BrowserScreenState extends State<BrowserScreen>
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _create(folder: false);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.link_rounded),
+                title: const Text('新建符号链接'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _createSymlink();
                 },
               ),
               if (!clipboard.isEmpty)

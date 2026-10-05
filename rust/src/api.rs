@@ -156,6 +156,21 @@ pub fn create_file(path: &str) -> Result<FileEntry, String> {
     stat(path)
 }
 
+/// 创建符号链接（`link` 指向 `target`，target 可为相对或绝对路径）。
+pub fn create_symlink(target: &str, link: &str) -> Result<FileEntry, String> {
+    if target.is_empty() {
+        return Err("链接目标为空".into());
+    }
+    if std::fs::symlink_metadata(link).is_ok() || Path::new(link).exists() {
+        return Err("同名路径已存在".into());
+    }
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(target, link).map_err(|e| format!("创建符号链接失败：{e}"))?;
+    #[cfg(not(unix))]
+    return Err("当前平台不支持符号链接".into());
+    stat(link)
+}
+
 pub fn delete(paths: &[String]) -> Value {
     let mut deleted = 0u64;
     let mut errors: Vec<String> = Vec::new();
@@ -486,4 +501,41 @@ pub fn write_bytes(path: &str, bytes: &[u8]) -> Result<FileEntry, String> {
     let mut f = std::fs::File::create(p).map_err(|e| format!("写入失败：{e}"))?;
     f.write_all(bytes).map_err(|e| format!("写入失败：{e}"))?;
     stat(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dir_size_counts_files_and_dirs() {
+        let dir = std::env::temp_dir().join(format!("ordo_dsize_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("a.bin"), vec![1u8; 100]).unwrap();
+        std::fs::write(dir.join("sub/b.bin"), vec![2u8; 50]).unwrap();
+
+        let value = dir_size(&dir.to_string_lossy()).unwrap();
+        assert_eq!(value["size"], 150);
+        assert_eq!(value["files"], 2);
+        assert_eq!(value["dirs"], 1);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn creates_symlink() {
+        let dir = std::env::temp_dir().join(format!("ordo_symlink_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("target.txt");
+        std::fs::write(&target, b"hi").unwrap();
+        let link = dir.join("link.txt");
+
+        let entry = create_symlink(&target.to_string_lossy(), &link.to_string_lossy()).unwrap();
+        assert!(entry.is_symlink);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

@@ -210,6 +210,9 @@ class _OrdoBindings {
   late final _Dart1 dirSize = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_dir_size',
   );
+  late final _Dart2 symlink = _lib.lookupFunction<_Native2, _Dart2>(
+    'ordo_symlink',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -510,6 +513,18 @@ dynamic nativeExecute(String op, List<Object?> args) {
         _take(
           bindings,
           _withCString(args[0] as String, (path) => bindings.dirSize(path)),
+        ),
+      );
+    case 'symlink':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (target) {
+            return _withCString(
+              args[1] as String,
+              (link) => bindings.symlink(target, link),
+            );
+          }),
         ),
       );
     case 'readBytes':

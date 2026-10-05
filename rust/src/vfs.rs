@@ -477,6 +477,14 @@ pub fn dir_size(path: &str) -> Result<Value, String> {
     api::dir_size(path)
 }
 
+/// 创建符号链接（仅本地）。
+pub fn symlink(target: &str, link: &str) -> Result<FileEntry, String> {
+    if is_remote(link) {
+        return Err("网络位置不支持创建符号链接".into());
+    }
+    api::create_symlink(target, link)
+}
+
 fn floor_char_boundary(data: &[u8], mut index: usize) -> usize {
     if index >= data.len() {
         return data.len();

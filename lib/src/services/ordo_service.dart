@@ -75,6 +75,11 @@ class OrdoService {
     return FileEntry.fromJson((data as Map).cast<String, dynamic>());
   }
 
+  Future<FileEntry> symlink(String target, String link) async {
+    final data = _direct('symlink', [target, link]);
+    return FileEntry.fromJson((data as Map).cast<String, dynamic>());
+  }
+
   Future<FileEntry> rename(String path, String newName) async {
     final data = _direct('rename', [path, newName]);
     return FileEntry.fromJson((data as Map).cast<String, dynamic>());
