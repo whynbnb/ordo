@@ -16,6 +16,7 @@ import '../state/recent_store.dart';
 import '../state/route_observer.dart';
 import '../state/settings.dart';
 import '../state/transfer_clipboard.dart';
+import '../state/transfer_queue.dart';
 import 'archive_actions.dart';
 import 'archive_viewer.dart';
 import 'dialogs.dart';
@@ -25,6 +26,7 @@ import 'job_progress.dart';
 import 'open_entry.dart';
 import 'path_breadcrumb.dart';
 import 'search_screen.dart';
+import 'transfer_screen.dart';
 
 class BrowserScreen extends StatefulWidget {
   const BrowserScreen({
@@ -71,6 +73,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     _controller = BrowserController(initialPath: _path);
     _controller.load();
     DropController.instance.revision.addListener(_onDropRevision);
+    TransferQueue.instance.completed.addListener(_onTransferCompleted);
     FavoritesStore.instance.loadIfNeeded();
     LabelStore.instance.loadIfNeeded();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -93,8 +96,13 @@ class _BrowserScreenState extends State<BrowserScreen>
     ordoRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     DropController.instance.revision.removeListener(_onDropRevision);
+    TransferQueue.instance.completed.removeListener(_onTransferCompleted);
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onTransferCompleted() {
+    if (mounted) _controller.refresh();
   }
 
   @override
@@ -166,6 +174,7 @@ class _BrowserScreenState extends State<BrowserScreen>
         TransferClipboard.instance,
         FavoritesStore.instance,
         LabelStore.instance,
+        TransferQueue.instance,
       ]),
       builder: (context, _) {
         return PopScope(
@@ -261,6 +270,19 @@ class _BrowserScreenState extends State<BrowserScreen>
           tooltip: '搜索',
           icon: const Icon(Icons.search_rounded),
           onPressed: _openSearch,
+        ),
+        IconButton(
+          tooltip: '传输',
+          icon: Badge(
+            isLabelVisible: TransferQueue.instance.activeCount > 0,
+            label: Text('${TransferQueue.instance.activeCount}'),
+            child: const Icon(Icons.swap_vert_rounded),
+          ),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const TransferScreen()),
+            );
+          },
         ),
         PopupMenuButton<String>(
           tooltip: '更多',
@@ -861,24 +883,9 @@ class _BrowserScreenState extends State<BrowserScreen>
     if (clipboard.isEmpty) return;
     final paths = clipboard.paths;
     final move = clipboard.isMove;
-    try {
-      final result = await runWithJobProgress<TransferResult>(
-        context,
-        move ? '正在移动' : '正在复制',
-        (jobId) => move
-            ? _service.move(paths, _controller.path, jobId: jobId)
-            : _service.copy(paths, _controller.path, jobId: jobId),
-      );
-      if (!mounted) return;
-      clipboard.clear();
-      await _controller.refresh();
-      _snack(
-        result.done > 0 ? '已${move ? '移动' : '复制'} ${result.done} 项' : '操作失败',
-        errors: result.errors,
-      );
-    } catch (error) {
-      _snack('$error');
-    }
+    clipboard.clear();
+    TransferQueue.instance.enqueue(paths, _controller.path, isMove: move);
+    _snack('已加入传输队列（${paths.length} 项），可在「传输」中查看');
   }
 
   Future<void> _share(FileEntry entry) async {
