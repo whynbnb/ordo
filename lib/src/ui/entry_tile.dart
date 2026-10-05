@@ -15,6 +15,7 @@ class EntryTile extends StatelessWidget {
     required this.onTap,
     required this.onLongPress,
     this.onMenu,
+    this.labelColor,
   });
 
   final FileEntry entry;
@@ -23,6 +24,7 @@ class EntryTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback? onMenu;
+  final Color? labelColor;
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +94,16 @@ class EntryTile extends StatelessWidget {
                   icon: const Icon(Icons.more_vert_rounded),
                   tooltip: '更多',
                   onPressed: onMenu,
+                ),
+              if (labelColor != null)
+                Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(left: 4),
+                  decoration: BoxDecoration(
+                    color: labelColor,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               if (entry.isSymlink && !selectionMode)
                 Padding(

@@ -4,12 +4,14 @@ import 'package:flutter/services.dart';
 import '../core/breadcrumbs.dart';
 import '../core/file_types.dart';
 import '../core/format.dart';
+import '../core/labels.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
 import '../state/browser_controller.dart';
 import '../state/drop_controller.dart';
 import '../state/favorites.dart';
+import '../state/label_store.dart';
 import '../state/recent_store.dart';
 import '../state/route_observer.dart';
 import '../state/settings.dart';
@@ -61,6 +63,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     _controller.load();
     DropController.instance.revision.addListener(_onDropRevision);
     FavoritesStore.instance.loadIfNeeded();
+    LabelStore.instance.loadIfNeeded();
   }
 
   @override
@@ -148,6 +151,7 @@ class _BrowserScreenState extends State<BrowserScreen>
         _controller,
         TransferClipboard.instance,
         FavoritesStore.instance,
+        LabelStore.instance,
       ]),
       builder: (context, _) {
         return PopScope(
@@ -347,6 +351,7 @@ class _BrowserScreenState extends State<BrowserScreen>
           entry: entry,
           selectionMode: _controller.selectionMode,
           selected: _controller.isSelected(entry.path),
+          labelColor: LabelStore.instance.colorFor(entry.path),
           onTap: () => _controller.selectionMode
               ? _controller.toggleSelected(entry.path)
               : _openEntry(entry),
@@ -885,6 +890,72 @@ class _BrowserScreenState extends State<BrowserScreen>
     _snack(ok ? '请在系统弹窗中确认' : '当前桌面不支持创建快捷方式');
   }
 
+  Future<void> _pickLabel(List<String> paths) async {
+    if (paths.isEmpty) return;
+    final current = paths.length == 1
+        ? LabelStore.instance.indexFor(paths.first)
+        : null;
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final scheme = Theme.of(sheetContext).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '标签颜色',
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    for (var i = 0; i < labelPalette.length; i++)
+                      GestureDetector(
+                        onTap: () => Navigator.pop(sheetContext, i),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: labelPalette[i],
+                            shape: BoxShape.circle,
+                            border: current == i
+                                ? Border.all(color: scheme.onSurface, width: 3)
+                                : null,
+                          ),
+                        ),
+                      ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(sheetContext, -1),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: scheme.outline),
+                        ),
+                        child: const Icon(Icons.close_rounded, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (choice == null || !mounted) return;
+    await LabelStore.instance.setLabels(paths, choice < 0 ? null : choice);
+    _snack(choice < 0 ? '已移除标签' : '已设置标签');
+  }
+
   // -------------------------------------------------------------------------
   // 面板
   // -------------------------------------------------------------------------
@@ -1063,6 +1134,14 @@ class _BrowserScreenState extends State<BrowserScreen>
                   },
                 ),
               ListTile(
+                leading: const Icon(Icons.label_outline_rounded),
+                title: const Text('标签颜色'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickLabel([entry.path]);
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.drive_file_move_rounded),
                 title: const Text('移动'),
                 onTap: () {
@@ -1180,6 +1259,17 @@ class _BrowserScreenState extends State<BrowserScreen>
                       .toList();
                   Navigator.pop(sheetContext);
                   _copyPath(paths);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.label_outline_rounded),
+                title: const Text('标签颜色'),
+                onTap: () {
+                  final paths = _controller.selectedEntries
+                      .map((e) => e.path)
+                      .toList();
+                  Navigator.pop(sheetContext);
+                  _pickLabel(paths);
                 },
               ),
               ListTile(
