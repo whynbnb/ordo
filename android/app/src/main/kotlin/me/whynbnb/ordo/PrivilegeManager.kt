@@ -3,6 +3,8 @@ package me.whynbnb.ordo
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import rikka.shizuku.Shizuku
 import java.io.BufferedReader
 import java.io.InputStream
@@ -10,6 +12,7 @@ import java.io.InputStreamReader
 import java.lang.reflect.Method
 import java.security.SecureRandom
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -46,7 +49,7 @@ object PrivilegeManager {
     // ---------------------------------------------------------------------
 
     fun detect(context: Context): Map<String, Any> {
-        val shizukuBinder = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+        val shizukuBinder = awaitBinder()
         val shizukuPermission = if (shizukuBinder) shizukuPermission() else -1
         return mapOf(
             "root" to rootAvailable(),
@@ -57,6 +60,25 @@ object PrivilegeManager {
             "active" to (session != null),
             "mode" to (session?.mode ?: "off"),
         )
+    }
+
+    /**
+     * Shizuku 的 Binder 由其 ContentProvider 异步送达，冷启动时立即查询可能为 false。
+     * 这里使用 sticky 监听等待一小段时间，避免误判为「未运行」。
+     */
+    fun awaitBinder(timeoutMs: Long = 1500): Boolean {
+        if (runCatching { Shizuku.pingBinder() }.getOrDefault(false)) return true
+        val latch = CountDownLatch(1)
+        val listener = Shizuku.OnBinderReceivedListener { latch.countDown() }
+        runCatching { Shizuku.addBinderReceivedListenerSticky(listener) }
+        try {
+            latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        } finally {
+            runCatching { Shizuku.removeBinderReceivedListener(listener) }
+        }
+        return runCatching { Shizuku.pingBinder() }.getOrDefault(false)
     }
 
     fun rootAvailable(): Boolean {
@@ -71,7 +93,7 @@ object PrivilegeManager {
         }.getOrDefault(false)
     }
 
-    fun shizukuAvailable(): Boolean = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+    fun shizukuAvailable(): Boolean = awaitBinder()
 
     fun shizukuPermission(): Int =
         runCatching { Shizuku.checkSelfPermission() }
@@ -79,11 +101,21 @@ object PrivilegeManager {
 
     /** 请求 Shizuku 授权，返回是否已授权。 */
     fun requestShizukuPermission(): Boolean {
+        if (!awaitBinder()) return false
+        if (runCatching { Shizuku.isPreV11() }.getOrDefault(false)) return false
         if (shizukuPermission() == PackageManager.PERMISSION_GRANTED) return true
+        // 用户曾选择「拒绝且不再询问」。
+        if (runCatching { Shizuku.shouldShowRequestPermissionRationale() }.getOrDefault(false)) {
+            return false
+        }
         val future = CompletableFuture<Boolean>()
         permissionFuture = future
+        // Shizuku 会拉起管理器的授权界面，放到主线程发起更稳妥。
+        Handler(Looper.getMainLooper()).post {
+            runCatching { Shizuku.requestPermission(REQUEST_CODE) }
+                .onFailure { future.complete(false) }
+        }
         return try {
-            Shizuku.requestPermission(REQUEST_CODE)
             future.get(60, TimeUnit.SECONDS)
         } catch (_: Exception) {
             false

@@ -102,6 +102,16 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Shizuku / Sui：Binder 由 Shizuku 管理器通过该 ContentProvider 异步送达。
+             必须显式声明（依赖库不自带），否则 Shizuku.pingBinder() 永远为 false。 -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
