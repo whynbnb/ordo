@@ -355,9 +355,9 @@ fn discover_mount_volumes(hints: &[StorageHint]) -> Vec<Volume> {
         if !candidate_external(&mount.mount_point) {
             continue;
         }
-        if !Path::new(&mount.mount_point).is_dir() {
-            continue;
-        }
+        // 注意：这里不要求挂载点当前可读 / 可枚举。已挂载的卷即使应用暂时
+        // 无权访问（例如挂载命名空间尚未同步），也应出现在列表里，只是标记为
+        // 不可读，而不是整卷消失。
         let key = volume_key(&mount.mount_point);
         if key.is_empty() {
             continue;
@@ -414,9 +414,8 @@ fn add_hint_only_volumes(hints: &[StorageHint], volumes: &mut Vec<Volume>) {
         if key.is_empty() || volumes.iter().any(|v| v.key == key || v.path == path) {
             continue;
         }
-        if !Path::new(path).is_dir() {
-            continue;
-        }
+        // 只要 Android 报告该卷已挂载，就保留它；路径暂时不可访问时
+        // `readable` 会为 false，界面会提示「未开放访问」，而不是直接隐藏。
         let kind = classify(None, &hint.description);
         let name = if hint.description.is_empty() {
             default_name(&kind, &key)

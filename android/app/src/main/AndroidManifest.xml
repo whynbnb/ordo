@@ -19,6 +19,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- 声明支持 USB Host，用于识别并提示打开插入的 U 盘 / 移动硬盘。 -->
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="false" />
+
     <application
         android:label="安序"
         android:name="${applicationName}"
@@ -48,6 +53,15 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- 插入 USB 存储（U 盘 / 移动硬盘）时，让系统像其它文件管理器那样
+                 询问是否用安序打开。仅用于唤起应用，实际的卷访问仍由 Rust 完成。 -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/usb_device_filter" />
         </activity>
 
         <!-- 用于把应用内部/外部文件安全地分享给其它应用（打开方式）。 -->

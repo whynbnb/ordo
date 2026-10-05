@@ -2,14 +2,19 @@ package com.ordo.ordo
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.hardware.usb.UsbManager
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.os.storage.StorageManager
 import android.provider.OpenableColumns
@@ -35,6 +40,12 @@ class MainActivity : FlutterActivity() {
 
     private var pendingPermissionResult: MethodChannel.Result? = null
     private var channel: MethodChannel? = null
+
+    // 外部介质（U 盘 / 存储卡）插拔监听。
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var storageReceiver: BroadcastReceiver? = null
+    private var lastVolumeSignature: String? = null
+    private var pendingStorageCheck: Runnable? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -65,6 +76,105 @@ class MainActivity : FlutterActivity() {
         }
 
         setupDragAndDrop()
+        registerStorageReceiver()
+
+        // 记录初始卷状态，并处理「由 USB 插入意图启动」的情况。
+        lastVolumeSignature = volumeSignature()
+        if (intent?.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
+            scheduleStorageCheck()
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 外部介质：监听挂载 / 卸载与 USB 插拔，主动刷新并通知 Dart
+    // -----------------------------------------------------------------------
+
+    /**
+     * 注册动态广播接收器。Android 的存储挂载广播要求带 `file` data scheme，
+     * 而 USB 插拔意图没有 data，因此用两个 IntentFilter 分别匹配同一个接收器。
+     */
+    private fun registerStorageReceiver() {
+        if (storageReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                scheduleStorageCheck()
+            }
+        }
+        storageReceiver = receiver
+
+        val mediaFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_MEDIA_MOUNTED)
+            addAction(Intent.ACTION_MEDIA_UNMOUNTED)
+            addAction(Intent.ACTION_MEDIA_EJECT)
+            addAction(Intent.ACTION_MEDIA_REMOVED)
+            addAction(Intent.ACTION_MEDIA_BAD_REMOVAL)
+            addAction(Intent.ACTION_MEDIA_UNMOUNTABLE)
+            addDataScheme("file")
+        }
+        val usbFilter = IntentFilter().apply {
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, mediaFilter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(receiver, usbFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(receiver, mediaFilter)
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(receiver, usbFilter)
+        }
+    }
+
+    /**
+     * 插拔瞬间系统常会连发多个广播，且卷可能还没挂载完成。这里去抖并在稍后
+     * 统一检查，避免重复刷新。
+     */
+    private fun scheduleStorageCheck() {
+        pendingStorageCheck?.let { mainHandler.removeCallbacks(it) }
+        val runnable = Runnable { checkStorageChanged() }
+        pendingStorageCheck = runnable
+        mainHandler.postDelayed(runnable, STORAGE_CHECK_DELAY_MS)
+    }
+
+    private fun checkStorageChanged() {
+        pendingStorageCheck = null
+        val signature = volumeSignature()
+        if (signature == lastVolumeSignature) return
+        lastVolumeSignature = signature
+        channel?.invokeMethod("storageChanged", null)
+    }
+
+    private fun volumeSignature(): String {
+        return storageVolumes().joinToString("|") { volume ->
+            val path = volume["path"]?.toString() ?: ""
+            val state = volume["state"]?.toString() ?: ""
+            val removable = volume["removable"]?.toString() ?: ""
+            "$path:$state:$removable"
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 补偿可能错过的广播（例如进程在后台被回收后重建）。
+        scheduleStorageCheck()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
+            scheduleStorageCheck()
+        }
+    }
+
+    override fun onDestroy() {
+        storageReceiver?.let { receiver ->
+            runCatching { unregisterReceiver(receiver) }
+        }
+        storageReceiver = null
+        pendingStorageCheck?.let { mainHandler.removeCallbacks(it) }
+        pendingStorageCheck = null
+        super.onDestroy()
     }
 
     // -----------------------------------------------------------------------
@@ -329,5 +439,6 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "ordo/platform"
         private const val REQUEST_STORAGE = 4711
+        private const val STORAGE_CHECK_DELAY_MS = 500L
     }
 }

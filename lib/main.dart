@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 
 import 'src/state/drop_controller.dart';
 import 'src/state/route_observer.dart';
+import 'src/state/storage_events.dart';
 import 'src/ui/startup_gate.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // 注册跨应用拖放（把外部文件拖入安序）。
   DropController.instance.register();
+  // 注册外部存储插拔事件（U 盘 / 存储卡热插拔）。
+  StorageEvents.instance.register();
   runApp(const OrdoApp());
 }
 

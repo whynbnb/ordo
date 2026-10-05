@@ -80,22 +80,30 @@ class PlatformService {
     }
   }
 
-  /// 注册来自 Android 的拖放事件（跨应用拖入文件）。
-  static void setDropHandler({
-    required void Function() onStarted,
-    required void Function() onEntered,
-    required void Function() onExited,
-    required Future<void> Function(List<Map<String, dynamic>>) onDropped,
-  }) {
+  // -------------------------------------------------------------------------
+  // Android -> Dart 的异步事件（拖放、存储卷插拔）
+  // -------------------------------------------------------------------------
+
+  static void Function()? _onDragStarted;
+  static void Function()? _onDragEntered;
+  static void Function()? _onDragExited;
+  static Future<void> Function(List<Map<String, dynamic>>)? _onDropped;
+  static final List<void Function()> _storageListeners = <void Function()>[];
+  static bool _handlerInstalled = false;
+
+  /// 单例方法通道只能有一个 handler，这里统一分发拖放与存储事件。
+  static void _ensureHandler() {
+    if (_handlerInstalled) return;
+    _handlerInstalled = true;
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'dragStarted':
-          onStarted();
+          _onDragStarted?.call();
         case 'dragEntered':
-          onEntered();
+          _onDragEntered?.call();
         case 'dragExited':
         case 'dragEnded':
-          onExited();
+          _onDragExited?.call();
         case 'dragDropped':
           final items = <Map<String, dynamic>>[];
           final raw = call.arguments;
@@ -104,10 +112,34 @@ class PlatformService {
               if (entry is Map) items.add(entry.cast<String, dynamic>());
             }
           }
-          await onDropped(items);
+          await _onDropped?.call(items);
+        case 'storageChanged':
+          for (final listener in List<void Function()>.of(_storageListeners)) {
+            listener();
+          }
       }
       return null;
     });
+  }
+
+  /// 注册来自 Android 的拖放事件（跨应用拖入文件）。
+  static void setDropHandler({
+    required void Function() onStarted,
+    required void Function() onEntered,
+    required void Function() onExited,
+    required Future<void> Function(List<Map<String, dynamic>>) onDropped,
+  }) {
+    _ensureHandler();
+    _onDragStarted = onStarted;
+    _onDragEntered = onEntered;
+    _onDragExited = onExited;
+    _onDropped = onDropped;
+  }
+
+  /// 监听存储卷变化（插入 / 拔出 U 盘、存储卡）。可注册多个监听者。
+  static void addStorageListener(void Function() listener) {
+    _ensureHandler();
+    _storageListeners.add(listener);
   }
 
   /// 通过 Android 媒体框架为视频生成一帧缩略图（JPEG 字节）。

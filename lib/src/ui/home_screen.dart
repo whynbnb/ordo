@@ -8,6 +8,7 @@ import '../state/connections.dart';
 import '../state/drop_controller.dart';
 import '../state/favorites.dart';
 import '../state/route_observer.dart';
+import '../state/storage_events.dart';
 import 'browser_screen.dart';
 import 'connection_edit.dart';
 import 'dialogs.dart';
@@ -36,6 +37,10 @@ class _HomeScreenState extends State<HomeScreen>
   bool _loading = true;
   String? _error;
 
+  /// 上次已知的可移动卷（路径 -> 名称），用于判断插拔并提示。
+  Map<String, String> _knownRemovable = const {};
+  bool _loadedOnce = false;
+
   static const _quickCandidates = <_QuickFolder>[
     _QuickFolder('下载', 'Download', Icons.download_rounded),
     _QuickFolder('图片', 'Pictures', Icons.photo_library_rounded),
@@ -51,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.addObserver(this);
     _connections.addListener(_onStoreChanged);
     _favorites.addListener(_onStoreChanged);
+    StorageEvents.instance.revision.addListener(_onStorageChanged);
     _connections.load();
     _favorites.loadIfNeeded();
     _load();
@@ -89,7 +95,13 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _connections.removeListener(_onStoreChanged);
     _favorites.removeListener(_onStoreChanged);
+    StorageEvents.instance.revision.removeListener(_onStorageChanged);
     super.dispose();
+  }
+
+  void _onStorageChanged() {
+    // 外部存储插拔：静默刷新卷列表，并在 _load 中给出提示。
+    _load(showSpinner: false);
   }
 
   @override
@@ -141,6 +153,7 @@ class _HomeScreenState extends State<HomeScreen>
         _loading = false;
         _error = null;
       });
+      _announceVolumeChanges(roots);
       _updateDropTarget();
     } catch (error) {
       if (!mounted) return;
@@ -150,6 +163,49 @@ class _HomeScreenState extends State<HomeScreen>
         if (showSpinner) _error = '$error';
       });
     }
+  }
+
+  /// 对比可移动卷的变化并在插入 / 拔出时提示。首次加载只记录基线。
+  void _announceVolumeChanges(List<StorageRoot> roots) {
+    final removable = <String, String>{
+      for (final root in roots)
+        if (root.removable) root.path: root.name,
+    };
+    if (!_loadedOnce) {
+      _loadedOnce = true;
+      _knownRemovable = removable;
+      return;
+    }
+
+    final added = removable.entries
+        .where((entry) => !_knownRemovable.containsKey(entry.key))
+        .toList();
+    final removed = _knownRemovable.entries
+        .where((entry) => !removable.containsKey(entry.key))
+        .toList();
+    _knownRemovable = removable;
+
+    if (added.isNotEmpty) {
+      _promptStorageAdded(added.first.key, added.first.value);
+    } else if (removed.isNotEmpty) {
+      _snack('外部存储已移除：「${removed.first.value}」');
+    }
+  }
+
+  void _promptStorageAdded(String path, String name) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('已检测到外部存储「$name」'),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: '打开',
+            onPressed: () => _openPath(path, name),
+          ),
+        ),
+      );
   }
 
   void _openPath(String path, String title) {

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  匹配 USB 大容量存储设备（class 8）。U 盘、移动硬盘、USB 硬盘盒等
+  基本都以此类设备枚举，因此只需按 class 匹配即可。
+-->
+<resources>
+    <usb-device class="8" />
+</resources>
