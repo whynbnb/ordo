@@ -27,10 +27,18 @@ import 'path_breadcrumb.dart';
 import 'search_screen.dart';
 
 class BrowserScreen extends StatefulWidget {
-  const BrowserScreen({super.key, required this.path, required this.title});
+  const BrowserScreen({
+    super.key,
+    required this.path,
+    required this.title,
+    this.onLocationChanged,
+  });
 
   final String path;
   final String title;
+
+  /// 当前目录变化时回调（用于标签页标题等）。
+  final void Function(String path, String title)? onLocationChanged;
 
   @override
   State<BrowserScreen> createState() => _BrowserScreenState();
@@ -65,6 +73,9 @@ class _BrowserScreenState extends State<BrowserScreen>
     DropController.instance.revision.addListener(_onDropRevision);
     FavoritesStore.instance.loadIfNeeded();
     LabelStore.instance.loadIfNeeded();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onLocationChanged?.call(_path, _title);
+    });
   }
 
   @override
@@ -116,6 +127,7 @@ class _BrowserScreenState extends State<BrowserScreen>
       _historyIndex = _history.length - 1;
     });
     RecentStore.instance.record(path, title, true);
+    widget.onLocationChanged?.call(_path, _title);
     await _controller.navigateTo(path);
     if (mounted) _updateDropTarget();
   }
@@ -129,6 +141,7 @@ class _BrowserScreenState extends State<BrowserScreen>
       _path = step.path;
       _title = step.title;
     });
+    widget.onLocationChanged?.call(_path, _title);
     _controller.navigateTo(step.path);
     _updateDropTarget();
   }

@@ -11,7 +11,6 @@ import '../state/drop_controller.dart';
 import '../state/favorites.dart';
 import '../state/route_observer.dart';
 import '../state/storage_events.dart';
-import 'browser_screen.dart';
 import 'connection_edit.dart';
 import 'dialogs.dart';
 import 'directory_picker.dart';
@@ -21,6 +20,7 @@ import 'analyzer_screen.dart';
 import 'qr_dialog.dart';
 import 'recent_screen.dart';
 import 'server_screen.dart';
+import 'tabbed_browser.dart';
 import 'settings_screen.dart';
 import 'trash_screen.dart';
 
@@ -223,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen>
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
-            builder: (_) => BrowserScreen(path: path, title: title),
+            builder: (_) => TabbedBrowserScreen(path: path, title: title),
           ),
         )
         // 返回时静默刷新，及时反映已拔出的外部介质。
