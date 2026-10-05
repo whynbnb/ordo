@@ -1,6 +1,20 @@
-# 安序 Ordo
+<p align="center">
+  <img src="docs/logo.png" width="112" alt="安序 logo">
+</p>
 
-[English](README.md) | **中文**
+<h1 align="center">安序 Ordo</h1>
+
+<p align="center">
+  <a href="README.md">English</a> | <b>中文</b>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Android%207.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 7.0+">
+  <img src="https://img.shields.io/badge/Flutter-UI-02569B?logo=flutter&logoColor=white" alt="Flutter">
+  <img src="https://img.shields.io/badge/Rust-core-000000?logo=rust&logoColor=white" alt="Rust">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT">
+  <img src="https://img.shields.io/badge/version-1.0-blue" alt="Version 1.0">
+</p>
 
 一个使用 **Flutter + Rust** 构建的安卓文件管理器：界面由 Flutter 绘制，所有文件操作都在 Rust 中完成。
 
@@ -9,6 +23,8 @@
 - **面向非 root 设备**：使用「所有文件访问权限」（Android 11+）或旧版读写权限，并可选 Root / Shizuku / ADB 访问受限目录。
 
 > 本项目**不使用** Flutter 自带的文件读写 API，也**不引入任何文件相关的第三方包**。Dart 侧只负责界面与 FFI 调用，实际的读 / 写 / 复制 / 移动 / 删除 / 搜索 / 压缩 / 分析全部由 Rust 实现。
+
+> 由 Vibe Coding 而成（DeepSeek V4.1 Flash / OpenCode）。
 
 ## 截图
 
@@ -136,6 +152,8 @@ scripts/                  手动构建脚本
 `主版本.次版本`）。Rust 核心通过 `include_str!` 读取该文件并随 `ping` 返回，
 Android 的 `versionName` 由 Gradle 读取同一文件；`pubspec.yaml` 因 Dart 要求
 三段式而保留 `1.0.0+build`，仅用于 Flutter 工具链。
+
+**1.0** 版本在 Git 中以 `1.0` 标签发布。
 
 ## 环境要求
 

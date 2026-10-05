@@ -1,6 +1,20 @@
-# Ordo 安序
+<p align="center">
+  <img src="docs/logo.png" width="112" alt="Ordo logo">
+</p>
 
-**English** | [中文](README.zh-CN.md)
+<h1 align="center">Ordo 安序</h1>
+
+<p align="center">
+  <b>English</b> | <a href="README.zh-CN.md">中文</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Android%207.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 7.0+">
+  <img src="https://img.shields.io/badge/Flutter-UI-02569B?logo=flutter&logoColor=white" alt="Flutter">
+  <img src="https://img.shields.io/badge/Rust-core-000000?logo=rust&logoColor=white" alt="Rust">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT">
+  <img src="https://img.shields.io/badge/version-1.0-blue" alt="Version 1.0">
+</p>
 
 An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutter, and every file operation is performed by Rust.
 
@@ -9,6 +23,8 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 - **Non-root friendly**: uses "All files access" (Android 11+) or the legacy read/write permissions, with optional Root / Shizuku / ADB access for restricted folders.
 
 > This project does **not** use Flutter's built-in file I/O APIs and does **not** depend on any file-related third-party package. Dart only handles the UI and FFI calls; reading, writing, copying, moving, deleting, searching, archiving and analysis are all implemented in Rust.
+
+> Built with vibe coding (DeepSeek V4.1 Flash / OpenCode).
 
 ## Screenshots
 
@@ -133,6 +149,8 @@ Every native function returns either `{"ok":true,"data":...}` or
 ## Version
 
 The app version is sourced from a single file, `VERSION` at the repository root, currently **1.0** (two-part `major.minor`). The Rust core reads it with `include_str!` and returns it via `ping`; Android's `versionName` is read from the same file by Gradle. `pubspec.yaml` keeps `1.0.0+build` because Dart requires three parts — it is only used by the Flutter toolchain.
+
+Release **1.0** is tagged `1.0` in Git.
 
 ## Requirements
 
