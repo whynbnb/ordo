@@ -281,6 +281,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (value) => ViewStore.instance.setShowUp(value),
             ),
           ),
+          ListenableBuilder(
+            listenable: ViewStore.instance,
+            builder: (context, _) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(tr('显示多标签栏')),
+              subtitle: Text(tr('关闭后为单标签浏览模式')),
+              value: ViewStore.instance.showTabBar,
+              onChanged: (value) => ViewStore.instance.setShowTabBar(value),
+            ),
+          ),
+          ListenableBuilder(
+            listenable: ViewStore.instance,
+            builder: (context, _) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(tr('附加到当前会话')),
+              subtitle: Text(tr('从首页打开目录时新增标签页；关闭则重置为新会话')),
+              value: ViewStore.instance.appendOnHomeOpen,
+              onChanged: ViewStore.instance.showTabBar
+                  ? (value) => ViewStore.instance.setAppendOnHomeOpen(value)
+                  : null,
+            ),
+          ),
           const Divider(height: 32),
           Text(
             tr('安全与隐私'),

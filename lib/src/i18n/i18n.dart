@@ -578,6 +578,12 @@ const Map<String, String> enTranslations = {
   '向上一级': 'Up one level',
   '显示向上一级': 'Show "up one level" button',
   '在浏览页显示「向上一级」按钮': 'Show an "up one level" button in the browser',
+  '回到首页': 'Go to home',
+  '显示多标签栏': 'Show tab bar',
+  '关闭后为单标签浏览模式': 'Single-tab browsing mode when off',
+  '附加到当前会话': 'Append to current session',
+  '从首页打开目录时新增标签页；关闭则重置为新会话':
+      'Add a new tab when opening from home; off resets to a new session',
   '开源仓库': 'Repository',
   '基于 MIT 许可证开源': 'Open-sourced under the MIT License',
   '黄': 'Yellow',

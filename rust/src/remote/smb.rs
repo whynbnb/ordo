@@ -232,8 +232,12 @@ impl RemoteFs for SmbRemote {
         let handle = self.handle.clone();
         let SmbRemote { client, trees, .. } = self;
         let tree = trees.get_mut(&share).expect("tree exists");
+        // 不能使用 `read_file`：它走「CREATE+READ+CLOSE」复合请求，单个 READ 受
+        // 服务器 MaxReadSize（通常 8MB）限制，超过即报 FileTooLargeForSingleRead，
+        // 也就是「较大的文件下载失败」。`read_file_pipelined` 会分块并发读取任意
+        // 大小（小文件仍是单次读取），因此这里统一使用它。
         handle
-            .block_on(client.read_file(tree, &rel))
+            .block_on(client.read_file_pipelined(tree, &rel))
             .map_err(|e| format!("下载失败：{e}"))
     }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'browser_screen.dart';
 import '../state/session_store.dart';
+import '../state/view_store.dart';
 import '../i18n/i18n.dart';
 
 /// 多标签文件浏览：每个标签拥有独立的浏览页与页内历史。
@@ -48,9 +49,10 @@ class _TabbedBrowserScreenState extends State<TabbedBrowserScreen> {
   @override
   void initState() {
     super.initState();
+    final showTabBar = ViewStore.instance.showTabBar;
     final restore = widget.initialTabs;
     if (restore != null && restore.isNotEmpty) {
-      _tabs = [
+      var tabs = [
         for (final tab in restore)
           _Tab(
             path: tab.path,
@@ -59,7 +61,14 @@ class _TabbedBrowserScreenState extends State<TabbedBrowserScreen> {
             initialIndex: tab.index,
           ),
       ];
-      _active = widget.initialActive.clamp(0, _tabs.length - 1).toInt();
+      var active = widget.initialActive.clamp(0, tabs.length - 1).toInt();
+      // 单标签模式：只保留当前激活的标签页。
+      if (!showTabBar && tabs.length > 1) {
+        tabs = [tabs[active]];
+        active = 0;
+      }
+      _tabs = tabs;
+      _active = active;
     } else {
       _tabs = [_Tab(path: widget.path, title: widget.title)];
       _active = 0;
@@ -170,7 +179,9 @@ class _TabbedBrowserScreenState extends State<TabbedBrowserScreen> {
           index: _active,
           children: [for (var i = 0; i < _tabs.length; i++) _buildTab(i)],
         ),
-        bottomNavigationBar: _buildTabBar(context),
+        bottomNavigationBar: ViewStore.instance.showTabBar
+            ? _buildTabBar(context)
+            : null,
       ),
     );
   }
@@ -209,6 +220,11 @@ class _TabbedBrowserScreenState extends State<TabbedBrowserScreen> {
       padding: EdgeInsets.zero,
       child: Row(
         children: [
+          IconButton(
+            tooltip: tr('回到首页'),
+            icon: const Icon(Icons.home_rounded),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
           Expanded(
             child: ListView.builder(
               scrollDirection: Axis.horizontal,

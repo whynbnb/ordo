@@ -12,6 +12,7 @@ import '../state/privilege_store.dart';
 import '../state/session_store.dart';
 import '../state/settings.dart';
 import '../state/theme_store.dart';
+import '../state/view_store.dart';
 import 'home_screen.dart';
 import '../i18n/i18n.dart';
 
@@ -95,6 +96,7 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
       await PrivilegeStore.instance.load();
       await SessionStore.instance.load();
       await AppSettings.instance.load();
+      await ViewStore.instance.loadIfNeeded();
     }
 
     final granted = await _hasPermission();

@@ -13,6 +13,7 @@ import '../state/home_layout.dart';
 import '../state/route_observer.dart';
 import '../state/session_store.dart';
 import '../state/storage_events.dart';
+import '../state/view_store.dart';
 import 'connection_edit.dart';
 import 'dialogs.dart';
 import 'directory_picker.dart';
@@ -242,10 +243,36 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _openPath(String path, String title) {
+    final view = ViewStore.instance;
+    final session = SessionStore.instance.session;
+    List<TabSession>? initialTabs;
+    var initialActive = 0;
+    // 「附加到当前会话」：保留已有标签页，并在末尾追加本次打开的目录。
+    // 单标签模式下忽略该设置（始终重置）。
+    if (view.showTabBar &&
+        view.appendOnHomeOpen &&
+        session != null &&
+        session.tabs.isNotEmpty) {
+      initialTabs = [
+        ...session.tabs,
+        TabSession(
+          path: path,
+          title: title,
+          history: [NavStep(path, title)],
+          index: 0,
+        ),
+      ];
+      initialActive = initialTabs.length - 1;
+    }
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
-            builder: (_) => TabbedBrowserScreen(path: path, title: title),
+            builder: (_) => TabbedBrowserScreen(
+              path: path,
+              title: title,
+              initialTabs: initialTabs,
+              initialActive: initialActive,
+            ),
           ),
         )
         // 返回时静默刷新，及时反映已拔出的外部介质。
