@@ -41,8 +41,9 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
   **list / grid view** with icon size; background transfers show progress in the
   notification
 - **Settings**: choose a default app to open images / audio / video / text / PDF /
-  APK and more (otherwise the system picker is shown every time); preferences are
-  persisted in the app's private directory
+  APK and more (otherwise the system picker is shown every time); interface
+  language (**system / 简体中文 / English**, follows the system by default);
+  preferences are persisted in the app's private directory
 
 ### Archives
 
@@ -110,6 +111,7 @@ lib/                      Flutter UI and FFI bindings
   src/ffi/native.dart     dart:ffi bindings + background isolate dispatch
   src/services/           filesystem facade / platform channels
   src/state/              browsing state, sorting prefs, clipboard, connections, drag & drop
+  src/i18n/               lightweight zh / en localization
   src/ui/                 screens and widgets
 rust/                     Rust core (cdylib)
   src/lib.rs              C ABI exports and panic guard
