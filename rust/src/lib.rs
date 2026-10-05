@@ -781,23 +781,34 @@ pub extern "C" fn ordo_job_cleanup(id: u64) -> *mut c_char {
 }
 
 // ---------------------------------------------------------------------------
-// 导出函数：ZIP 压缩 / 解压
+// 导出函数：归档（ZIP / TAR / TAR.GZ）
 // ---------------------------------------------------------------------------
 
-/// 创建 zip。入参为 JSON 路径数组与目标 zip 路径；`job_id` 为 0 表示不跟踪进度。
+/// 读取可空字符串参数：空指针视为空字符串。
+unsafe fn read_password(ptr: *const c_char) -> String {
+    if ptr.is_null() {
+        String::new()
+    } else {
+        read_str(ptr).unwrap_or_default()
+    }
+}
+
+/// 创建归档。`dest` 扩展名决定格式（zip / tar / tar.gz），`password` 仅对 zip 生效。
 ///
 /// # Safety
-/// FFI 边界：指针均为合法 C 字符串。
+/// FFI 边界：指针均为合法 C 字符串（`password` 可为空）。
 #[no_mangle]
-pub unsafe extern "C" fn ordo_zip_create(
+pub unsafe extern "C" fn ordo_archive_create(
     sources: *const c_char,
-    dest_zip: *const c_char,
+    dest: *const c_char,
     job_id: u64,
+    password: *const c_char,
 ) -> *mut c_char {
-    guard(|| match (read_paths(sources), read_str(dest_zip)) {
+    guard(|| match (read_paths(sources), read_str(dest)) {
         (Ok(src), Ok(dest)) => {
+            let password = read_password(password);
             let job = jobs::get(job_id);
-            let outcome = archive::create(&src, &dest, job.as_deref());
+            let outcome = archive::create(&src, &dest, &password, job.as_deref());
             if let Some(job) = &job {
                 job.complete();
             }
@@ -807,20 +818,29 @@ pub unsafe extern "C" fn ordo_zip_create(
     })
 }
 
-/// 解压 zip 到目标目录。
+/// 解压归档到目标目录。`only` 非空时只解压该条目。
 ///
 /// # Safety
-/// FFI 边界：指针均为合法 C 字符串。
+/// FFI 边界：指针均为合法 C 字符串（`password` / `only` 可为空）。
 #[no_mangle]
-pub unsafe extern "C" fn ordo_zip_extract(
-    zip_path: *const c_char,
+pub unsafe extern "C" fn ordo_archive_extract(
+    archive_path: *const c_char,
     dest_dir: *const c_char,
     job_id: u64,
+    password: *const c_char,
+    only: *const c_char,
 ) -> *mut c_char {
-    guard(|| match (read_str(zip_path), read_str(dest_dir)) {
-        (Ok(zip), Ok(dest)) => {
+    guard(|| match (read_str(archive_path), read_str(dest_dir)) {
+        (Ok(path), Ok(dest)) => {
+            let password = read_password(password);
+            let only = if only.is_null() {
+                None
+            } else {
+                read_str(only).ok().filter(|value| !value.is_empty())
+            };
             let job = jobs::get(job_id);
-            let outcome = archive::extract(&zip, &dest, job.as_deref());
+            let outcome =
+                archive::extract(&path, &dest, &password, only.as_deref(), job.as_deref());
             if let Some(job) = &job {
                 job.complete();
             }
@@ -830,14 +850,14 @@ pub unsafe extern "C" fn ordo_zip_extract(
     })
 }
 
-/// 列出 zip 内容。
+/// 列出归档内容。
 ///
 /// # Safety
 /// FFI 边界：指针为合法 C 字符串。
 #[no_mangle]
-pub unsafe extern "C" fn ordo_zip_list(zip_path: *const c_char) -> *mut c_char {
-    guard(|| match read_str(zip_path) {
-        Ok(zip) => result(archive::list(&zip)),
+pub unsafe extern "C" fn ordo_archive_list(archive_path: *const c_char) -> *mut c_char {
+    guard(|| match read_str(archive_path) {
+        Ok(path) => result(archive::list(&path)),
         Err(e) => err(e),
     })
 }

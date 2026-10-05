@@ -480,12 +480,14 @@ class ArchiveEntry {
     required this.size,
     required this.compressed,
     required this.isDir,
+    required this.encrypted,
   });
 
   final String name;
   final int size;
   final int compressed;
   final bool isDir;
+  final bool encrypted;
 
   factory ArchiveEntry.fromJson(Map<String, dynamic> json) {
     return ArchiveEntry(
@@ -493,6 +495,7 @@ class ArchiveEntry {
       size: (json['size'] as num?)?.toInt() ?? 0,
       compressed: (json['compressed'] as num?)?.toInt() ?? 0,
       isDir: json['is_dir'] as bool? ?? false,
+      encrypted: json['encrypted'] as bool? ?? false,
     );
   }
 }

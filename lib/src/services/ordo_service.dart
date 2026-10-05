@@ -132,27 +132,43 @@ class OrdoService {
   void jobCleanup(int id) => _direct('jobCleanup', [id]);
 
   // -------------------------------------------------------------------------
-  // ZIP 压缩 / 解压
+  // 归档（ZIP / TAR / TAR.GZ）
   // -------------------------------------------------------------------------
 
-  Future<void> zipCreate(
+  /// 创建归档，格式由 `dest` 扩展名决定；`password` 仅对 ZIP 生效。
+  Future<void> archiveCreate(
     List<String> sources,
-    String destZip, {
+    String dest, {
+    String password = '',
     int jobId = 0,
   }) async {
-    await _background('zipCreate', [jsonEncode(sources), destZip, jobId]);
+    await _background('archiveCreate', [
+      jsonEncode(sources),
+      dest,
+      jobId,
+      password,
+    ]);
   }
 
-  Future<void> zipExtract(
-    String zipPath,
+  /// 解压归档，`only` 非空时只解压该条目。
+  Future<void> archiveExtract(
+    String archivePath,
     String destDir, {
+    String password = '',
+    String? only,
     int jobId = 0,
   }) async {
-    await _background('zipExtract', [zipPath, destDir, jobId]);
+    await _background('archiveExtract', [
+      archivePath,
+      destDir,
+      jobId,
+      password,
+      only ?? '',
+    ]);
   }
 
-  Future<List<ArchiveEntry>> zipList(String zipPath) async {
-    final data = await _background('zipList', [zipPath]);
+  Future<List<ArchiveEntry>> archiveList(String archivePath) async {
+    final data = await _background('archiveList', [archivePath]);
     return (data as List)
         .map((e) => ArchiveEntry.fromJson((e as Map).cast<String, dynamic>()))
         .toList();

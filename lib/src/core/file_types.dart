@@ -138,6 +138,24 @@ String openWithCategory(String extension) {
   return 'other';
 }
 
+/// 是否为应用支持的归档格式（ZIP / TAR / TAR.GZ）。
+bool isSupportedArchive(String name) {
+  final lower = name.toLowerCase();
+  return lower.endsWith('.zip') ||
+      lower.endsWith('.tar') ||
+      lower.endsWith('.tar.gz') ||
+      lower.endsWith('.tgz');
+}
+
+/// 归档格式标签；非支持格式返回 null。
+String? archiveFormatLabel(String name) {
+  final lower = name.toLowerCase();
+  if (lower.endsWith('.zip')) return 'ZIP';
+  if (lower.endsWith('.tar.gz') || lower.endsWith('.tgz')) return 'TAR.GZ';
+  if (lower.endsWith('.tar')) return 'TAR';
+  return null;
+}
+
 const Map<String, String> _mimeByExtension = {
   'txt': 'text/plain',
   'md': 'text/markdown',

@@ -37,8 +37,13 @@ tokio = { version = "1", features = [
 tiny_http = "0.12"
 base64 = "0.22"
 
-# 压缩 / 解压：纯 Rust zip（仅 deflate）。
-zip = { version = "2", default-features = false, features = ["deflate"] }
+# 压缩 / 解压：纯 Rust zip（deflate + AES 加密）、tar、gzip。
+zip = { version = "2", default-features = false, features = [
+    "deflate",
+    "aes-crypto",
+] }
+tar = "0.4"
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 
 # 缩略图：纯 Rust 图片解码；sha2 用于生成缩略图缓存键。
 image = { version = "0.25", default-features = false, features = [

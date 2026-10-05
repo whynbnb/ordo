@@ -47,6 +47,22 @@ typedef _NativeFreeBytes = Void Function(Pointer<Uint8>, UintPtr);
 typedef _DartFreeBytes = void Function(Pointer<Uint8>, int);
 typedef _NativeWriteBytes = _CStr Function(_CStr, Pointer<Uint8>, UintPtr);
 typedef _DartWriteBytes = _CStr Function(_CStr, Pointer<Uint8>, int);
+typedef _NativeArchiveCreate = _CStr Function(_CStr, _CStr, Uint64, _CStr);
+typedef _DartArchiveCreate = _CStr Function(_CStr, _CStr, int, _CStr);
+typedef _NativeArchiveExtract = _CStr Function(
+  _CStr,
+  _CStr,
+  Uint64,
+  _CStr,
+  _CStr,
+);
+typedef _DartArchiveExtract = _CStr Function(
+  _CStr,
+  _CStr,
+  int,
+  _CStr,
+  _CStr,
+);
 
 DynamicLibrary _openLibrary() {
   // 桌面端调试 / 测试时可用环境变量指定已编译的动态库路径。
@@ -195,12 +211,16 @@ class _OrdoBindings {
   late final _DartJob jobCleanup = _lib.lookupFunction<_NativeJob, _DartJob>(
     'ordo_job_cleanup',
   );
-  late final _DartCopyMove zipCreate = _lib
-      .lookupFunction<_NativeCopyMove, _DartCopyMove>('ordo_zip_create');
-  late final _DartCopyMove zipExtract = _lib
-      .lookupFunction<_NativeCopyMove, _DartCopyMove>('ordo_zip_extract');
-  late final _Dart1 zipList = _lib.lookupFunction<_Native1, _Dart1>(
-    'ordo_zip_list',
+  late final _DartArchiveCreate archiveCreate = _lib
+      .lookupFunction<_NativeArchiveCreate, _DartArchiveCreate>(
+        'ordo_archive_create',
+      );
+  late final _DartArchiveExtract archiveExtract = _lib
+      .lookupFunction<_NativeArchiveExtract, _DartArchiveExtract>(
+        'ordo_archive_extract',
+      );
+  late final _Dart1 archiveList = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_archive_list',
   );
   late final _DartThumbnail thumbnail = _lib
       .lookupFunction<_NativeThumbnail, _DartThumbnail>('ordo_thumbnail');
@@ -452,37 +472,54 @@ dynamic nativeExecute(String op, List<Object?> args) {
       return _decode(_take(bindings, bindings.jobCancel(args[0] as int)));
     case 'jobCleanup':
       return _decode(_take(bindings, bindings.jobCleanup(args[0] as int)));
-    case 'zipCreate':
+    case 'archiveCreate':
       return _decode(
         _take(
           bindings,
           _withCString(args[0] as String, (sources) {
-            return _withCString(
-              args[1] as String,
-              (dest) => bindings.zipCreate(sources, dest, args[2] as int),
-            );
+            return _withCString(args[1] as String, (dest) {
+              return _withCString(
+                args[3] as String,
+                (password) => bindings.archiveCreate(
+                  sources,
+                  dest,
+                  args[2] as int,
+                  password,
+                ),
+              );
+            });
           }),
         ),
       );
-    case 'zipExtract':
+    case 'archiveExtract':
       return _decode(
         _take(
           bindings,
-          _withCString(args[0] as String, (zipPath) {
-            return _withCString(
-              args[1] as String,
-              (dest) => bindings.zipExtract(zipPath, dest, args[2] as int),
-            );
+          _withCString(args[0] as String, (archive) {
+            return _withCString(args[1] as String, (dest) {
+              return _withCString(args[3] as String, (password) {
+                return _withCString(
+                  args[4] as String,
+                  (only) => bindings.archiveExtract(
+                    archive,
+                    dest,
+                    args[2] as int,
+                    password,
+                    only,
+                  ),
+                );
+              });
+            });
           }),
         ),
       );
-    case 'zipList':
+    case 'archiveList':
       return _decode(
         _take(
           bindings,
           _withCString(
             args[0] as String,
-            (zipPath) => bindings.zipList(zipPath),
+            (archive) => bindings.archiveList(archive),
           ),
         ),
       );

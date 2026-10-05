@@ -170,21 +170,46 @@ void main() {
     expect(service.jobStatus(id).total, 0);
   });
 
-  test('ZIP 压缩与解压', () async {
-    final root = Directory.systemTemp.createTempSync('ordo_zip_');
+  test('归档压缩与解压（zip / tar.gz / 加密）', () async {
+    final root = Directory.systemTemp.createTempSync('ordo_arc_');
     addTearDown(() => root.deleteSync(recursive: true));
     final file = '${root.path}/a.txt';
-    await service.writeText(file, 'hello zip');
+    await service.writeText(file, 'hello archive');
 
     final zip = '${root.path}/out.zip';
-    await service.zipCreate([file], zip);
-    final entries = await service.zipList(zip);
+    await service.archiveCreate([file], zip);
+    final entries = await service.archiveList(zip);
     expect(entries.any((e) => e.name.contains('a.txt')), isTrue);
 
     final outDir = '${root.path}/out';
-    await service.zipExtract(zip, outDir);
-    final content = await service.readText('$outDir/a.txt');
-    expect(content.content, 'hello zip');
+    await service.archiveExtract(zip, outDir);
+    expect((await service.readText('$outDir/a.txt')).content, 'hello archive');
+
+    // tar.gz
+    final targz = '${root.path}/out.tar.gz';
+    await service.archiveCreate([file], targz);
+    expect(
+      (await service.archiveList(targz)).any((e) => e.name.contains('a.txt')),
+      isTrue,
+    );
+    final targzOut = '${root.path}/targz';
+    await service.archiveExtract(targz, targzOut);
+    expect((await service.readText('$targzOut/a.txt')).content, 'hello archive');
+
+    // 加密 zip：空密码应提示需要密码，正确密码可解压
+    final enc = '${root.path}/enc.zip';
+    await service.archiveCreate([file], enc, password: 'pw');
+    expect(
+      (await service.archiveList(enc)).any((e) => e.encrypted),
+      isTrue,
+    );
+    await expectLater(
+      service.archiveExtract(enc, '${root.path}/encbad'),
+      throwsA(isA<Exception>()),
+    );
+    final encOut = '${root.path}/encok';
+    await service.archiveExtract(enc, encOut, password: 'pw');
+    expect((await service.readText('$encOut/a.txt')).content, 'hello archive');
   });
 
   test('存储分析', () async {

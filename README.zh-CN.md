@@ -37,9 +37,11 @@
 - **设置**：为图片 / 音频 / 视频 / 文本 / PDF / 安装包等指定默认跳转应用
   （未设置时每次弹出系统选择器），偏好持久化到应用私有目录
 
-### ZIP
+### 压缩 / 归档
 
-- 压缩 / 解压 / 查看压缩包内容
+- 创建 / 解压 / 查看 **ZIP、TAR、TAR.GZ**
+- ZIP 支持 **AES-256 加密**（可选密码）；解压加密包时自动提示输入密码
+- 多选直接压缩到当前目录；归档查看器可**单独提取**某个条目
 
 ### 存储分析
 
@@ -101,7 +103,7 @@ rust/                     Rust 核心（cdylib）
   src/prefs.rs            界面偏好持久化（默认打开方式等）
   src/trash.rs            回收站（移入 / 恢复 / 清空）
   src/jobs.rs             长任务进度与取消
-  src/archive.rs          ZIP 压缩 / 解压
+  src/archive.rs          归档 ZIP / TAR / TAR.GZ（含 AES 加密）
   src/thumbnail.rs        图片缩略图解码与缓存
   src/analyze.rs          存储分析（分类 / 大文件 / 重复）
   src/remote/             WebDAV / FTP / SMB 客户端与连接会话

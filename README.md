@@ -34,9 +34,11 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
   APK and more (otherwise the system picker is shown every time); preferences are
   persisted in the app's private directory
 
-### ZIP
+### Archives
 
-- Create / extract archives, and browse archive contents
+- Create / extract / browse **ZIP, TAR and TAR.GZ**
+- ZIP supports **AES-256 encryption** (optional password); encrypted archives prompt for the password when extracting
+- Compress the current selection into the current folder; the archive viewer can **extract a single entry**
 
 ### Storage analysis
 
@@ -92,7 +94,7 @@ rust/                     Rust core (cdylib)
   src/prefs.rs            UI preferences persistence (default open-with app, etc.)
   src/trash.rs            recycle bin (trash / restore / empty)
   src/jobs.rs             long-running job progress and cancellation
-  src/archive.rs          ZIP create / extract
+  src/archive.rs          archives: ZIP / TAR / TAR.GZ (with AES encryption)
   src/thumbnail.rs        image thumbnail decode and cache
   src/analyze.rs          storage analysis (categories / largest / duplicates)
   src/remote/             WebDAV / FTP / SMB clients and connection sessions

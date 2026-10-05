@@ -16,6 +16,8 @@ import '../state/recent_store.dart';
 import '../state/route_observer.dart';
 import '../state/settings.dart';
 import '../state/transfer_clipboard.dart';
+import 'archive_actions.dart';
+import 'archive_viewer.dart';
 import 'dialogs.dart';
 import 'drop_overlay.dart';
 import 'entry_tile.dart';
@@ -23,7 +25,6 @@ import 'job_progress.dart';
 import 'open_entry.dart';
 import 'path_breadcrumb.dart';
 import 'search_screen.dart';
-import 'zip_viewer.dart';
 
 class BrowserScreen extends StatefulWidget {
   const BrowserScreen({super.key, required this.path, required this.title});
@@ -726,25 +727,33 @@ class _BrowserScreenState extends State<BrowserScreen>
     return dot > 0 ? base.substring(0, dot) : base;
   }
 
-  Future<void> _zipCompress(List<String> paths) async {
+  Future<void> _compress(List<String> paths) async {
     if (paths.isEmpty) return;
-    final defaultName = paths.length == 1
-        ? '${_stem(paths.first)}.zip'
-        : '${_title.isEmpty ? 'archive' : _title}.zip';
-    final name = await showNameDialog(
+    final format = await pickArchiveFormat(context);
+    if (format == null || !mounted) return;
+    final base = paths.length == 1
+        ? _stem(paths.first)
+        : (_title.isEmpty ? 'archive' : _title);
+    final request = await showCompressDialog(
       context,
-      title: '压缩为 ZIP',
-      initialText: defaultName,
-      confirmLabel: '压缩',
+      defaultName: '$base.${format.extension}',
+      allowPassword: format.supportsPassword,
     );
-    if (name == null || name.isEmpty || !mounted) return;
-    final fileName = name.toLowerCase().endsWith('.zip') ? name : '$name.zip';
+    if (request == null || !mounted) return;
+    final fileName = request.name.toLowerCase().endsWith('.${format.extension}')
+        ? request.name
+        : '${request.name}.${format.extension}';
     final dest = joinPath(_controller.path, fileName);
     try {
       await runWithJobProgress<void>(
         context,
         '正在压缩',
-        (jobId) => _service.zipCreate(paths, dest, jobId: jobId),
+        (jobId) => _service.archiveCreate(
+          paths,
+          dest,
+          password: request.password,
+          jobId: jobId,
+        ),
       );
       await _controller.refresh();
       _snack('已创建「$fileName」');
@@ -753,28 +762,25 @@ class _BrowserScreenState extends State<BrowserScreen>
     }
   }
 
-  Future<void> _zipExtract(FileEntry entry) async {
-    final folder = _stem(entry.name);
+  Future<void> _extract(FileEntry entry) async {
+    final folder = archiveStem(entry.name);
     final dest = joinPath(_controller.path, folder);
-    try {
-      await runWithJobProgress<void>(
-        context,
-        '正在解压',
-        (jobId) => _service.zipExtract(entry.path, dest, jobId: jobId),
-      );
-      await _controller.refresh();
-      _snack('已解压到「$folder」');
-    } catch (error) {
-      _snack('$error');
-    }
+    final ok = await runArchiveExtract(
+      context,
+      archivePath: entry.path,
+      dest: dest,
+    );
+    if (!mounted || !ok) return;
+    await _controller.refresh();
+    _snack('已解压到「$folder」');
   }
 
-  void _openZip(FileEntry entry) {
+  void _openArchive(FileEntry entry) {
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
             builder: (_) =>
-                ZipViewerScreen(entry: entry, parentDir: _controller.path),
+                ArchiveViewerScreen(entry: entry, parentDir: _controller.path),
           ),
         )
         .then((_) {
@@ -1083,27 +1089,27 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.archive_outlined),
-                title: const Text('压缩为 ZIP'),
+                title: const Text('压缩'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _zipCompress([entry.path]);
+                  _compress([entry.path]);
                 },
               ),
-              if (entry.extension == 'zip') ...[
+              if (isSupportedArchive(entry.name)) ...[
                 ListTile(
                   leading: const Icon(Icons.unarchive_outlined),
                   title: const Text('解压到此处'),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _zipExtract(entry);
+                    _extract(entry);
                   },
                 ),
                 ListTile(
                   leading: const Icon(Icons.list_alt_rounded),
-                  title: const Text('查看压缩包内容'),
+                  title: const Text('查看归档内容'),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _openZip(entry);
+                    _openArchive(entry);
                   },
                 ),
               ],
@@ -1229,13 +1235,13 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.archive_outlined),
-                title: const Text('压缩为 ZIP'),
+                title: const Text('压缩'),
                 onTap: () {
                   final paths = _controller.selectedEntries
                       .map((e) => e.path)
                       .toList();
                   Navigator.pop(sheetContext);
-                  _zipCompress(paths);
+                  _compress(paths);
                 },
               ),
               ListTile(
