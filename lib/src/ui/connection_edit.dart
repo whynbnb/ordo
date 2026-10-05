@@ -73,12 +73,14 @@ class _ConnectionEditScreenState extends State<_ConnectionEditScreen> {
   String get _hostHint => switch (_kind) {
     'webdav' => '例如 dav.example.com 或 https://dav.example.com/dav',
     'smb' => '例如 192.168.1.10',
+    'sftp' => '例如 sftp.example.com',
     _ => '例如 ftp.example.com',
   };
 
   String get _portHint => switch (_kind) {
     'webdav' => '443 / 80（留空自动）',
     'smb' => '445（留空自动）',
+    'sftp' => '22（留空自动）',
     _ => '21（留空自动）',
   };
 
@@ -120,6 +122,7 @@ class _ConnectionEditScreenState extends State<_ConnectionEditScreen> {
               segments: const [
                 ButtonSegment(value: 'webdav', label: Text('WebDAV')),
                 ButtonSegment(value: 'ftp', label: Text('FTP')),
+                ButtonSegment(value: 'sftp', label: Text('SFTP')),
                 ButtonSegment(value: 'smb', label: Text('SMB')),
               ],
               selected: {_kind},

@@ -5,6 +5,7 @@
 //! 不需要关心各客户端的线程安全与异步运行时。
 
 pub mod ftp;
+pub mod sftp;
 pub mod smb;
 pub mod webdav;
 
@@ -494,6 +495,7 @@ impl WorkerState {
 fn connect(profile: &ProfileSpec) -> Result<Box<dyn RemoteFs>, String> {
     match profile.kind.as_str() {
         "ftp" => Ok(Box::new(ftp::FtpRemote::connect(profile)?)),
+        "sftp" => Ok(Box::new(sftp::SftpRemote::connect(profile)?)),
         "webdav" => Ok(Box::new(webdav::WebdavRemote::connect(profile)?)),
         "smb" => Ok(Box::new(smb::SmbRemote::connect(profile)?)),
         other => Err(format!("不支持的协议：{other}")),
@@ -510,7 +512,7 @@ pub fn is_remote(uri: &str) -> bool {
 }
 
 pub fn parse(uri: &str) -> Option<(String, String, String)> {
-    for scheme in ["webdav", "ftp", "smb"] {
+    for scheme in ["webdav", "ftp", "sftp", "smb"] {
         let prefix = format!("{scheme}://");
         if let Some(rest) = uri.strip_prefix(&prefix) {
             let (id, inner) = match rest.find('/') {

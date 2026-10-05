@@ -64,6 +64,11 @@ kamadak-exif = "0.6"
 # 二维码（仅生成矩阵，PNG 由 image 编码）。
 qrcode = { version = "0.14", default-features = false }
 
+# SFTP 客户端（纯 Rust）。
+russh = "0.45"
+russh-sftp = "2"
+async-trait = "0.1"
+
 [profile.release]
 lto = true
 opt-level = "z"
