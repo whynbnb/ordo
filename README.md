@@ -23,6 +23,8 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
   - Selection tools: invert, select by type, select by condition (min size / recent days / extensions)
   - Copy path; pin a folder to the home screen as a **desktop shortcut**
 - Sorting (name / size / modified time / type, ascending / descending), show / hide hidden files
+- **Multi-tab browsing** with a bottom tab bar (switch / new / close)
+- Copy / cut / paste run in a background **transfer queue** you can leave; cancel and retry supported
 - **Color labels** for files (persisted per path)
 - **Image / video thumbnails** (images are decoded and scaled by Rust and cached; videos use the system media framework)
 - Recursive search by name
@@ -48,10 +50,11 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 - Largest-files list with direct actions: open, open containing folder, share, move to recycle bin, delete permanently
 - Duplicate detection (same size + SHA-256, two-pass), with one-tap cleanup
 
-### Remote locations (WebDAV / FTP / SMB, fully implemented in Rust)
+### Remote locations (WebDAV / FTP / SFTP / SMB, fully implemented in Rust)
 
-- Connection management (add / edit / delete, test connection); profiles are stored in the app's private directory
+- Connection management (add / edit / delete, test connection); profiles are stored in the app's private directory, with **import / export** and **QR sharing**
 - Browsing, creating, renaming and deleting that behave like local storage, plus copy / move between local and remote (streamed)
+- Remote **recursive search by name**
 - Remote files can be previewed in-app, or downloaded to cache and opened with the system
 - Files dragged in from other apps can be dropped straight into a remote folder
 
@@ -101,7 +104,7 @@ rust/                     Rust core (cdylib)
   src/analyze.rs          storage analysis (categories / largest / duplicates)
   src/media.rs            EXIF / media info
   src/image_ops.rs        image rotation
-  src/remote/             WebDAV / FTP / SMB clients and connection sessions
+  src/remote/             WebDAV / FTP / SFTP / SMB clients and connection sessions
   src/server/             HTTP/WebDAV and FTP servers
   src/model.rs            metadata models
 android/                  Android project
