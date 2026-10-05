@@ -271,6 +271,40 @@ pub fn path_size(path: &str) -> u64 {
     total
 }
 
+/// 按需统计路径大小与文件 / 文件夹数量（用于「计算大小」）。
+pub fn dir_size(path: &str) -> Result<Value, String> {
+    let p = Path::new(path);
+    let meta = std::fs::symlink_metadata(p).map_err(|e| format!("无法读取：{e}"))?;
+    if meta.file_type().is_symlink() || !meta.is_dir() {
+        return Ok(json!({ "size": meta.len(), "files": 1, "dirs": 0 }));
+    }
+    let mut size = 0u64;
+    let mut files = 0u64;
+    let mut dirs = 0u64;
+    let mut stack = vec![p.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let Ok(reader) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for item in reader.flatten() {
+            let Ok(file_type) = item.file_type() else {
+                continue;
+            };
+            if file_type.is_symlink() {
+                continue;
+            }
+            if file_type.is_dir() {
+                dirs += 1;
+                stack.push(item.path());
+            } else if let Ok(meta) = item.metadata() {
+                files += 1;
+                size += meta.len();
+            }
+        }
+    }
+    Ok(json!({ "size": size, "files": files, "dirs": dirs }))
+}
+
 fn split_name(name: &str, is_dir: bool) -> (String, String) {
     if is_dir {
         return (name.to_string(), String::new());

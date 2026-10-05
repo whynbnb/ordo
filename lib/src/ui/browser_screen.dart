@@ -1029,6 +1029,15 @@ class _BrowserScreenState extends State<BrowserScreen>
                     _createShortcut(entry);
                   },
                 ),
+              if (entry.isDir)
+                ListTile(
+                  leading: const Icon(Icons.straighten_rounded),
+                  title: const Text('计算大小'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    showFolderSizeDialog(context, entry);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.info_outline_rounded),
                 title: const Text('详细信息'),

@@ -283,6 +283,18 @@ pub unsafe extern "C" fn ordo_hash(path: *const c_char, algorithm: *const c_char
     })
 }
 
+/// 按需统计文件夹大小（仅本地）。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_dir_size(path: *const c_char) -> *mut c_char {
+    guard(|| match read_str(path) {
+        Ok(p) => result(vfs::dir_size(&p)),
+        Err(e) => err(e),
+    })
+}
+
 /// 写入来自 Android `StorageManager` 的卷信息（用于命名与兜底）。
 ///
 /// 入参为 JSON 数组，元素形如

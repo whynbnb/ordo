@@ -469,6 +469,14 @@ pub fn hash(path: &str, algorithm: &str) -> Result<Value, String> {
     Ok(json!({ "algorithm": algorithm, "hash": hex, "size": size }))
 }
 
+/// 按需统计路径大小（仅本地；网络位置在服务器端枚举代价过高）。
+pub fn dir_size(path: &str) -> Result<Value, String> {
+    if is_remote(path) {
+        return Err("网络位置暂不支持统计大小".into());
+    }
+    api::dir_size(path)
+}
+
 fn floor_char_boundary(data: &[u8], mut index: usize) -> usize {
     if index >= data.len() {
         return data.len();

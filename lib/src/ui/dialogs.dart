@@ -280,3 +280,99 @@ class _HashDialogState extends State<_HashDialog> {
     );
   }
 }
+
+/// 按需统计文件夹大小（计算全部由 Rust 完成）。
+Future<void> showFolderSizeDialog(BuildContext context, FileEntry entry) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => _FolderSizeDialog(entry: entry),
+  );
+}
+
+class _FolderSizeDialog extends StatefulWidget {
+  const _FolderSizeDialog({required this.entry});
+
+  final FileEntry entry;
+
+  @override
+  State<_FolderSizeDialog> createState() => _FolderSizeDialogState();
+}
+
+class _FolderSizeDialogState extends State<_FolderSizeDialog> {
+  final OrdoService _service = OrdoService.instance;
+
+  bool _loading = true;
+  String? _error;
+  ({int size, int files, int dirs})? _result;
+
+  @override
+  void initState() {
+    super.initState();
+    _compute();
+  }
+
+  Future<void> _compute() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await _service.dirSize(widget.entry.path);
+      if (!mounted) return;
+      setState(() {
+        _result = result;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$error';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AlertDialog(
+      title: Text(
+        widget.entry.name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      content: _loading
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : _error != null
+          ? Text(_error!)
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '共 ${formatBytes(_result!.size)}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '${_result!.files} 个文件 · ${_result!.dirs} 个文件夹',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : _compute,
+          child: const Text('重新计算'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('关闭'),
+        ),
+      ],
+    );
+  }
+}

@@ -186,6 +186,17 @@ class OrdoService {
     );
   }
 
+  /// 按需统计文件夹大小与文件数（仅本地）。
+  Future<({int size, int files, int dirs})> dirSize(String path) async {
+    final data = await _background('dirSize', [path]);
+    final map = (data as Map).cast<String, dynamic>();
+    return (
+      size: (map['size'] as num?)?.toInt() ?? 0,
+      files: (map['files'] as num?)?.toInt() ?? 0,
+      dirs: (map['dirs'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   Future<TransferResult> copy(
     List<String> sources,
     String dest, {

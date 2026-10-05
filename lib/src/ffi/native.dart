@@ -207,6 +207,9 @@ class _OrdoBindings {
   late final _DartAnalyze analyze = _lib
       .lookupFunction<_NativeAnalyze, _DartAnalyze>('ordo_analyze');
   late final _Dart2 hash = _lib.lookupFunction<_Native2, _Dart2>('ordo_hash');
+  late final _Dart1 dirSize = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_dir_size',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -500,6 +503,13 @@ dynamic nativeExecute(String op, List<Object?> args) {
               (algorithm) => bindings.hash(path, algorithm),
             );
           }),
+        ),
+      );
+    case 'dirSize':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (path) => bindings.dirSize(path)),
         ),
       );
     case 'readBytes':
