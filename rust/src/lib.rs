@@ -9,6 +9,7 @@ mod analyze;
 mod api;
 mod archive;
 mod favorites;
+mod image_ops;
 mod importer;
 mod jobs;
 mod media;
@@ -305,6 +306,33 @@ pub unsafe extern "C" fn ordo_media_info(path: *const c_char) -> *mut c_char {
     guard(|| match read_str(path) {
         Ok(p) => result(media::info(&p)),
         Err(e) => err(e),
+    })
+}
+
+/// 旋转图片（`left` / `right` / `180`）。
+///
+/// # Safety
+/// FFI 边界：两个指针均为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_image_rotate(
+    path: *const c_char,
+    direction: *const c_char,
+) -> *mut c_char {
+    guard(|| match (read_str(path), read_str(direction)) {
+        (Ok(p), Ok(d)) => result(image_ops::rotate(&p, &d)),
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
+/// 复制单个文件到指定路径。
+///
+/// # Safety
+/// FFI 边界：两个指针均为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_copy_file(source: *const c_char, dest: *const c_char) -> *mut c_char {
+    guard(|| match (read_str(source), read_str(dest)) {
+        (Ok(s), Ok(d)) => result(vfs::copy_file(&s, &d)),
+        (Err(e), _) | (_, Err(e)) => err(e),
     })
 }
 

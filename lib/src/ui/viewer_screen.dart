@@ -8,6 +8,7 @@ import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
+import 'dialogs.dart';
 import 'open_entry.dart';
 
 /// 应用内预览：图片渲染、音频播放、文本查看与编辑。
@@ -281,6 +282,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
           icon: const Icon(Icons.edit_outlined),
           onPressed: _canEdit ? _enterEdit : null,
         ),
+      if (_kind == _PreviewKind.image)
+        PopupMenuButton<String>(
+          tooltip: '图片操作',
+          icon: const Icon(Icons.photo_filter_rounded),
+          onSelected: _onImageAction,
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'rotate_left', child: Text('向左旋转')),
+            PopupMenuItem(value: 'rotate_right', child: Text('向右旋转')),
+            PopupMenuItem(value: 'rotate_180', child: Text('旋转 180°')),
+            PopupMenuDivider(),
+            PopupMenuItem(value: 'save_as', child: Text('另存为')),
+            PopupMenuItem(value: 'wallpaper', child: Text('设为壁纸')),
+          ],
+        ),
       IconButton(
         tooltip: '用其它应用打开',
         icon: const Icon(Icons.open_in_new_rounded),
@@ -289,6 +304,68 @@ class _ViewerScreenState extends State<ViewerScreen> {
             : () => openWithDefault(context, widget.entry),
       ),
     ];
+  }
+
+  Future<void> _onImageAction(String value) async {
+    switch (value) {
+      case 'rotate_left':
+        await _rotate('left');
+      case 'rotate_right':
+        await _rotate('right');
+      case 'rotate_180':
+        await _rotate('180');
+      case 'save_as':
+        await _saveAs();
+      case 'wallpaper':
+        await _setWallpaper();
+    }
+  }
+
+  Future<void> _rotate(String direction) async {
+    try {
+      await _service.rotateImage(widget.entry.path, direction);
+      _imageBytes = null;
+      await _load();
+      _snack('已旋转');
+    } catch (error) {
+      _snack('旋转失败：$error');
+    }
+  }
+
+  Future<void> _saveAs() async {
+    final dot = widget.entry.name.lastIndexOf('.');
+    final base = dot > 0
+        ? widget.entry.name.substring(0, dot)
+        : widget.entry.name;
+    final extension = dot > 0 ? widget.entry.name.substring(dot) : '';
+    final name = await showNameDialog(
+      context,
+      title: '另存为',
+      initialText: '${base}_copy$extension',
+      confirmLabel: '保存',
+    );
+    if (name == null || name.isEmpty || !mounted) return;
+    final dest = joinPath(parentOf(widget.entry.path), name);
+    try {
+      await _service.copyFile(widget.entry.path, dest);
+      _snack('已保存为「$name」');
+    } catch (error) {
+      _snack('保存失败：$error');
+    }
+  }
+
+  Future<void> _setWallpaper() async {
+    try {
+      var path = widget.entry.path;
+      if (isRemotePath(path)) {
+        final cached = await _service.downloadToCache(path);
+        path = cached.path;
+      }
+      final ok = await PlatformService.setWallpaper(path);
+      _snack(ok ? '已设为壁纸' : '设置壁纸失败');
+    } catch (error) {
+      _snack('设置壁纸失败：$error');
+    }
   }
 
   Widget _buildBody(BuildContext context) {

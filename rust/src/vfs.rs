@@ -485,6 +485,16 @@ pub fn symlink(target: &str, link: &str) -> Result<FileEntry, String> {
     api::create_symlink(target, link)
 }
 
+/// 复制单个文件到指定路径（本地流式，跨远程走读写）。
+pub fn copy_file(source: &str, dest: &str) -> Result<FileEntry, String> {
+    if is_remote(source) || is_remote(dest) {
+        let data = read(source)?;
+        return write(dest, &data);
+    }
+    std::fs::copy(source, dest).map_err(|e| format!("复制失败：{e}"))?;
+    api::stat(dest)
+}
+
 fn floor_char_boundary(data: &[u8], mut index: usize) -> usize {
     if index >= data.len() {
         return data.len();

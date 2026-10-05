@@ -1,6 +1,7 @@
 package me.whynbnb.ordo
 
 import android.Manifest
+import android.app.WallpaperManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -124,6 +125,9 @@ class MainActivity : FlutterActivity() {
                         call.argument<Int>("page") ?: 0,
                         call.argument<Int>("width") ?: 1080,
                     )
+                )
+                "setWallpaper" -> result.success(
+                    setWallpaper(call.argument<String>("path"))
                 )
                 "paths" -> result.success(
                     mapOf(
@@ -474,6 +478,19 @@ class MainActivity : FlutterActivity() {
             null
         } finally {
             handle.close()
+        }
+    }
+
+    /** 把图片设为系统壁纸（需要本地可读文件路径）。 */
+    private fun setWallpaper(path: String?): Boolean {
+        val file = path?.let { File(it) } ?: return false
+        if (!file.exists()) return false
+        return try {
+            val manager = WallpaperManager.getInstance(this)
+            file.inputStream().use { manager.setStream(it) }
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 

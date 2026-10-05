@@ -310,6 +310,11 @@ class PlatformService {
     }
   }
 
+  /// 把本地图片设为系统壁纸。
+  static Future<bool> setWallpaper(String path) async {
+    return await _invokeBool('setWallpaper', {'path': path});
+  }
+
   static Future<bool> _invokeBool(
     String method,
     Map<String, Object?> args,

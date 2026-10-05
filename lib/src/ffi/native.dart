@@ -236,6 +236,12 @@ class _OrdoBindings {
   late final _Dart1 mediaInfo = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_media_info',
   );
+  late final _Dart2 imageRotate = _lib.lookupFunction<_Native2, _Dart2>(
+    'ordo_image_rotate',
+  );
+  late final _Dart2 copyFile = _lib.lookupFunction<_Native2, _Dart2>(
+    'ordo_copy_file',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -575,6 +581,30 @@ dynamic nativeExecute(String op, List<Object?> args) {
             args[0] as String,
             (path) => bindings.mediaInfo(path),
           ),
+        ),
+      );
+    case 'imageRotate':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (path) {
+            return _withCString(
+              args[1] as String,
+              (direction) => bindings.imageRotate(path, direction),
+            );
+          }),
+        ),
+      );
+    case 'copyFile':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (source) {
+            return _withCString(
+              args[1] as String,
+              (dest) => bindings.copyFile(source, dest),
+            );
+          }),
         ),
       );
     case 'readBytes':

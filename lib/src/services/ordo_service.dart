@@ -86,6 +86,17 @@ class OrdoService {
     return (data as Map).cast<String, dynamic>();
   }
 
+  /// 旋转图片（`left` / `right` / `180`），原地重写。
+  Future<void> rotateImage(String path, String direction) async {
+    await _background('imageRotate', [path, direction]);
+  }
+
+  /// 复制单个文件到指定路径。
+  Future<FileEntry> copyFile(String source, String dest) async {
+    final data = await _background('copyFile', [source, dest]);
+    return FileEntry.fromJson((data as Map).cast<String, dynamic>());
+  }
+
   Future<FileEntry> rename(String path, String newName) async {
     final data = _direct('rename', [path, newName]);
     return FileEntry.fromJson((data as Map).cast<String, dynamic>());
