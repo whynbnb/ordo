@@ -178,6 +178,7 @@ class PlatformService {
   static void Function()? _onDragEntered;
   static void Function()? _onDragExited;
   static Future<void> Function(List<Map<String, dynamic>>)? _onDropped;
+  static void Function(String path)? _onOpenPath;
   static final List<void Function()> _storageListeners = <void Function()>[];
   static bool _handlerInstalled = false;
 
@@ -207,6 +208,9 @@ class PlatformService {
           for (final listener in List<void Function()>.of(_storageListeners)) {
             listener();
           }
+        case 'openPath':
+          final path = call.arguments;
+          if (path is String && path.isNotEmpty) _onOpenPath?.call(path);
       }
       return null;
     });
@@ -230,6 +234,33 @@ class PlatformService {
   static void addStorageListener(void Function() listener) {
     _ensureHandler();
     _storageListeners.add(listener);
+  }
+
+  /// 监听由桌面快捷方式等触发的「打开指定路径」事件。
+  static void setOpenPathHandler(void Function(String path) handler) {
+    _ensureHandler();
+    _onOpenPath = handler;
+  }
+
+  /// 桌面快捷方式的冷启动路径（消费后清空）。
+  static Future<String?> consumeStartupPath() async {
+    try {
+      return await _channel.invokeMethod<String>('consumeStartupPath');
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  /// 是否支持固定桌面快捷方式。
+  static Future<bool> shortcutSupported() async {
+    return await _invokeBool('shortcutSupported', const {});
+  }
+
+  /// 为某个路径创建桌面快捷方式（系统会弹出固定确认）。
+  static Future<bool> createShortcut(String name, String path) async {
+    return await _invokeBool('createShortcut', {'name': name, 'path': path});
   }
 
   /// 通过 Android 媒体框架为视频生成一帧缩略图（JPEG 字节）。

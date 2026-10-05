@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/breadcrumbs.dart';
 import '../core/file_types.dart';
@@ -820,6 +821,18 @@ class _BrowserScreenState extends State<BrowserScreen>
     if (!ok) _snack('分享失败');
   }
 
+  void _copyPath(List<String> paths) {
+    if (paths.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: paths.join('\n')));
+    _snack(paths.length == 1 ? '已复制路径' : '已复制 ${paths.length} 条路径');
+  }
+
+  Future<void> _createShortcut(FileEntry entry) async {
+    final ok = await PlatformService.createShortcut(entry.name, entry.path);
+    if (!mounted) return;
+    _snack(ok ? '请在系统弹窗中确认' : '当前桌面不支持创建快捷方式');
+  }
+
   // -------------------------------------------------------------------------
   // 面板
   // -------------------------------------------------------------------------
@@ -973,6 +986,14 @@ class _BrowserScreenState extends State<BrowserScreen>
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.link_rounded),
+                title: const Text('复制路径'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _copyPath([entry.path]);
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.drive_file_move_rounded),
                 title: const Text('移动'),
                 onTap: () {
@@ -988,6 +1009,15 @@ class _BrowserScreenState extends State<BrowserScreen>
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _share(entry);
+                  },
+                ),
+              if (entry.isDir)
+                ListTile(
+                  leading: const Icon(Icons.add_to_home_screen_rounded),
+                  title: const Text('创建桌面快捷方式'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _createShortcut(entry);
                   },
                 ),
               ListTile(
@@ -1061,6 +1091,17 @@ class _BrowserScreenState extends State<BrowserScreen>
                   final entry = _controller.singleSelected;
                   Navigator.pop(sheetContext);
                   if (entry != null) _share(entry);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.link_rounded),
+                title: const Text('复制路径'),
+                onTap: () {
+                  final paths = _controller.selectedEntries
+                      .map((e) => e.path)
+                      .toList();
+                  Navigator.pop(sheetContext);
+                  _copyPath(paths);
                 },
               ),
               ListTile(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
+import '../state/navigation.dart';
 import 'home_screen.dart';
 
 /// 启动检查：确认 Rust 核心可用、存储权限已授予。
@@ -73,6 +74,16 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
     setState(() {
       _checking = false;
       _permissionGranted = granted;
+    });
+    if (granted) await _openStartupShortcut();
+  }
+
+  /// 处理桌面快捷方式冷启动带来的路径。
+  Future<void> _openStartupShortcut() async {
+    final path = await PlatformService.consumeStartupPath();
+    if (path == null || path.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      openPathFromShortcut(path);
     });
   }
 

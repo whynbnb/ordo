@@ -8,7 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
 import android.graphics.Bitmap
+import android.graphics.drawable.Icon
 import android.hardware.usb.UsbManager
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
@@ -52,6 +55,9 @@ class MainActivity : FlutterActivity() {
     // 应用内音频预览使用的播放器。
     private var audioPlayer: MediaPlayer? = null
 
+    // 桌面快捷方式带来的待打开路径（冷启动）。
+    private var pendingOpenPath: String? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -93,6 +99,18 @@ class MainActivity : FlutterActivity() {
                     audioRelease()
                     result.success(true)
                 }
+                "shortcutSupported" -> result.success(shortcutSupported())
+                "createShortcut" -> result.success(
+                    createShortcut(
+                        call.argument("name") ?: "",
+                        call.argument("path") ?: "",
+                    )
+                )
+                "consumeStartupPath" -> {
+                    val path = pendingOpenPath
+                    pendingOpenPath = null
+                    result.success(path)
+                }
                 "sdkInt" -> result.success(Build.VERSION.SDK_INT)
                 "storageVolumes" -> result.success(storageVolumes())
                 "videoThumbnail" -> result.success(videoThumbnail(call.argument("path")))
@@ -114,6 +132,7 @@ class MainActivity : FlutterActivity() {
         if (intent?.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
             scheduleStorageCheck()
         }
+        pendingOpenPath = intent?.getStringExtra(EXTRA_OPEN_PATH)
     }
 
     // -----------------------------------------------------------------------
@@ -195,6 +214,9 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
         if (intent.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
             scheduleStorageCheck()
+        }
+        intent.getStringExtra(EXTRA_OPEN_PATH)?.let { path ->
+            channel?.invokeMethod("openPath", path)
         }
     }
 
@@ -503,6 +525,41 @@ class MainActivity : FlutterActivity() {
     }
 
     // -----------------------------------------------------------------------
+    // 桌面快捷方式（原生 ShortcutManager）
+    // -----------------------------------------------------------------------
+
+    private fun shortcutSupported(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        val manager = getSystemService(Context.SHORTCUT_SERVICE) as? ShortcutManager
+            ?: return false
+        return manager.isRequestPinShortcutSupported
+    }
+
+    private fun createShortcut(name: String, path: String): Boolean {
+        if (!shortcutSupported() || path.isEmpty()) return false
+        val manager = getSystemService(Context.SHORTCUT_SERVICE) as? ShortcutManager
+            ?: return false
+        return try {
+            val launch = Intent(this, MainActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+                putExtra(EXTRA_OPEN_PATH, path)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            val label = name.ifEmpty { "安序" }
+            val info = ShortcutInfo.Builder(this, "ordo:" + path.hashCode())
+                .setShortLabel(label)
+                .setLongLabel(label)
+                .setIcon(Icon.createWithResource(this, R.mipmap.ic_launcher))
+                .setIntent(launch)
+                .build()
+            manager.requestPinShortcut(info, null)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // 应用内音频预览（系统 MediaPlayer，不依赖任何第三方包）
     // -----------------------------------------------------------------------
 
@@ -574,5 +631,6 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "ordo/platform"
         private const val REQUEST_STORAGE = 4711
         private const val STORAGE_CHECK_DELAY_MS = 500L
+        private const val EXTRA_OPEN_PATH = "ordo_open_path"
     }
 }
