@@ -1,5 +1,6 @@
 use crate::jobs::Job;
 use crate::model::{build_entry, FileEntry};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::cmp::Ordering;
 use std::io::{Read, Write};
@@ -478,6 +479,233 @@ pub fn search(root: &str, query: &str, limit: usize) -> Result<Value, String> {
 
     sort_entries(&mut results);
     Ok(json!({ "entries": results, "truncated": truncated, "scanned": scanned }))
+}
+
+// ---------------------------------------------------------------------------
+// 带过滤 / 内容匹配的搜索
+// ---------------------------------------------------------------------------
+
+/// 搜索过滤条件（由界面传入 JSON）。
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct SearchFilter {
+    #[serde(default)]
+    pub limit: usize,
+    #[serde(default)]
+    pub min_size: u64,
+    #[serde(default)]
+    pub max_size: u64,
+    /// 修改时间下限 / 上限（Unix 秒，0 表示不限）。
+    #[serde(default)]
+    pub after: i64,
+    #[serde(default)]
+    pub before: i64,
+    /// 扩展名白名单（不含点，大小写不敏感）。
+    #[serde(default)]
+    pub extensions: Vec<String>,
+    /// `any` / `file` / `dir`。
+    #[serde(default)]
+    pub kind: String,
+    /// 是否搜索文件内容。
+    #[serde(default)]
+    pub content: bool,
+    /// 内容搜索的单文件大小上限（0 使用默认 2MB）。
+    #[serde(default)]
+    pub content_max: u64,
+    #[serde(default)]
+    pub skip_hidden: bool,
+}
+
+impl SearchFilter {
+    pub fn limit(&self) -> usize {
+        if self.limit == 0 {
+            500
+        } else {
+            self.limit
+        }
+    }
+
+    pub fn content_max(&self) -> u64 {
+        if self.content_max == 0 {
+            2 * 1024 * 1024
+        } else {
+            self.content_max
+        }
+    }
+
+    /// 是否没有任何过滤条件。
+    pub fn is_default(&self) -> bool {
+        self.min_size == 0
+            && self.max_size == 0
+            && self.after == 0
+            && self.before == 0
+            && self.extensions.is_empty()
+            && (self.kind.is_empty() || self.kind == "any")
+            && !self.content
+            && !self.skip_hidden
+    }
+
+    pub fn passes(&self, entry: &FileEntry) -> bool {
+        if self.kind == "file" && entry.is_dir {
+            return false;
+        }
+        if self.kind == "dir" && !entry.is_dir {
+            return false;
+        }
+        if self.skip_hidden && entry.hidden {
+            return false;
+        }
+        if entry.is_dir {
+            if self.min_size > 0 || self.max_size > 0 {
+                return false;
+            }
+        } else {
+            if self.min_size > 0 && entry.size < self.min_size {
+                return false;
+            }
+            if self.max_size > 0 && entry.size > self.max_size {
+                return false;
+            }
+        }
+        if self.after > 0 && entry.modified < self.after {
+            return false;
+        }
+        if self.before > 0 && entry.modified > self.before {
+            return false;
+        }
+        if !self.extensions.is_empty() {
+            if entry.is_dir {
+                return false;
+            }
+            let ext = entry.extension.to_ascii_lowercase();
+            if !self
+                .extensions
+                .iter()
+                .any(|e| e.trim_start_matches('.').eq_ignore_ascii_case(&ext))
+            {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+fn is_text_name(name: &str) -> bool {
+    let ext = name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+    matches!(
+        ext.as_str(),
+        "txt"
+            | "md"
+            | "log"
+            | "json"
+            | "xml"
+            | "csv"
+            | "yaml"
+            | "yml"
+            | "ini"
+            | "conf"
+            | "toml"
+            | "properties"
+            | "html"
+            | "htm"
+            | "css"
+            | "js"
+            | "ts"
+            | "jsx"
+            | "tsx"
+            | "rs"
+            | "kt"
+            | "java"
+            | "c"
+            | "h"
+            | "cpp"
+            | "hpp"
+            | "py"
+            | "sh"
+            | "bat"
+            | "gradle"
+            | "srt"
+            | "vtt"
+    )
+}
+
+fn content_contains(path: &Path, needle: &str, max: u64) -> bool {
+    let Ok(bytes) = std::fs::read(path) else {
+        return false;
+    };
+    if bytes.len() as u64 > max {
+        return false;
+    }
+    String::from_utf8_lossy(&bytes)
+        .to_lowercase()
+        .contains(needle)
+}
+
+pub fn search_filtered(root: &str, query: &str, filter: &SearchFilter) -> Result<Value, String> {
+    let q = query.trim().to_lowercase();
+    let limit = filter.limit();
+    if q.is_empty() && filter.is_default() {
+        return Ok(json!({ "entries": [], "truncated": false, "scanned": 0, "content": false }));
+    }
+    let start = Path::new(root);
+    if !start.is_dir() {
+        return Err("搜索起点不是文件夹".into());
+    }
+
+    let content_max = filter.content_max();
+    let mut results: Vec<FileEntry> = Vec::new();
+    let mut stack: Vec<PathBuf> = vec![start.to_path_buf()];
+    let mut scanned: u64 = 0;
+    let mut truncated = false;
+    let mut content_hit = false;
+
+    while let Some(dir) = stack.pop() {
+        if results.len() >= limit || scanned >= 200_000 {
+            truncated = true;
+            break;
+        }
+        let Ok(rd) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for item in rd.flatten() {
+            scanned += 1;
+            let name = item.file_name().to_string_lossy().into_owned();
+            let path = item.path();
+            let is_dir = item.file_type().map(|t| t.is_dir()).unwrap_or(false);
+            let Ok(entry) = build_entry(&path, name.clone()) else {
+                continue;
+            };
+
+            let mut hit = q.is_empty() || name.to_lowercase().contains(&q);
+            if !hit
+                && filter.content
+                && !is_dir
+                && entry.size <= content_max
+                && is_text_name(&entry.name)
+                && content_contains(&path, &q, content_max)
+            {
+                hit = true;
+                content_hit = true;
+            }
+            if hit && filter.passes(&entry) {
+                results.push(entry);
+                if results.len() >= limit {
+                    truncated = true;
+                    break;
+                }
+            }
+            if is_dir {
+                stack.push(path);
+            }
+        }
+    }
+
+    sort_entries(&mut results);
+    Ok(json!({
+        "entries": results,
+        "truncated": truncated,
+        "scanned": scanned,
+        "content": content_hit,
+    }))
 }
 
 // ---------------------------------------------------------------------------

@@ -17,6 +17,8 @@ import 'directory_picker.dart';
 import 'drop_overlay.dart';
 import 'file_picker.dart';
 import 'analyzer_screen.dart';
+import 'cleanup_screen.dart';
+import 'trend_screen.dart';
 import 'qr_dialog.dart';
 import 'recent_screen.dart';
 import 'server_screen.dart';
@@ -231,6 +233,12 @@ class _HomeScreenState extends State<HomeScreen>
           if (mounted) _load(showSpinner: false);
         });
   }
+
+  String get _primaryPath =>
+      _roots.isNotEmpty ? _roots.first.path : '/storage/emulated/0';
+
+  String get _primaryName =>
+      _roots.isNotEmpty ? _roots.first.name : '内部存储';
 
   @override
   Widget build(BuildContext context) {
@@ -461,6 +469,52 @@ class _HomeScreenState extends State<HomeScreen>
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const AnalyzerScreen()),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 0,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.5),
+          clipBehavior: Clip.antiAlias,
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: const Icon(Icons.cleaning_services_rounded),
+            title: const Text('智能清理'),
+            subtitle: const Text('空文件、空文件夹、临时 / 缓存文件'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CleanupScreen(
+                    root: _primaryPath,
+                    title: _primaryName,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 0,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.5),
+          clipBehavior: Clip.antiAlias,
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: const Icon(Icons.show_chart_rounded),
+            title: const Text('存储趋势'),
+            subtitle: const Text('定期记录并比较目录用量变化'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      TrendScreen(root: _primaryPath, title: _primaryName),
+                ),
               );
             },
           ),

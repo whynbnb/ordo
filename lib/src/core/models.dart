@@ -328,11 +328,13 @@ class SearchOutcome {
     required this.entries,
     required this.truncated,
     required this.scanned,
+    this.content = false,
   });
 
   final List<FileEntry> entries;
   final bool truncated;
   final int scanned;
+  final bool content;
 
   factory SearchOutcome.fromJson(Map<String, dynamic> json) {
     final raw = json['entries'] as List? ?? const [];
@@ -342,6 +344,103 @@ class SearchOutcome {
           .toList(),
       truncated: json['truncated'] as bool? ?? false,
       scanned: (json['scanned'] as num?)?.toInt() ?? 0,
+      content: json['content'] as bool? ?? false,
+    );
+  }
+}
+
+/// 搜索过滤条件。
+class SearchOptions {
+  const SearchOptions({
+    this.limit = 500,
+    this.minSize = 0,
+    this.maxSize = 0,
+    this.after = 0,
+    this.before = 0,
+    this.extensions = const [],
+    this.kind = 'any',
+    this.content = false,
+    this.contentMax = 0,
+    this.skipHidden = false,
+  });
+
+  final int limit;
+  final int minSize;
+  final int maxSize;
+  final int after;
+  final int before;
+  final List<String> extensions;
+  final String kind;
+  final bool content;
+  final int contentMax;
+  final bool skipHidden;
+
+  static const SearchOptions none = SearchOptions();
+
+  /// 除分页外是否有过滤条件。
+  bool get hasFilters =>
+      minSize > 0 ||
+      maxSize > 0 ||
+      after > 0 ||
+      before > 0 ||
+      extensions.isNotEmpty ||
+      kind != 'any' ||
+      content ||
+      skipHidden;
+
+  factory SearchOptions.fromJson(Map<String, dynamic> json) {
+    return SearchOptions(
+      limit: (json['limit'] as num?)?.toInt() ?? 500,
+      minSize: (json['min_size'] as num?)?.toInt() ?? 0,
+      maxSize: (json['max_size'] as num?)?.toInt() ?? 0,
+      after: (json['after'] as num?)?.toInt() ?? 0,
+      before: (json['before'] as num?)?.toInt() ?? 0,
+      extensions:
+          (json['extensions'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
+      kind: json['kind'] as String? ?? 'any',
+      content: json['content'] as bool? ?? false,
+      contentMax: (json['content_max'] as num?)?.toInt() ?? 0,
+      skipHidden: json['skip_hidden'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'limit': limit,
+    'min_size': minSize,
+    'max_size': maxSize,
+    'after': after,
+    'before': before,
+    'extensions': extensions,
+    'kind': kind,
+    'content': content,
+    'content_max': contentMax,
+    'skip_hidden': skipHidden,
+  };
+
+  SearchOptions copyWith({
+    int? limit,
+    int? minSize,
+    int? maxSize,
+    int? after,
+    int? before,
+    List<String>? extensions,
+    String? kind,
+    bool? content,
+    int? contentMax,
+    bool? skipHidden,
+  }) {
+    return SearchOptions(
+      limit: limit ?? this.limit,
+      minSize: minSize ?? this.minSize,
+      maxSize: maxSize ?? this.maxSize,
+      after: after ?? this.after,
+      before: before ?? this.before,
+      extensions: extensions ?? this.extensions,
+      kind: kind ?? this.kind,
+      content: content ?? this.content,
+      contentMax: contentMax ?? this.contentMax,
+      skipHidden: skipHidden ?? this.skipHidden,
     );
   }
 }
@@ -831,6 +930,75 @@ class ServerLog {
               .toList() ??
           const [],
       revision: (json['revision'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// 智能清理扫描结果。
+class CleanupResult {
+  const CleanupResult({
+    required this.emptyFiles,
+    required this.emptyDirs,
+    required this.tempFiles,
+    required this.reclaimable,
+    required this.scanned,
+    required this.truncated,
+  });
+
+  final List<FileEntry> emptyFiles;
+  final List<FileEntry> emptyDirs;
+  final List<FileEntry> tempFiles;
+  final int reclaimable;
+  final int scanned;
+  final bool truncated;
+
+  int get total => emptyFiles.length + emptyDirs.length + tempFiles.length;
+
+  static const CleanupResult empty = CleanupResult(
+    emptyFiles: [],
+    emptyDirs: [],
+    tempFiles: [],
+    reclaimable: 0,
+    scanned: 0,
+    truncated: false,
+  );
+
+  factory CleanupResult.fromJson(Map<String, dynamic> json) {
+    List<FileEntry> parse(String key) {
+      final raw = json[key] as List? ?? const [];
+      return raw
+          .map((e) => FileEntry.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+    }
+
+    return CleanupResult(
+      emptyFiles: parse('empty_files'),
+      emptyDirs: parse('empty_dirs'),
+      tempFiles: parse('temp_files'),
+      reclaimable: (json['reclaimable'] as num?)?.toInt() ?? 0,
+      scanned: (json['scanned'] as num?)?.toInt() ?? 0,
+      truncated: json['truncated'] as bool? ?? false,
+    );
+  }
+}
+
+/// 一次存储用量快照。
+class TrendSnapshot {
+  const TrendSnapshot({
+    required this.time,
+    required this.bytes,
+    required this.files,
+  });
+
+  final int time;
+  final int bytes;
+  final int files;
+
+  factory TrendSnapshot.fromJson(Map<String, dynamic> json) {
+    return TrendSnapshot(
+      time: (json['time'] as num?)?.toInt() ?? 0,
+      bytes: (json['bytes'] as num?)?.toInt() ?? 0,
+      files: (json['files'] as num?)?.toInt() ?? 0,
     );
   }
 }

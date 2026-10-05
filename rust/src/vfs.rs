@@ -383,6 +383,64 @@ pub fn search(root: &str, query: &str, limit: usize) -> Result<Value, String> {
     api::search(root, query, limit)
 }
 
+pub fn search_filtered(
+    root: &str,
+    query: &str,
+    filter: &api::SearchFilter,
+) -> Result<Value, String> {
+    if is_remote(root) {
+        return search_remote_filtered(root, query, filter);
+    }
+    api::search_filtered(root, query, filter)
+}
+
+fn search_remote_filtered(
+    root: &str,
+    query: &str,
+    filter: &api::SearchFilter,
+) -> Result<Value, String> {
+    let needle = query.trim().to_lowercase();
+    if needle.is_empty() && filter.is_default() {
+        return Ok(json!({ "entries": [], "truncated": false, "scanned": 0, "content": false }));
+    }
+    let limit = filter.limit();
+    let mut results: Vec<FileEntry> = Vec::new();
+    let mut scanned = 0u64;
+    let mut truncated = false;
+    let mut stack = vec![root.to_string()];
+
+    while let Some(dir) = stack.pop() {
+        if results.len() >= limit || scanned >= 20_000 {
+            truncated = true;
+            break;
+        }
+        let Ok(entries) = list(&dir) else {
+            continue;
+        };
+        for entry in entries {
+            scanned += 1;
+            let hit = needle.is_empty() || entry.name.to_lowercase().contains(&needle);
+            if hit && filter.passes(&entry) {
+                results.push(entry.clone());
+                if results.len() >= limit {
+                    truncated = true;
+                    break;
+                }
+            }
+            if entry.is_dir {
+                stack.push(entry.path.clone());
+            }
+        }
+    }
+
+    results.sort_by(|a, b| {
+        b.is_dir
+            .cmp(&a.is_dir)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(json!({ "entries": results, "truncated": truncated, "scanned": scanned, "content": false }))
+}
+
 fn search_remote(root: &str, query: &str, limit: usize) -> Result<Value, String> {
     let needle = query.trim().to_lowercase();
     if needle.is_empty() {

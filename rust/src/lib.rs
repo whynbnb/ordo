@@ -8,6 +8,7 @@
 mod analyze;
 mod api;
 mod archive;
+mod cleanup;
 mod favorites;
 mod image_ops;
 mod importer;
@@ -21,6 +22,7 @@ mod server;
 mod storage;
 mod thumbnail;
 mod trash;
+mod trend;
 mod vfs;
 
 use remote::ProfileSpec;
@@ -265,6 +267,63 @@ pub unsafe extern "C" fn ordo_search(
     guard(|| match (read_str(root), read_str(query)) {
         (Ok(r), Ok(q)) => result(vfs::search(&r, &q, limit as usize)),
         (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
+/// 带过滤条件的搜索（`options` 为 JSON：大小 / 时间 / 扩展名 / 类型 / 内容）。
+///
+/// # Safety
+/// FFI 边界：三个指针均为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_search_filtered(
+    root: *const c_char,
+    query: *const c_char,
+    options: *const c_char,
+) -> *mut c_char {
+    guard(
+        || match (read_str(root), read_str(query), read_str(options)) {
+            (Ok(r), Ok(q), Ok(o)) => match serde_json::from_str::<api::SearchFilter>(&o) {
+                Ok(filter) => result(vfs::search_filtered(&r, &q, &filter)),
+                Err(e) => err(format!("搜索参数无效：{e}")),
+            },
+            (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => err(e),
+        },
+    )
+}
+
+/// 扫描可清理的垃圾文件（空文件 / 空目录 / 临时文件）。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_cleanup_scan(root: *const c_char, limit: u32) -> *mut c_char {
+    guard(|| match read_str(root) {
+        Ok(r) => result(cleanup::scan(&r, limit as usize)),
+        Err(e) => err(e),
+    })
+}
+
+/// 立即测量并记录一次存储快照。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_trend_record(root: *const c_char) -> *mut c_char {
+    guard(|| match read_str(root) {
+        Ok(r) => result(trend::record(&r)),
+        Err(e) => err(e),
+    })
+}
+
+/// 读取某路径的历史存储快照。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_trend_history(root: *const c_char) -> *mut c_char {
+    guard(|| match read_str(root) {
+        Ok(r) => ok(trend::history(&r)),
+        Err(e) => err(e),
     })
 }
 
@@ -1045,6 +1104,47 @@ mod tests {
 
         let all = api::search(dir.to_str().unwrap(), ".txt", 50).unwrap();
         assert_eq!(all["entries"].as_array().unwrap().len(), 2);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn search_filtered_by_type_size_and_content() {
+        use crate::api::SearchFilter;
+        let dir = temp("search_filter");
+        fs::write(dir.join("big.txt"), vec![b'a'; 2000]).unwrap();
+        fs::write(dir.join("small.txt"), b"hello world").unwrap();
+        fs::write(dir.join("image.png"), vec![0u8; 10]).unwrap();
+
+        // 扩展名 + 最小大小。
+        let filter = SearchFilter {
+            extensions: vec!["txt".into()],
+            min_size: 1000,
+            ..Default::default()
+        };
+        let res = api::search_filtered(dir.to_str().unwrap(), "", &filter).unwrap();
+        let names: Vec<String> = res["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["name"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(names, vec!["big.txt".to_string()]);
+
+        // 内容搜索（大小写不敏感，仅限文本类型）。
+        let filter = SearchFilter {
+            content: true,
+            ..Default::default()
+        };
+        let res = api::search_filtered(dir.to_str().unwrap(), "HELLO", &filter).unwrap();
+        let names: Vec<String> = res["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["name"].as_str().unwrap().to_string())
+            .collect();
+        assert!(names.contains(&"small.txt".to_string()));
+        assert!(!names.contains(&"big.txt".to_string()));
+        assert_eq!(res["content"], true);
         fs::remove_dir_all(&dir).unwrap();
     }
 

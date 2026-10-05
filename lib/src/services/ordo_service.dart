@@ -267,6 +267,39 @@ class OrdoService {
     return SearchOutcome.fromJson((data as Map).cast<String, dynamic>());
   }
 
+  Future<SearchOutcome> searchFiltered(
+    String root,
+    String query,
+    SearchOptions options,
+  ) async {
+    final data = await _background('searchFiltered', [
+      root,
+      query,
+      jsonEncode(options.toJson()),
+    ]);
+    return SearchOutcome.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<CleanupResult> cleanupScan(String root, {int limit = 2000}) async {
+    final data = await _background('cleanupScan', [root, limit]);
+    return CleanupResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<List<TrendSnapshot>> trendRecord(String root) async {
+    final data = await _background('trendRecord', [root]);
+    final map = (data as Map).cast<String, dynamic>();
+    return (map['history'] as List? ?? const [])
+        .map((e) => TrendSnapshot.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<List<TrendSnapshot>> trendHistory(String root) async {
+    final data = await _background('trendHistory', [root]);
+    return (data as List? ?? const [])
+        .map((e) => TrendSnapshot.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
   Future<List<StorageRoot>> storageRoots() async {
     try {
       final hints = await PlatformService.storageVolumes();

@@ -17,6 +17,8 @@ typedef _Native1 = _CStr Function(_CStr);
 typedef _Dart1 = _CStr Function(_CStr);
 typedef _Native2 = _CStr Function(_CStr, _CStr);
 typedef _Dart2 = _CStr Function(_CStr, _CStr);
+typedef _Native3 = _CStr Function(_CStr, _CStr, _CStr);
+typedef _Dart3 = _CStr Function(_CStr, _CStr, _CStr);
 typedef _NativeReadText = _CStr Function(_CStr, Uint64);
 typedef _DartReadText = _CStr Function(_CStr, int);
 typedef _NativeSearch = _CStr Function(_CStr, _CStr, Uint32);
@@ -42,6 +44,8 @@ typedef _NativeThumbnail = Pointer<Uint8> Function(
 typedef _DartThumbnail = Pointer<Uint8> Function(_CStr, int, Pointer<UintPtr>);
 typedef _NativeAnalyze = _CStr Function(_CStr, Uint64);
 typedef _DartAnalyze = _CStr Function(_CStr, int);
+typedef _NativeStrU32 = _CStr Function(_CStr, Uint32);
+typedef _DartStrU32 = _CStr Function(_CStr, int);
 typedef _DartReadBytes = Pointer<Uint8> Function(_CStr, Pointer<UintPtr>);
 typedef _NativeFreeBytes = Void Function(Pointer<Uint8>, UintPtr);
 typedef _DartFreeBytes = void Function(Pointer<Uint8>, int);
@@ -119,6 +123,16 @@ class _OrdoBindings {
       .lookupFunction<_NativeCopyMove, _DartCopyMove>('ordo_move');
   late final _DartSearch search = _lib
       .lookupFunction<_NativeSearch, _DartSearch>('ordo_search');
+  late final _Dart3 searchFiltered = _lib
+      .lookupFunction<_Native3, _Dart3>('ordo_search_filtered');
+  late final _DartStrU32 cleanupScan = _lib
+      .lookupFunction<_NativeStrU32, _DartStrU32>('ordo_cleanup_scan');
+  late final _Dart1 trendRecord = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_trend_record',
+  );
+  late final _Dart1 trendHistory = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_trend_history',
+  );
   late final _DartZero storageRoots = _lib
       .lookupFunction<_NativeZero, _DartZero>('ordo_storage_roots');
   late final _DartZero ping = _lib.lookupFunction<_NativeZero, _DartZero>(
@@ -368,6 +382,50 @@ dynamic nativeExecute(String op, List<Object?> args) {
               return bindings.search(root, query, args[2] as int);
             });
           }),
+        ),
+      );
+    case 'searchFiltered':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (root) {
+            return _withCString(args[1] as String, (query) {
+              return _withCString(
+                args[2] as String,
+                (options) => bindings.searchFiltered(root, query, options),
+              );
+            });
+          }),
+        ),
+      );
+    case 'cleanupScan':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (root) => bindings.cleanupScan(root, args[1] as int),
+          ),
+        ),
+      );
+    case 'trendRecord':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (root) => bindings.trendRecord(root),
+          ),
+        ),
+      );
+    case 'trendHistory':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (root) => bindings.trendHistory(root),
+          ),
         ),
       );
     case 'storageRoots':
