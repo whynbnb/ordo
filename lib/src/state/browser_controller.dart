@@ -103,6 +103,26 @@ class BrowserController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 反选当前可见条目。
+  void invertSelection() {
+    final next = <String>{
+      for (final entry in entries)
+        if (!_selected.contains(entry.path)) entry.path,
+    };
+    _selected
+      ..clear()
+      ..addAll(next);
+    notifyListeners();
+  }
+
+  /// 按条件选择（清空后选中所有满足条件的可见条目）。
+  void selectMatching(bool Function(FileEntry entry) test) {
+    _selected
+      ..clear()
+      ..addAll(entries.where(test).map((e) => e.path));
+    notifyListeners();
+  }
+
   void clearSelection() {
     if (_selected.isEmpty) return;
     _selected.clear();

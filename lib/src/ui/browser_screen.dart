@@ -188,10 +188,17 @@ class _BrowserScreenState extends State<BrowserScreen>
         ),
         title: Text('已选择 ${_controller.selectedCount} 项'),
         actions: [
-          IconButton(
-            tooltip: '全选',
-            icon: const Icon(Icons.select_all_rounded),
-            onPressed: _controller.selectAll,
+          PopupMenuButton<String>(
+            tooltip: '选择',
+            icon: const Icon(Icons.checklist_rounded),
+            onSelected: _onSelectAction,
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'all', child: Text('全选')),
+              PopupMenuItem(value: 'invert', child: Text('反选')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'type', child: Text('按类型选择')),
+              PopupMenuItem(value: 'condition', child: Text('按条件选择')),
+            ],
           ),
         ],
       );
@@ -479,6 +486,144 @@ class _BrowserScreenState extends State<BrowserScreen>
         _showSortSheet();
     }
   }
+
+  void _onSelectAction(String value) {
+    switch (value) {
+      case 'all':
+        _controller.selectAll();
+      case 'invert':
+        _controller.invertSelection();
+      case 'type':
+        _showSelectByType();
+      case 'condition':
+        _showSelectByCondition();
+    }
+  }
+
+  Future<void> _showSelectByType() async {
+    final category = await showModalBottomSheet<FileCategory>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final category in FileCategory.values)
+              ListTile(
+                leading: Icon(_selectionCategoryIcon(category)),
+                title: Text(_selectionCategoryLabel(category)),
+                onTap: () => Navigator.pop(sheetContext, category),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (category == null || !mounted) return;
+    _controller.selectMatching(
+      (entry) => categoryOf(entry.extension, isDir: entry.isDir) == category,
+    );
+  }
+
+  Future<void> _showSelectByCondition() async {
+    final sizeController = TextEditingController();
+    final daysController = TextEditingController();
+    final extController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('按条件选择'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: sizeController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '最小大小（MB，可空）'),
+              ),
+              TextField(
+                controller: daysController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: '最近 N 天内修改（可空）',
+                ),
+              ),
+              TextField(
+                controller: extController,
+                decoration: const InputDecoration(
+                  labelText: '扩展名，逗号分隔（可空）',
+                  hintText: '例如 jpg,png,mp4',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('选择'),
+          ),
+        ],
+      ),
+    );
+    final minBytes =
+        (double.tryParse(sizeController.text.trim()) ?? 0) * 1024 * 1024;
+    final days = int.tryParse(daysController.text.trim()) ?? 0;
+    final extensions = extController.text
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    sizeController.dispose();
+    daysController.dispose();
+    extController.dispose();
+    if (confirmed != true || !mounted) return;
+
+    final cutoff = days > 0
+        ? DateTime.now()
+                  .subtract(Duration(days: days))
+                  .millisecondsSinceEpoch ~/
+              1000
+        : 0;
+    _controller.selectMatching((entry) {
+      if (entry.isDir) return false;
+      if (minBytes > 0 && entry.size < minBytes) return false;
+      if (cutoff > 0 && entry.modified < cutoff) return false;
+      if (extensions.isNotEmpty &&
+          !extensions.contains(entry.extension.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  String _selectionCategoryLabel(FileCategory category) => switch (category) {
+    FileCategory.folder => '文件夹',
+    FileCategory.image => '图片',
+    FileCategory.video => '视频',
+    FileCategory.audio => '音频',
+    FileCategory.document => '文档',
+    FileCategory.text => '文本',
+    FileCategory.archive => '压缩包',
+    FileCategory.apk => '安装包',
+    FileCategory.other => '其它',
+  };
+
+  IconData _selectionCategoryIcon(FileCategory category) => switch (category) {
+    FileCategory.folder => Icons.folder_rounded,
+    FileCategory.image => Icons.image_rounded,
+    FileCategory.video => Icons.movie_rounded,
+    FileCategory.audio => Icons.music_note_rounded,
+    FileCategory.document => Icons.description_rounded,
+    FileCategory.text => Icons.article_rounded,
+    FileCategory.archive => Icons.folder_zip_rounded,
+    FileCategory.apk => Icons.android_rounded,
+    FileCategory.other => Icons.insert_drive_file_rounded,
+  };
 
   Future<void> _create({required bool folder}) async {
     final name = await showNameDialog(
