@@ -17,15 +17,19 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 - Browse internal storage, removable SD cards and pluggable USB storage (flash drives / portable SSDs), with capacity usage
 - **Hot-plug support**: listens to system storage broadcasts and refreshes automatically when a USB drive / SD card is inserted or removed; plugging in USB storage also makes Android offer Ordo, just like other file managers
 - Quick-access folders (Downloads / Pictures / Camera / Music / Videos / Documents)
-- Tappable path breadcrumb; favorites (bookmarks)
-- New folder / file, rename, delete (moved to the recycle bin by default, restorable / emptiable)
+- Tappable path breadcrumb; favorites (bookmarks); **recent items**; in-directory **back / forward** navigation
+- New folder / file, rename, delete (moved to the recycle bin by default, restorable / emptiable); create **symlinks**
 - Multi-select, copy / cut / paste (across directories), with progress and cancel for large transfers
+  - Selection tools: invert, select by type, select by condition (min size / recent days / extensions)
+  - Copy path; pin a folder to the home screen as a **desktop shortcut**
 - Sorting (name / size / modified time / type, ascending / descending), show / hide hidden files
+- **Color labels** for files (persisted per path)
 - **Image / video thumbnails** (images are decoded and scaled by Rust and cached; videos use the system media framework)
 - Recursive search by name
 - Details sheet; **in-app preview for images / audio / text** (text can be lightly
   edited and saved), while video and other files are handed to the system "Open with";
   share files
+- Tools: **file checksums** (SHA-256 / MD5) and **on-demand folder size**
 - **Settings**: choose a default app to open images / audio / video / text / PDF /
   APK and more (otherwise the system picker is shown every time); preferences are
   persisted in the app's private directory
