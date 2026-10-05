@@ -4,11 +4,11 @@
 
 An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutter, and every file operation is performed by Rust.
 
-- UI (Flutter): Material 3, clean and practical.
-- Core (Rust): all filesystem work happens in Rust and is exposed to Flutter over a minimal C ABI with JSON payloads.
-- Targets ordinary (non-root) Android devices, using "All files access" (Android 11+) or the legacy read/write permissions.
+- **UI (Flutter)**: Material 3, clean and practical.
+- **Core (Rust)**: all filesystem work happens in Rust and is exposed to Flutter over a minimal C ABI with JSON payloads.
+- **Non-root friendly**: uses "All files access" (Android 11+) or the legacy read/write permissions, with optional Root / Shizuku / ADB access for restricted folders.
 
-> This project does **not** use Flutter's built-in file I/O APIs, and does **not** depend on any file-related third-party package. Dart only handles the UI and FFI calls; reading, writing, copying, moving, deleting, searching, archiving and analysis are all implemented in Rust.
+> This project does **not** use Flutter's built-in file I/O APIs and does **not** depend on any file-related third-party package. Dart only handles the UI and FFI calls; reading, writing, copying, moving, deleting, searching, archiving and analysis are all implemented in Rust.
 
 ## Screenshots
 
@@ -20,117 +20,64 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 
 ## Features
 
-### Local file management
+**Local files**
+- Browse internal storage, SD cards and USB drives with capacity usage; storage hot-plug is detected and refreshed automatically.
+- Quick folders, tappable path breadcrumb, favorites, recent items, in-folder back / forward.
+- New folder / file, rename, delete (to the recycle bin by default), create symlinks; multi-select copy / cut / paste with progress and a background transfer queue (cancel / retry).
+- Sorting, show / hide hidden files, file color labels, image / video thumbnails.
 
-- Browse internal storage, removable SD cards and pluggable USB storage (flash drives / portable SSDs), with capacity usage
-- **Hot-plug support**: listens to system storage broadcasts and refreshes automatically when a USB drive / SD card is inserted or removed; plugging in USB storage also makes Android offer Ordo, just like other file managers
-- Quick-access folders (Downloads / Pictures / Camera / Music / Videos / Documents)
-- Tappable path breadcrumb; favorites (bookmarks); **recent items**; in-directory **back / forward** navigation
-- New folder / file, rename, delete (moved to the recycle bin by default, restorable / emptiable); create **symlinks**
-- Multi-select, copy / cut / paste (across directories), with progress and cancel for large transfers
-  - Selection tools: invert, select by type, select by condition (min size / recent days / extensions)
-  - Copy path; pin a folder to the home screen as a **desktop shortcut**
-- Sorting (name / size / modified time / type, ascending / descending), show / hide hidden files
-- **Multi-tab browsing** with a bottom tab bar (switch / new / close)
-- Copy / cut / paste run in a background **transfer queue** you can leave; cancel and retry supported
-- **Color labels** for files (persisted per path)
-- **Image / video thumbnails** (images are decoded and scaled by Rust and cached; videos use the system media framework)
-- **Search**: recursive by name, plus **filters** (size / modified time /
-  extensions / kind), **full-text content search** (text-like files, up to 2MB
-  each) and **saved searches**
-- Details sheet; **in-app preview for images / PDF / audio / text** (text can be
-  lightly edited and saved), while video and other files are handed to the system
-  "Open with"; share files
-- **Images**: view **EXIF / media info**, rotate, save as, set as wallpaper
-- **Audio**: background playback with play / pause from the notification and lock screen
-- Tools: **file checksums** (SHA-256 / MD5) and **on-demand folder size**
-- **Appearance**: theme (system / light / dark / **pure black**) with a custom
-  accent colour; **home layout** (reorder / hide tools and quick folders);
-  **list / grid view** with icon size; background transfers show progress in the
-  notification
-- **Settings**: choose a default app to open images / audio / video / text / PDF /
-  APK and more (otherwise the system picker is shown every time); interface
-  language (**system / 简体中文 / English**, follows the system by default);
-  preferences are persisted in the app's private directory
+**Tabs & session**
+- Multi-tab browsing with a bottom bar (switch / new / close), plus a **Home** button that jumps straight back to the home page.
+- Returning home records the session and shows a **Continue browsing** entry that restores every tab and its location; the in-memory session lives until the app is fully closed.
+- Settings → General: **Remember last session** (off by default); **show / hide the tab bar** (hidden = single-tab browsing); and whether opening from Home **appends** to the current session or **resets** it (default reset).
+- Back navigation is per screen: the system back walks the current tab's in-page history one step at a time before returning home.
 
-### Browsing session
+**Viewing & tools**
+- In-app preview for images / PDF / audio / text (text can be lightly edited); video and other types go to the system "Open with"; share files.
+- EXIF / media info, rotate, save as, set as wallpaper; audio background playback from the notification / lock screen.
+- File checksums (SHA-256 / MD5) and on-demand folder size.
+- Search: recursive by name, filters (size / time / extensions / kind), full-text content search and saved searches.
+- Appearance: theme (system / light / dark / pure black), custom accent color, home layout, list / grid with icon size.
+- Default "open with" apps; UI language (system / 简体中文 / English, follows the system by default).
 
-- Multi-tab browsing keeps a session; going back to the home page records it and shows a **Continue browsing** entry that restores every tab and its location
-- The in-memory session is only cleared when the app is fully closed
-- Optional **Remember last session** (Settings → General, off by default) keeps the session across app restarts
-- Back navigation is per screen: the system back walks the current tab's in-page history (and any pushed viewer) one step at a time before returning to the home page, instead of jumping straight home
+**Archives**
+- Create / extract / browse ZIP, TAR and TAR.GZ; ZIP supports AES-256 encryption with an optional password.
 
-### Archives
+**Storage analysis**
+- Usage by category, largest files, duplicate detection, smart cleanup (empty files / folders, temp files) and storage trend.
 
-- Create / extract / browse **ZIP, TAR and TAR.GZ**
-- ZIP supports **AES-256 encryption** (optional password); encrypted archives prompt for the password when extracting
-- Compress the current selection into the current folder; the archive viewer can **extract a single entry**
+**Remote locations** (WebDAV / FTP / SFTP / SMB — all implemented in Rust)
+- Connection management (add / edit / delete, test) with import / export and QR sharing.
+- Browse, create, rename and delete like local storage; copy / move between local and remote; remote recursive search by name.
+- Remote files can be previewed in-app or downloaded to cache and opened with the system; files dragged in from other apps can be dropped into a remote folder.
 
-### Storage analysis
+**On-device file server** (HTTP/WebDAV + FTP)
+- Serve the phone to the LAN: browsers can browse / download, and upload files / create folders.
+- Mount as a network drive over WebDAV (Windows / macOS / Linux); FTP supports passive and active modes.
+- Multiple users (per-account sub-folder and / or read-only), plus an access log and current connections.
 
-- Usage by category (images / video / audio / documents / archives / installers / text / other)
-- Largest-files list with direct actions: open, open containing folder, share, move to recycle bin, delete permanently
-- Duplicate detection (same size + SHA-256, two-pass), with one-tap cleanup
-- **Smart cleanup**: categorises empty files, empty folders and temp / cache files for one-tap removal
-- **Storage trend**: record directory usage snapshots and compare them over time
+**Security & privacy**
+- App lock: verifies the device lock-screen credential on launch and on return to the foreground.
+- Private vault: moves files into the app's private directory so they are hidden from regular file managers.
+- Secure delete: overwrites file contents before deleting (limited value on SSDs due to wear levelling).
 
-### Remote locations (WebDAV / FTP / SFTP / SMB, fully implemented in Rust)
+**Privileged modes** (Root / Shizuku / ADB)
+- On Android 11+, "All files access" still excludes `Android/data`, `Android/obb` and other apps' `/data/data`; Ordo can borrow a higher privilege to manage them.
+- **Root** sees everything; **Shizuku** and **ADB** see `Android/data` and `Android/obb` (ADB needs no Shizuku app — pair once with the code in Developer options).
+- All three share one Rust helper process (`ordo-privd`) that talks to the app over a token-protected loopback socket. Configure in Settings → Security & privacy → Privileged mode.
 
-- Connection management (add / edit / delete, test connection); profiles are stored in the app's private directory, with **import / export** and **QR sharing**
-- Browsing, creating, renaming and deleting that behave like local storage, plus copy / move between local and remote (streamed)
-- Remote **recursive search by name**
-- Remote files can be previewed in-app, or downloaded to cache and opened with the system
-- Files dragged in from other apps can be dropped straight into a remote folder
-
-### On-device file server (HTTP/WebDAV + FTP)
-
-- Start the server right on the phone and access it from other devices on the same LAN
-- Browsers can browse / download directly, and also **upload files and create folders** from the web page (drag & drop supported)
-- Windows / macOS / Linux can mount it as a network drive (WebDAV)
-- FTP supports passive (PASV/EPSV) and active (PORT/EPRT) modes, read/write
-- **Multiple users**: each account can be limited to a sub-folder and / or marked read-only (HTTP Basic and FTP USER/PASS)
-- **Access log and current connections** (recent requests / active clients) shown on the server screen, clearable
-- Optional single username / password and read-only mode; configuration is persisted and ports are configurable
-
-### Security & privacy
-
-- **App lock**: verifies the device lock-screen credential (PIN / pattern / password) on launch and on return to the foreground, using the native `KeyguardManager` (no third-party package)
-- **Private vault**: moves files into the app's private directory so they are hidden from regular file managers, restorable or securely deletable
-- **Secure delete**: overwrites file contents before deleting (note: due to wear levelling this has limited value on SSDs)
-
-### Privileged access modes (Root / Shizuku / ADB)
-
-On Android 11+ scoped storage, "All files access" still does **not** include `/sdcard/Android/data`, `/sdcard/Android/obb`, or another app's `/data/data`. Ordo can borrow a higher privilege to browse and manage those folders:
-
-- **Root** — everything, including other apps' private `/data/data`
-- **Shizuku** — `Android/data` and `Android/obb` (read/write) through an ADB-/root-level shell service
-- **ADB** — the same capability by connecting directly to the device's own wireless-debugging `adbd` (no Shizuku app needed); pair once with the code shown in Developer options
-
-All three share a single privileged helper process (`ordo-privd`), which is a second entry point of the same Rust core, so every file operation is still performed in Rust. The helper is deployed to `/data/local/tmp` and talks to the app over a token-protected loopback socket. Configure it in Settings → Security & privacy → Privileged mode.
-
-### Diagnostics
-
-- Uncaught Flutter / Dart errors and Rust panics are written to `ordo_crash.log` in the app's private directory
-- View / export (to a chosen folder) / clear the log from Settings
-
-### Cross-app drag & drop import
-
-- In split-screen / multi-window, drag files from other apps (e.g. the gallery) straight into an Ordo window and they are copied into the folder you are currently viewing (local or remote)
-- Android system drag & drop is received by the native layer, while the actual file write is still done by Rust
-
-> This relies on Android's multi-window support (split-screen on Android 7.0+, or system drag & drop on Android 14+). Flutter does not provide this capability, so it is implemented natively with `View.OnDragListener`.
+**Diagnostics & drag & drop**
+- Uncaught Flutter / Dart errors and Rust panics are logged to a file you can view / export / clear from Settings.
+- Drag files from other apps (e.g. the gallery) into an Ordo window and they are copied into the folder you are viewing.
 
 ## Notes and limitations
 
-- FTP is currently plaintext only (no FTPS). WebDAV supports HTTPS, with an option to trust self-signed certificates.
-- The SMB share name may be left empty; the connection root then lists every share on the server.
-- When acting as a server, FTP is also plaintext — use it only on a trusted LAN.
-- External media: the app parses `/proc/self/mountinfo` and uses Android's `StorageManager` to detect SD cards and pluggable USB storage. Insertion / removal refreshes the list automatically, and returning to the foreground or pull-to-refresh also updates it. On some devices that do not expose the USB volume's underlying path to apps, the volume is still listed and marked "access not granted" instead of being hidden (a system limitation).
-- Connection passwords are stored in the app's private directory in `ordo_connections.json` (plaintext, accessible only to this app).
-- The app has no analytics or telemetry and uploads nothing to the developer; network traffic only occurs for the remote connections you configure and the local file server you start.
-- Privileged modes are opt-in and do not survive a device reboot: Root, Shizuku and ADB all need to be (re)enabled once per boot. Root sees everything; Shizuku and ADB see `Android/data` and `Android/obb` but **not** other apps' `/data/data` (that is root-only).
-- Deleting a file inside a privileged folder bypasses the recycle bin (it is permanently deleted).
-- Modules that read files directly (thumbnails, EXIF, archive, storage analysis) may not work on privileged folders; browsing, opening, copying, renaming and deleting do.
+- FTP is plaintext (no FTPS); WebDAV supports HTTPS with an option to trust self-signed certificates. The built-in FTP server is plaintext too — use it on a trusted LAN only.
+- SMB share name may be left empty; the connection root then lists every share on the server.
+- Connection passwords are stored in plaintext in the app's private directory (`ordo_connections.json`).
+- No analytics or telemetry is collected; network traffic only comes from the remote connections you configure and the local file server you start.
+- Privileged modes are opt-in and do not survive a reboot. Root sees everything; Shizuku and ADB cannot read other apps' `/data/data`. Deleting inside privileged folders skips the recycle bin, and some direct-read modules (thumbnails, EXIF, archives, analysis) may not work there.
+- On some devices that do not expose a USB volume's underlying path to apps, the volume is still listed and marked "access not granted" instead of being hidden (a system limitation).
 
 ## Architecture
 
