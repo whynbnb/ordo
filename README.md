@@ -27,13 +27,19 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 - Copy / cut / paste run in a background **transfer queue** you can leave; cancel and retry supported
 - **Color labels** for files (persisted per path)
 - **Image / video thumbnails** (images are decoded and scaled by Rust and cached; videos use the system media framework)
-- Recursive search by name
+- **Search**: recursive by name, plus **filters** (size / modified time /
+  extensions / kind), **full-text content search** (text-like files, up to 2MB
+  each) and **saved searches**
 - Details sheet; **in-app preview for images / PDF / audio / text** (text can be
   lightly edited and saved), while video and other files are handed to the system
   "Open with"; share files
 - **Images**: view **EXIF / media info**, rotate, save as, set as wallpaper
 - **Audio**: background playback with play / pause from the notification and lock screen
 - Tools: **file checksums** (SHA-256 / MD5) and **on-demand folder size**
+- **Appearance**: theme (system / light / dark / **pure black**) with a custom
+  accent colour; **home layout** (reorder / hide tools and quick folders);
+  **list / grid view** with icon size; background transfers show progress in the
+  notification
 - **Settings**: choose a default app to open images / audio / video / text / PDF /
   APK and more (otherwise the system picker is shown every time); preferences are
   persisted in the app's private directory
@@ -49,6 +55,8 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 - Usage by category (images / video / audio / documents / archives / installers / text / other)
 - Largest-files list with direct actions: open, open containing folder, share, move to recycle bin, delete permanently
 - Duplicate detection (same size + SHA-256, two-pass), with one-tap cleanup
+- **Smart cleanup**: categorises empty files, empty folders and temp / cache files for one-tap removal
+- **Storage trend**: record directory usage snapshots and compare them over time
 
 ### Remote locations (WebDAV / FTP / SFTP / SMB, fully implemented in Rust)
 
@@ -61,9 +69,23 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 ### On-device file server (HTTP/WebDAV + FTP)
 
 - Start the server right on the phone and access it from other devices on the same LAN
-- Browsers can browse / download directly; Windows / macOS / Linux can mount it as a network drive (WebDAV)
+- Browsers can browse / download directly, and also **upload files and create folders** from the web page (drag & drop supported)
+- Windows / macOS / Linux can mount it as a network drive (WebDAV)
 - FTP supports passive (PASV/EPSV) and active (PORT/EPRT) modes, read/write
-- Optional username / password and read-only mode; configuration is persisted and ports are configurable
+- **Multiple users**: each account can be limited to a sub-folder and / or marked read-only (HTTP Basic and FTP USER/PASS)
+- **Access log and current connections** (recent requests / active clients) shown on the server screen, clearable
+- Optional single username / password and read-only mode; configuration is persisted and ports are configurable
+
+### Security & privacy
+
+- **App lock**: verifies the device lock-screen credential (PIN / pattern / password) on launch and on return to the foreground, using the native `KeyguardManager` (no third-party package)
+- **Private vault**: moves files into the app's private directory so they are hidden from regular file managers, restorable or securely deletable
+- **Secure delete**: overwrites file contents before deleting (note: due to wear levelling this has limited value on SSDs)
+
+### Diagnostics
+
+- Uncaught Flutter / Dart errors and Rust panics are written to `ordo_crash.log` in the app's private directory
+- View / export (to a chosen folder) / clear the log from Settings
 
 ### Cross-app drag & drop import
 
@@ -102,13 +124,21 @@ rust/                     Rust core (cdylib)
   src/archive.rs          archives: ZIP / TAR / TAR.GZ (with AES encryption)
   src/thumbnail.rs        image thumbnail decode and cache
   src/analyze.rs          storage analysis (categories / largest / duplicates)
+  src/cleanup.rs          smart cleanup scan (empty files / folders, temp files)
+  src/trend.rs            storage usage snapshots and history
   src/media.rs            EXIF / media info
   src/image_ops.rs        image rotation
+  src/secure.rs           secure delete (overwrite then remove)
+  src/vault.rs            private vault (move into app-private storage)
+  src/qr.rs               QR code PNG generation
+  src/crash.rs            crash / error log persistence
   src/remote/             WebDAV / FTP / SFTP / SMB clients and connection sessions
   src/server/             HTTP/WebDAV and FTP servers
   src/model.rs            metadata models
 android/                  Android project
-  app/.../MainActivity.kt storage permissions, open / share, cross-app drop, USB events
+  app/.../MainActivity.kt storage permissions, open / share, cross-app drop, USB events, app lock
+  app/.../AudioPlayback.kt audio foreground service + media session
+  app/.../TransferService.kt transfer progress foreground service
   app/build.gradle.kts    runs cargo-ndk to build Rust into jniLibs
 scripts/                  manual build scripts
 ```
