@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../services/ordo_service.dart';
+import '../services/platform_service.dart';
 
 enum TransferState { queued, running, done, failed, cancelled }
 
@@ -81,6 +82,7 @@ class TransferQueue extends ChangeNotifier {
     } finally {
       _running = false;
       notifyListeners();
+      PlatformService.transferDone();
     }
   }
 
@@ -90,6 +92,11 @@ class TransferQueue extends ChangeNotifier {
     task.error = null;
     task.jobId = service.jobCreate();
     notifyListeners();
+    PlatformService.transferNotify(
+      '正在${task.label}',
+      '${task.sources.length} 项 → ${task.dest}',
+      -1,
+    );
 
     Timer? timer;
     timer = Timer.periodic(const Duration(milliseconds: 300), (_) {
@@ -97,7 +104,14 @@ class TransferQueue extends ChangeNotifier {
         final progress = service.jobStatus(task.jobId);
         task.done = progress.progress;
         task.total = progress.total;
-        if (task.state == TransferState.running) notifyListeners();
+        if (task.state == TransferState.running) {
+          notifyListeners();
+          PlatformService.transferNotify(
+            '正在${task.label}',
+            task.dest,
+            task.total > 0 ? (task.done * 100 ~/ task.total) : -1,
+          );
+        }
       } catch (_) {
         // 忽略轮询异常。
       }

@@ -25,6 +25,7 @@
     <!-- 音频后台播放的前台服务与通知。 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- 声明支持 USB Host，用于识别并提示打开插入的 U 盘 / 移动硬盘。 -->
@@ -77,6 +78,12 @@
             android:name=".AudioPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!-- 后台传输队列进度通知的前台服务。 -->
+        <service
+            android:name=".TransferService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <!-- 用于把应用内部/外部文件安全地分享给其它应用（打开方式）。 -->
         <provider

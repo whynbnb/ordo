@@ -17,6 +17,7 @@ import '../state/route_observer.dart';
 import '../state/settings.dart';
 import '../state/transfer_clipboard.dart';
 import '../state/transfer_queue.dart';
+import '../state/view_store.dart';
 import 'archive_actions.dart';
 import 'archive_viewer.dart';
 import 'dialogs.dart';
@@ -74,6 +75,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     _controller.load();
     DropController.instance.revision.addListener(_onDropRevision);
     TransferQueue.instance.completed.addListener(_onTransferCompleted);
+    ViewStore.instance.loadIfNeeded();
     FavoritesStore.instance.loadIfNeeded();
     LabelStore.instance.loadIfNeeded();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -175,6 +177,7 @@ class _BrowserScreenState extends State<BrowserScreen>
         FavoritesStore.instance,
         LabelStore.instance,
         TransferQueue.instance,
+        ViewStore.instance,
       ]),
       builder: (context, _) {
         return PopScope(
@@ -311,6 +314,17 @@ class _BrowserScreenState extends State<BrowserScreen>
               child: Text('粘贴到此处 (${TransferClipboard.instance.count})'),
             ),
             const PopupMenuDivider(),
+            PopupMenuItem(
+              value: 'view',
+              child: Text(
+                ViewStore.instance.grid ? '切换为列表视图' : '切换为网格视图',
+              ),
+            ),
+            PopupMenuItem(
+              value: 'iconSize',
+              child: Text('图标大小（${ViewStore.instance.iconSizeLabel}）'),
+            ),
+            const PopupMenuDivider(),
             const PopupMenuItem(value: 'sort', child: Text('排序方式')),
           ],
         ),
@@ -375,6 +389,38 @@ class _BrowserScreenState extends State<BrowserScreen>
             ),
           ),
         ],
+      );
+    }
+
+    if (ViewStore.instance.grid) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final extent = ViewStore.instance.tileExtent;
+          final count = (constraints.maxWidth / extent).floor().clamp(2, 8);
+          return GridView.builder(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: count,
+              childAspectRatio: 0.85,
+            ),
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return GridEntryTile(
+                entry: entry,
+                selectionMode: _controller.selectionMode,
+                selected: _controller.isSelected(entry.path),
+                labelColor: LabelStore.instance.colorFor(entry.path),
+                iconExtent: ViewStore.instance.iconExtent,
+                onTap: () => _controller.selectionMode
+                    ? _controller.toggleSelected(entry.path)
+                    : _openEntry(entry),
+                onLongPress: () => _controller.toggleSelected(entry.path),
+                onMenu: () => _showEntrySheet(entry),
+              );
+            },
+          );
+        },
       );
     }
 
@@ -520,9 +566,43 @@ class _BrowserScreenState extends State<BrowserScreen>
         _create(folder: false);
       case 'paste':
         _paste();
+      case 'view':
+        ViewStore.instance.toggleGrid();
+      case 'iconSize':
+        _showIconSizeSheet();
       case 'sort':
         _showSortSheet();
     }
+  }
+
+  Future<void> _showIconSizeSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final size in const ['small', 'medium', 'large'])
+              ListTile(
+                leading: const Icon(Icons.photo_size_select_large_rounded),
+                title: Text(switch (size) {
+                  'small' => '小',
+                  'large' => '大',
+                  _ => '中',
+                }),
+                trailing: ViewStore.instance.iconSize == size
+                    ? const Icon(Icons.check_rounded)
+                    : null,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  ViewStore.instance.setIconSize(size);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _onSelectAction(String value) {

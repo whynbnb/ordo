@@ -121,3 +121,113 @@ class EntryTile extends StatelessWidget {
     );
   }
 }
+
+/// 网格视图中的单个文件 / 文件夹。
+class GridEntryTile extends StatelessWidget {
+  const GridEntryTile({
+    super.key,
+    required this.entry,
+    required this.selectionMode,
+    required this.selected,
+    required this.onTap,
+    required this.onLongPress,
+    this.onMenu,
+    this.labelColor,
+    this.iconExtent = 52,
+  });
+
+  final FileEntry entry;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+  final VoidCallback? onMenu;
+  final Color? labelColor;
+  final double iconExtent;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final accent = colorForEntry(entry, scheme);
+    final isMedia =
+        isImageExtension(entry.extension) || isVideoExtension(entry.extension);
+
+    return Material(
+      color: selected ? scheme.secondaryContainer : Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        onSecondaryTap: onMenu,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    Center(
+                      child: isMedia
+                          ? ThumbnailImage(
+                              entry: entry,
+                              size: iconExtent,
+                              radius: 12,
+                            )
+                          : Container(
+                              width: iconExtent,
+                              height: iconExtent,
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                iconForEntry(entry),
+                                color: accent,
+                                size: iconExtent * 0.6,
+                              ),
+                            ),
+                    ),
+                    if (selectionMode)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: Icon(
+                          selected
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          size: 20,
+                          color: selected ? scheme.primary : scheme.outline,
+                        ),
+                      ),
+                    if (labelColor != null)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: labelColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                entry.name,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

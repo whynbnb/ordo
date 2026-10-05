@@ -321,6 +321,28 @@ class PlatformService {
   /// 请求系统锁屏凭证验证；通过返回 true。
   static Future<bool> authenticate() => _invokeBool('authenticate', const {});
 
+  /// 更新后台传输通知（`progress` 为 0..100，-1 表示不确定）。
+  static Future<void> transferNotify(
+    String title,
+    String text,
+    int progress,
+  ) async {
+    try {
+      await _channel.invokeMethod<void>('transferNotify', {
+        'title': title,
+        'text': text,
+        'progress': progress,
+      });
+    } on PlatformException {
+      // 忽略。
+    } on MissingPluginException {
+      // 忽略。
+    }
+  }
+
+  /// 结束后台传输通知。
+  static Future<void> transferDone() => _invokeVoid('transferDone');
+
   static Future<bool> _invokeBool(
     String method,
     Map<String, Object?> args,

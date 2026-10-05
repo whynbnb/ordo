@@ -115,6 +115,20 @@ class MainActivity : FlutterActivity() {
                 "sdkInt" -> result.success(Build.VERSION.SDK_INT)
                 "lockAvailable" -> result.success(lockAvailable())
                 "authenticate" -> authenticate(result)
+                "transferNotify" -> {
+                    ensureNotificationPermission()
+                    TransferService.update(
+                        this,
+                        call.argument("title") ?: "安序 · 正在传输",
+                        call.argument("text") ?: "",
+                        call.argument<Int>("progress") ?: -1,
+                    )
+                    result.success(true)
+                }
+                "transferDone" -> {
+                    TransferService.stop(this)
+                    result.success(true)
+                }
                 "storageVolumes" -> result.success(storageVolumes())
                 "videoThumbnail" -> result.success(videoThumbnail(call.argument("path")))
                 "pdfPageCount" -> result.success(

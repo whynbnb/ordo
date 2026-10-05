@@ -9,6 +9,7 @@ import '../services/ordo_service.dart';
 import '../state/connections.dart';
 import '../state/drop_controller.dart';
 import '../state/favorites.dart';
+import '../state/home_layout.dart';
 import '../state/route_observer.dart';
 import '../state/storage_events.dart';
 import 'connection_edit.dart';
@@ -18,6 +19,7 @@ import 'drop_overlay.dart';
 import 'file_picker.dart';
 import 'analyzer_screen.dart';
 import 'cleanup_screen.dart';
+import 'home_layout_screen.dart';
 import 'trend_screen.dart';
 import 'vault_screen.dart';
 import 'qr_dialog.dart';
@@ -66,9 +68,11 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.addObserver(this);
     _connections.addListener(_onStoreChanged);
     _favorites.addListener(_onStoreChanged);
+    HomeLayoutStore.instance.addListener(_onLayoutChanged);
     StorageEvents.instance.revision.addListener(_onStorageChanged);
     _connections.load();
     _favorites.loadIfNeeded();
+    HomeLayoutStore.instance.loadIfNeeded();
     _load();
   }
 
@@ -109,8 +113,13 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _connections.removeListener(_onStoreChanged);
     _favorites.removeListener(_onStoreChanged);
+    HomeLayoutStore.instance.removeListener(_onLayoutChanged);
     StorageEvents.instance.revision.removeListener(_onStorageChanged);
     super.dispose();
+  }
+
+  void _onLayoutChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onStorageChanged() {
@@ -241,12 +250,105 @@ class _HomeScreenState extends State<HomeScreen>
   String get _primaryName =>
       _roots.isNotEmpty ? _roots.first.name : '内部存储';
 
+  List<_QuickFolder> get _orderedQuickFolders {
+    final order = HomeLayoutStore.instance.quick;
+    final map = {for (final folder in _quickFolders) folder.segment: folder};
+    final result = <_QuickFolder>[];
+    for (final segment in order) {
+      final folder = map[segment];
+      if (folder != null) result.add(folder);
+    }
+    return result;
+  }
+
+  Widget _toolCard(BuildContext context, String id) {
+    final tool = homeTools.firstWhere(
+      (t) => t.id == id,
+      orElse: () => HomeTool(id, id, ''),
+    );
+    return Card(
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.5,
+      ),
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: Icon(_toolIcon(id)),
+        title: Text(tool.title),
+        subtitle: Text(tool.subtitle),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => _openTool(id),
+      ),
+    );
+  }
+
+  IconData _toolIcon(String id) => switch (id) {
+    'recent' => Icons.history_rounded,
+    'trash' => Icons.delete_outline_rounded,
+    'analyzer' => Icons.pie_chart_outline_rounded,
+    'cleanup' => Icons.cleaning_services_rounded,
+    'trend' => Icons.show_chart_rounded,
+    'vault' => Icons.lock_outline_rounded,
+    _ => Icons.widgets_outlined,
+  };
+
+  void _openTool(String id) {
+    switch (id) {
+      case 'recent':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const RecentScreen()),
+        );
+      case 'trash':
+        Navigator.of(context)
+            .push(
+              MaterialPageRoute<void>(builder: (_) => const TrashScreen()),
+            )
+            .then((_) {
+              if (mounted) _load(showSpinner: false);
+            });
+      case 'analyzer':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const AnalyzerScreen()),
+        );
+      case 'cleanup':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                CleanupScreen(root: _primaryPath, title: _primaryName),
+          ),
+        );
+      case 'trend':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                TrendScreen(root: _primaryPath, title: _primaryName),
+          ),
+        );
+      case 'vault':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const VaultScreen()),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('安序'),
         actions: [
+          IconButton(
+            tooltip: '首页布局',
+            icon: const Icon(Icons.dashboard_customize_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const HomeLayoutScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: '设置',
             icon: const Icon(Icons.settings_outlined),
@@ -334,7 +436,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             const SizedBox(height: 12),
           ],
-        if (_quickFolders.isNotEmpty) ...[
+        if (_orderedQuickFolders.isNotEmpty) ...[
           const SizedBox(height: 16),
           _sectionTitle('常用'),
           const SizedBox(height: 12),
@@ -346,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen>
             crossAxisSpacing: 12,
             childAspectRatio: 1.1,
             children: [
-              for (final folder in _quickFolders)
+              for (final folder in _orderedQuickFolders)
                 _QuickCard(
                   folder: folder,
                   onTap: () => _openPath(folder.path!, folder.label),
@@ -412,133 +514,10 @@ class _HomeScreenState extends State<HomeScreen>
         const SizedBox(height: 24),
         _sectionTitle('工具'),
         const SizedBox(height: 8),
-        Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.5),
-          clipBehavior: Clip.antiAlias,
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: const Icon(Icons.history_rounded),
-            title: const Text('最近访问'),
-            subtitle: const Text('最近打开的文件与文件夹'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const RecentScreen()),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.5),
-          clipBehavior: Clip.antiAlias,
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: const Icon(Icons.delete_outline_rounded),
-            title: const Text('回收站'),
-            subtitle: const Text('查看与恢复已删除的文件'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context)
-                  .push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const TrashScreen(),
-                    ),
-                  )
-                  .then((_) {
-                    if (mounted) _load(showSpinner: false);
-                  });
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.5),
-          clipBehavior: Clip.antiAlias,
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: const Icon(Icons.pie_chart_outline_rounded),
-            title: const Text('存储分析'),
-            subtitle: const Text('分类占用、大文件与重复文件'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const AnalyzerScreen()),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.5),
-          clipBehavior: Clip.antiAlias,
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: const Icon(Icons.cleaning_services_rounded),
-            title: const Text('智能清理'),
-            subtitle: const Text('空文件、空文件夹、临时 / 缓存文件'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => CleanupScreen(
-                    root: _primaryPath,
-                    title: _primaryName,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.5),
-          clipBehavior: Clip.antiAlias,
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: const Icon(Icons.show_chart_rounded),
-            title: const Text('存储趋势'),
-            subtitle: const Text('定期记录并比较目录用量变化'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      TrendScreen(root: _primaryPath, title: _primaryName),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.5),
-          clipBehavior: Clip.antiAlias,
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: const Icon(Icons.lock_outline_rounded),
-            title: const Text('隐私空间'),
-            subtitle: const Text('把文件移入应用私有目录隐藏'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const VaultScreen()),
-              );
-            },
-          ),
-        ),
+        for (final id in HomeLayoutStore.instance.tools) ...[
+          _toolCard(context, id),
+          const SizedBox(height: 12),
+        ],
         const SizedBox(height: 24),
         Center(
           child: Text(
