@@ -147,6 +147,14 @@ class _OrdoBindings {
   late final _Dart1 vaultDelete = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_vault_delete',
   );
+  late final _Dart1 crashAppend = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_crash_append',
+  );
+  late final _DartZero crashRead = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_crash_read',
+  );
+  late final _DartZero crashClear = _lib
+      .lookupFunction<_NativeZero, _DartZero>('ordo_crash_clear');
   late final _DartZero storageRoots = _lib
       .lookupFunction<_NativeZero, _DartZero>('ordo_storage_roots');
   late final _DartZero ping = _lib.lookupFunction<_NativeZero, _DartZero>(
@@ -480,6 +488,17 @@ dynamic nativeExecute(String op, List<Object?> args) {
           _withCString(args[0] as String, (names) => bindings.vaultDelete(names)),
         ),
       );
+    case 'crashAppend':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (text) => bindings.crashAppend(text)),
+        ),
+      );
+    case 'crashRead':
+      return _decode(_take(bindings, bindings.crashRead()));
+    case 'crashClear':
+      return _decode(_take(bindings, bindings.crashClear()));
     case 'storageRoots':
       return _decode(_take(bindings, bindings.storageRoots()));
     case 'storageHints':

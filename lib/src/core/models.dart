@@ -1024,3 +1024,24 @@ class VaultResult {
     );
   }
 }
+
+/// 崩溃 / 错误日志。
+class CrashLog {
+  const CrashLog({required this.path, required this.text, required this.lines});
+
+  final String path;
+  final String text;
+  final int lines;
+
+  static const CrashLog empty = CrashLog(path: '', text: '', lines: 0);
+
+  bool get isEmpty => text.isEmpty;
+
+  factory CrashLog.fromJson(Map<String, dynamic> json) {
+    return CrashLog(
+      path: json['path'] as String? ?? '',
+      text: json['text'] as String? ?? '',
+      lines: (json['lines'] as num?)?.toInt() ?? 0,
+    );
+  }
+}

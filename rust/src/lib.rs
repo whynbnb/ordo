@@ -9,6 +9,7 @@ mod analyze;
 mod api;
 mod archive;
 mod cleanup;
+mod crash;
 mod favorites;
 mod image_ops;
 mod importer;
@@ -386,6 +387,33 @@ pub unsafe extern "C" fn ordo_vault_delete(names: *const c_char) -> *mut c_char 
     })
 }
 
+/// 追加一条崩溃 / 错误日志。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_crash_append(text: *const c_char) -> *mut c_char {
+    guard(|| match read_str(text) {
+        Ok(t) => {
+            crash::append(&t);
+            ok(true)
+        }
+        Err(e) => err(e),
+    })
+}
+
+/// 读取崩溃日志。
+#[no_mangle]
+pub extern "C" fn ordo_crash_read() -> *mut c_char {
+    guard(|| ok(crash::read()))
+}
+
+/// 清空崩溃日志。
+#[no_mangle]
+pub extern "C" fn ordo_crash_clear() -> *mut c_char {
+    guard(|| result(crash::clear().map(|_| true)))
+}
+
 /// 列出可用的本地存储卷（内部存储 / 存储卡 / USB 存储）。
 #[no_mangle]
 pub extern "C" fn ordo_storage_roots() -> *mut c_char {
@@ -666,6 +694,7 @@ pub unsafe extern "C" fn ordo_config_init(
     guard(|| match (read_str(config_dir), read_str(cache_dir)) {
         (Ok(config), Ok(cache)) => {
             remote::init(&config, &cache);
+            crash::install_hook();
             ok(serde_json::Value::Null)
         }
         (Err(e), _) | (_, Err(e)) => err(e),

@@ -328,6 +328,24 @@ class OrdoService {
     return DeleteResult.fromJson((data as Map).cast<String, dynamic>());
   }
 
+  /// 追加一条崩溃 / 错误日志（由 Dart 错误处理调用）。
+  Future<void> crashAppend(String text) async {
+    try {
+      _direct('crashAppend', [text]);
+    } catch (_) {
+      // 日志失败不应影响主流程。
+    }
+  }
+
+  Future<CrashLog> crashRead() async {
+    final data = _direct('crashRead');
+    return CrashLog.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<void> crashClear() async {
+    _direct('crashClear');
+  }
+
   Future<List<StorageRoot>> storageRoots() async {
     try {
       final hints = await PlatformService.storageVolumes();

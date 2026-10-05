@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
+import 'src/services/ordo_service.dart';
 import 'src/services/platform_service.dart';
 import 'src/state/drop_controller.dart';
 import 'src/state/navigation.dart';
@@ -18,7 +22,25 @@ void main() {
   PlatformService.setOpenPathHandler(openPathFromShortcut);
   // 载入主题偏好（异步，加载完成后重建界面）。
   ThemeStore.instance.load();
-  runApp(const OrdoApp());
+
+  // 记录 Flutter 与 Dart 未捕获错误，便于在设置中导出排查。
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    OrdoService.instance.crashAppend(
+      'FLUTTER: ${details.exceptionAsString()}\n${details.stack ?? ''}',
+    );
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    OrdoService.instance.crashAppend('DART: $error\n$stack');
+    return true;
+  };
+
+  runZonedGuarded(
+    () => runApp(const OrdoApp()),
+    (error, stack) {
+      OrdoService.instance.crashAppend('ZONE: $error\n$stack');
+    },
+  );
 }
 
 class OrdoApp extends StatelessWidget {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/platform_service.dart';
 import '../state/prefs_store.dart';
 import '../state/theme_store.dart';
+import 'crash_log_screen.dart';
 
 /// 选择应用的结果：`null` 表示取消选择动作本身。
 class _PickResult {
@@ -217,6 +218,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: const Text('启动或回到前台时验证设备锁屏凭证'),
             value: _appLock,
             onChanged: _toggleLock,
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('崩溃日志'),
+            subtitle: const Text('查看、导出或清空错误日志'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const CrashLogScreen(),
+                ),
+              );
+            },
           ),
           const Divider(),
           const SizedBox(height: 8),
