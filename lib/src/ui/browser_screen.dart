@@ -14,6 +14,7 @@ import '../state/favorites.dart';
 import '../state/label_store.dart';
 import '../state/recent_store.dart';
 import '../state/route_observer.dart';
+import '../state/session_store.dart';
 import '../state/settings.dart';
 import '../state/transfer_clipboard.dart';
 import '../state/transfer_queue.dart';
@@ -30,12 +31,38 @@ import 'search_screen.dart';
 import 'transfer_screen.dart';
 import '../i18n/i18n.dart';
 
+/// 供父级（标签页容器）控制 / 观察单个浏览页的返回能力与会话状态。
+class BrowserScreenController extends ChangeNotifier {
+  bool _canGoBack = false;
+  TabSession? _state;
+  VoidCallback? _back;
+
+  bool get canGoBack => _canGoBack;
+  TabSession? get state => _state;
+
+  void _attach(VoidCallback back) => _back = back;
+  void _detach() => _back = null;
+
+  /// 触发该浏览页后退（先走页内历史，再交给外层）。
+  void goBack() => _back?.call();
+
+  void _update(bool canGoBack, TabSession state) {
+    _canGoBack = canGoBack;
+    _state = state;
+    notifyListeners();
+  }
+}
+
 class BrowserScreen extends StatefulWidget {
   const BrowserScreen({
     super.key,
     required this.path,
     required this.title,
     this.onLocationChanged,
+    this.controller,
+    this.onExit,
+    this.initialHistory,
+    this.initialIndex = 0,
   });
 
   final String path;
@@ -43,6 +70,16 @@ class BrowserScreen extends StatefulWidget {
 
   /// 当前目录变化时回调（用于标签页标题等）。
   final void Function(String path, String title)? onLocationChanged;
+
+  /// 由标签页容器注入，用于返回与会话记录；独立使用时为 null。
+  final BrowserScreenController? controller;
+
+  /// 页内历史已到尽头时，返回按钮的落点（标签页里是「回到首页」）。
+  final VoidCallback? onExit;
+
+  /// 从会话恢复时的历史与游标。
+  final List<NavStep>? initialHistory;
+  final int initialIndex;
 
   @override
   State<BrowserScreen> createState() => _BrowserScreenState();
@@ -58,7 +95,7 @@ class _BrowserScreenState extends State<BrowserScreen>
   late String _title;
 
   /// 浏览历史与游标。
-  final List<_NavStep> _history = [];
+  final List<NavStep> _history = [];
   int _historyIndex = -1;
 
   bool get _canGoBack => _historyIndex > 0;
@@ -68,10 +105,18 @@ class _BrowserScreenState extends State<BrowserScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _path = widget.path;
-    _title = widget.title;
-    _history.add(_NavStep(_path, _title));
-    _historyIndex = 0;
+    final restore = widget.initialHistory;
+    if (restore != null && restore.isNotEmpty) {
+      _history.addAll(restore);
+      _historyIndex = widget.initialIndex.clamp(0, restore.length - 1).toInt();
+      _path = _history[_historyIndex].path;
+      _title = _history[_historyIndex].title;
+    } else {
+      _path = widget.path;
+      _title = widget.title;
+      _history.add(NavStep(_path, _title));
+      _historyIndex = 0;
+    }
     _controller = BrowserController(initialPath: _path);
     _controller.load();
     DropController.instance.revision.addListener(_onDropRevision);
@@ -79,8 +124,11 @@ class _BrowserScreenState extends State<BrowserScreen>
     ViewStore.instance.loadIfNeeded();
     FavoritesStore.instance.loadIfNeeded();
     LabelStore.instance.loadIfNeeded();
+    widget.controller?._attach(_handleBack);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onLocationChanged?.call(_path, _title);
+      if (!mounted) return;
+      widget.onLocationChanged?.call(_path, _title);
+      _syncState();
     });
   }
 
@@ -100,6 +148,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     WidgetsBinding.instance.removeObserver(this);
     DropController.instance.revision.removeListener(_onDropRevision);
     TransferQueue.instance.completed.removeListener(_onTransferCompleted);
+    widget.controller?._detach();
     _controller.dispose();
     super.dispose();
   }
@@ -134,11 +183,12 @@ class _BrowserScreenState extends State<BrowserScreen>
       _path = path;
       _title = title;
       _history.removeRange(_historyIndex + 1, _history.length);
-      _history.add(_NavStep(path, title));
+      _history.add(NavStep(path, title));
       _historyIndex = _history.length - 1;
     });
     RecentStore.instance.record(path, title, true);
     widget.onLocationChanged?.call(_path, _title);
+    _syncState();
     await _controller.navigateTo(path);
     if (mounted) _updateDropTarget();
   }
@@ -153,6 +203,7 @@ class _BrowserScreenState extends State<BrowserScreen>
       _title = step.title;
     });
     widget.onLocationChanged?.call(_path, _title);
+    _syncState();
     _controller.navigateTo(step.path);
     _updateDropTarget();
   }
@@ -160,8 +211,29 @@ class _BrowserScreenState extends State<BrowserScreen>
   void _handleBack() {
     if (_canGoBack) {
       _goHistory(_historyIndex - 1);
+      return;
+    }
+    final onExit = widget.onExit;
+    if (onExit != null) {
+      onExit();
+      return;
+    }
+    Navigator.of(context).maybePop();
+  }
+
+  /// 把当前会话状态同步给父级（标签页容器）或全局会话记录。
+  void _syncState() {
+    final state = TabSession(
+      path: _path,
+      title: _title,
+      history: List<NavStep>.unmodifiable(_history),
+      index: _historyIndex,
+    );
+    final controller = widget.controller;
+    if (controller != null) {
+      controller._update(_canGoBack, state);
     } else {
-      Navigator.of(context).maybePop();
+      SessionStore.instance.record(BrowserSession(tabs: [state], active: 0));
     }
   }
 
@@ -1507,10 +1579,4 @@ class _BarAction extends StatelessWidget {
   }
 }
 
-/// 浏览历史中的一步。
-class _NavStep {
-  const _NavStep(this.path, this.title);
-
-  final String path;
-  final String title;
-}
+/// 浏览历史中的一步（路径 + 标题）。

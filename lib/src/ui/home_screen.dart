@@ -11,6 +11,7 @@ import '../state/drop_controller.dart';
 import '../state/favorites.dart';
 import '../state/home_layout.dart';
 import '../state/route_observer.dart';
+import '../state/session_store.dart';
 import '../state/storage_events.dart';
 import 'connection_edit.dart';
 import 'dialogs.dart';
@@ -70,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen>
     _favorites.addListener(_onStoreChanged);
     HomeLayoutStore.instance.addListener(_onLayoutChanged);
     StorageEvents.instance.revision.addListener(_onStorageChanged);
+    SessionStore.instance.addListener(_onSessionChanged);
     _connections.load();
     _favorites.loadIfNeeded();
     HomeLayoutStore.instance.loadIfNeeded();
@@ -115,10 +117,15 @@ class _HomeScreenState extends State<HomeScreen>
     _favorites.removeListener(_onStoreChanged);
     HomeLayoutStore.instance.removeListener(_onLayoutChanged);
     StorageEvents.instance.revision.removeListener(_onStorageChanged);
+    SessionStore.instance.removeListener(_onSessionChanged);
     super.dispose();
   }
 
   void _onLayoutChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onSessionChanged() {
     if (mounted) setState(() {});
   }
 
@@ -241,6 +248,24 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         )
         // 返回时静默刷新，及时反映已拔出的外部介质。
+        .then((_) {
+          if (mounted) _load(showSpinner: false);
+        });
+  }
+
+  /// 从首页恢复上次的浏览会话。
+  void _resumeSession() {
+    final session = SessionStore.instance.session;
+    if (session == null || session.tabs.isEmpty) return;
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (_) => TabbedBrowserScreen(
+              initialTabs: session.tabs,
+              initialActive: session.active,
+            ),
+          ),
+        )
         .then((_) {
           if (mounted) _load(showSpinner: false);
         });
@@ -409,6 +434,14 @@ class _HomeScreenState extends State<HomeScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
+        if (SessionStore.instance.hasSession) ...[
+          _ContinueSessionCard(
+            session: SessionStore.instance.session!,
+            onOpen: _resumeSession,
+            onDismiss: () => SessionStore.instance.clear(),
+          ),
+          const SizedBox(height: 16),
+        ],
         _sectionTitle(tr('存储')),
         const SizedBox(height: 8),
         if (_roots.isEmpty)
@@ -902,6 +935,50 @@ class _FavoriteCard extends StatelessWidget {
           icon: const Icon(Icons.close_rounded),
           onPressed: onRemove,
         ),
+      ),
+    );
+  }
+}
+
+/// 首页的「继续浏览」入口：恢复上次会话的标签页与位置。
+class _ContinueSessionCard extends StatelessWidget {
+  const _ContinueSessionCard({
+    required this.session,
+    required this.onOpen,
+    required this.onDismiss,
+  });
+
+  final BrowserSession session;
+  final VoidCallback onOpen;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final index = session.active.clamp(0, session.tabs.length - 1).toInt();
+    final active = session.tabs[index];
+    final label = active.title.isEmpty ? active.path : active.title;
+    final subtitle = session.tabs.length > 1
+        ? tr('{p0} 个标签页 · {p1}', {
+            'p0': session.tabs.length,
+            'p1': label,
+          })
+        : label;
+    return Card(
+      elevation: 0,
+      color: scheme.primaryContainer.withValues(alpha: 0.45),
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: Icon(Icons.history_rounded, color: scheme.primary),
+        title: Text(tr('继续浏览')),
+        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: IconButton(
+          tooltip: tr('清除会话记录'),
+          icon: const Icon(Icons.close_rounded),
+          onPressed: onDismiss,
+        ),
+        onTap: onOpen,
       ),
     );
   }

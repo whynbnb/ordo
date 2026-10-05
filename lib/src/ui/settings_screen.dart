@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/platform_service.dart';
 import '../i18n/locale_store.dart';
 import '../state/prefs_store.dart';
+import '../state/session_store.dart';
 import '../state/theme_store.dart';
 import 'about_dialog.dart';
 import 'crash_log_screen.dart';
@@ -252,6 +253,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               );
             },
+          ),
+          const Divider(height: 32),
+          Text(
+            tr('常规'),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          ListenableBuilder(
+            listenable: SessionStore.instance,
+            builder: (context, _) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(tr('记住上次会话')),
+              subtitle: Text(tr('完全关闭后仍保留标签页与浏览位置')),
+              value: SessionStore.instance.remember,
+              onChanged: (value) => SessionStore.instance.setRemember(value),
+            ),
           ),
           const Divider(height: 32),
           Text(

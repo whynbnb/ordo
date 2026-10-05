@@ -45,6 +45,13 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
   language (**system / 简体中文 / English**, follows the system by default);
   preferences are persisted in the app's private directory
 
+### Browsing session
+
+- Multi-tab browsing keeps a session; going back to the home page records it and shows a **Continue browsing** entry that restores every tab and its location
+- The in-memory session is only cleared when the app is fully closed
+- Optional **Remember last session** (Settings → General, off by default) keeps the session across app restarts
+- Back navigation is per screen: the system back walks the current tab's in-page history (and any pushed viewer) one step at a time before returning to the home page, instead of jumping straight home
+
 ### Archives
 
 - Create / extract / browse **ZIP, TAR and TAR.GZ**

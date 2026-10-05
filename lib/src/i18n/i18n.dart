@@ -563,6 +563,13 @@ const Map<String, String> enTranslations = {
   '启用失败：{p0}': 'Failed to enable: {p0}',
   'Root / Shizuku 访问系统限制目录':
       'Root / Shizuku access to restricted folders',
+  '继续浏览': 'Continue browsing',
+  '清除会话记录': 'Clear session',
+  '{p0} 个标签页 · {p1}': '{p0} tabs · {p1}',
+  '常规': 'General',
+  '记住上次会话': 'Remember last session',
+  '完全关闭后仍保留标签页与浏览位置':
+      'Keep tabs and locations after fully closing',
   '黄': 'Yellow',
   '默认 2121': 'Default 2121',
   '默认 8080': 'Default 8080',
