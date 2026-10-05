@@ -570,6 +570,8 @@ const Map<String, String> enTranslations = {
   '记住上次会话': 'Remember last session',
   '完全关闭后仍保留标签页与浏览位置':
       'Keep tabs and locations after fully closing',
+  'MIME 类型': 'MIME type',
+  '正在计算大小…': 'Calculating size…',
   '黄': 'Yellow',
   '默认 2121': 'Default 2121',
   '默认 8080': 'Default 8080',

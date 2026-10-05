@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/file_types.dart';
 import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
@@ -79,31 +80,87 @@ Future<bool> showConfirmDialog(
 }
 
 Future<void> showDetailsSheet(BuildContext context, FileEntry entry) {
-  final scheme = Theme.of(context).colorScheme;
-  final rows = <(String, String)>[
-    (tr('名称'), entry.name),
-    (tr('路径'), entry.path),
-    (
-      tr('类型'),
-      entry.isDir
-          ? tr('文件夹')
-          : (entry.extension.isEmpty
-                ? tr('文件')
-                : tr('{p0} 文件', {'p0': entry.extension.toUpperCase()})),
-    ),
-    if (!entry.isDir) (tr('大小'), formatBytes(entry.size)),
-    (tr('修改时间'), formatDate(entry.modified)),
-    (tr('创建时间'), formatDate(entry.created)),
-    (tr('可读'), entry.readable ? tr('是') : tr('否')),
-    (tr('可写'), entry.writable ? tr('是') : tr('否')),
-    if (entry.isSymlink) (tr('符号链接'), tr('是')),
-  ];
-
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    builder: (context) {
-      return SafeArea(
+    isScrollControlled: true,
+    builder: (_) => _DetailsSheet(entry: entry),
+  );
+}
+
+class _DetailsSheet extends StatefulWidget {
+  const _DetailsSheet({required this.entry});
+
+  final FileEntry entry;
+
+  @override
+  State<_DetailsSheet> createState() => _DetailsSheetState();
+}
+
+class _DetailsSheetState extends State<_DetailsSheet> {
+  final OrdoService _service = OrdoService.instance;
+
+  ({int size, int files, int dirs})? _dirInfo;
+  bool _loadingDir = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.entry.isDir) _computeDir();
+  }
+
+  Future<void> _computeDir() async {
+    setState(() => _loadingDir = true);
+    try {
+      final info = await _service.dirSize(widget.entry.path);
+      if (!mounted) return;
+      setState(() {
+        _dirInfo = info;
+        _loadingDir = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingDir = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final scheme = Theme.of(context).colorScheme;
+    final rows = <(String, String)>[
+      (tr('名称'), entry.name),
+      (tr('路径'), entry.path),
+      (
+        tr('类型'),
+        entry.isDir
+            ? tr('文件夹')
+            : (entry.extension.isEmpty
+                  ? tr('文件')
+                  : tr('{p0} 文件', {'p0': entry.extension.toUpperCase()})),
+      ),
+      if (!entry.isDir && entry.extension.isNotEmpty)
+        (tr('MIME 类型'), mimeOfExtension(entry.extension)),
+      if (!entry.isDir) (tr('大小'), formatBytes(entry.size)),
+      if (entry.isDir && _dirInfo != null) ...[
+        (tr('大小'), formatBytes(_dirInfo!.size)),
+        (
+          tr('包含'),
+          tr('{p0} 个文件 · {p1} 个文件夹', {
+            'p0': _dirInfo!.files,
+            'p1': _dirInfo!.dirs,
+          }),
+        ),
+      ],
+      (tr('修改时间'), formatDate(entry.modified)),
+      (tr('创建时间'), formatDate(entry.created)),
+      (tr('可读'), entry.readable ? tr('是') : tr('否')),
+      (tr('可写'), entry.writable ? tr('是') : tr('否')),
+      if (entry.isSymlink) (tr('符号链接'), tr('是')),
+    ];
+
+    return SafeArea(
+      child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: Column(
@@ -127,6 +184,24 @@ Future<void> showDetailsSheet(BuildContext context, FileEntry entry) {
                 ],
               ),
               const SizedBox(height: 12),
+              if (entry.isDir && _loadingDir)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        tr('正在计算大小…'),
+                        style: TextStyle(color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
               for (final row in rows)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
@@ -147,9 +222,9 @@ Future<void> showDetailsSheet(BuildContext context, FileEntry entry) {
             ],
           ),
         ),
-      );
-    },
-  );
+      ),
+    );
+  }
 }
 
 /// 显示文件的 SHA-256 与 MD5 校验和（计算全部由 Rust 完成）。

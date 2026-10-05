@@ -119,6 +119,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     }
     _controller = BrowserController(initialPath: _path);
     _controller.load();
+    _controller.addListener(_onControllerNotify);
     DropController.instance.revision.addListener(_onDropRevision);
     TransferQueue.instance.completed.addListener(_onTransferCompleted);
     ViewStore.instance.loadIfNeeded();
@@ -149,6 +150,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     DropController.instance.revision.removeListener(_onDropRevision);
     TransferQueue.instance.completed.removeListener(_onTransferCompleted);
     widget.controller?._detach();
+    _controller.removeListener(_onControllerNotify);
     _controller.dispose();
     super.dispose();
   }
@@ -209,6 +211,10 @@ class _BrowserScreenState extends State<BrowserScreen>
   }
 
   void _handleBack() {
+    if (_controller.selectionMode) {
+      _controller.clearSelection();
+      return;
+    }
     if (_canGoBack) {
       _goHistory(_historyIndex - 1);
       return;
@@ -221,6 +227,17 @@ class _BrowserScreenState extends State<BrowserScreen>
     Navigator.of(context).maybePop();
   }
 
+  /// 记录上一次的多选状态，用于在进入 / 退出多选时同步返回能力。
+  bool _lastSelection = false;
+
+  void _onControllerNotify() {
+    final selection = _controller.selectionMode;
+    if (selection != _lastSelection) {
+      _lastSelection = selection;
+      _syncState();
+    }
+  }
+
   /// 把当前会话状态同步给父级（标签页容器）或全局会话记录。
   void _syncState() {
     final state = TabSession(
@@ -229,9 +246,11 @@ class _BrowserScreenState extends State<BrowserScreen>
       history: List<NavStep>.unmodifiable(_history),
       index: _historyIndex,
     );
+    // 多选状态下，返回键应优先退出多选。
+    final canBack = _canGoBack || _controller.selectionMode;
     final controller = widget.controller;
     if (controller != null) {
-      controller._update(_canGoBack, state);
+      controller._update(canBack, state);
     } else {
       SessionStore.instance.record(BrowserSession(tabs: [state], active: 0));
     }
@@ -254,9 +273,9 @@ class _BrowserScreenState extends State<BrowserScreen>
       ]),
       builder: (context, _) {
         return PopScope(
-          canPop: !_canGoBack,
+          canPop: !_canGoBack && !_controller.selectionMode,
           onPopInvokedWithResult: (didPop, result) {
-            if (!didPop && _canGoBack) _goHistory(_historyIndex - 1);
+            if (!didPop) _handleBack();
           },
           child: Scaffold(
             appBar: _buildAppBar(context),
@@ -336,18 +355,6 @@ class _BrowserScreenState extends State<BrowserScreen>
       ),
       actions: [
         IconButton(
-          tooltip: _isFavorite ? tr('取消收藏') : tr('收藏'),
-          icon: Icon(
-            _isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
-          ),
-          onPressed: _toggleFavorite,
-        ),
-        IconButton(
-          tooltip: tr('搜索'),
-          icon: const Icon(Icons.search_rounded),
-          onPressed: _openSearch,
-        ),
-        IconButton(
           tooltip: tr('传输'),
           icon: Badge(
             isLabelVisible: TransferQueue.instance.activeCount > 0,
@@ -364,6 +371,21 @@ class _BrowserScreenState extends State<BrowserScreen>
           tooltip: tr('更多'),
           onSelected: _onMenuSelected,
           itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'favorite',
+              child: Row(
+                children: [
+                  if (_isFavorite)
+                    const Icon(Icons.star_rounded, size: 18)
+                  else
+                    const SizedBox(width: 18),
+                  const SizedBox(width: 8),
+                  Text(_isFavorite ? tr('取消收藏') : tr('收藏')),
+                ],
+              ),
+            ),
+            PopupMenuItem(value: 'search', child: Text(tr('搜索'))),
+            const PopupMenuDivider(),
             PopupMenuItem(value: 'refresh', child: Text(tr('刷新'))),
             PopupMenuItem(
               value: 'hidden',
@@ -629,6 +651,10 @@ class _BrowserScreenState extends State<BrowserScreen>
 
   void _onMenuSelected(String value) {
     switch (value) {
+      case 'favorite':
+        _toggleFavorite();
+      case 'search':
+        _openSearch();
       case 'refresh':
         _controller.refresh();
       case 'hidden':
@@ -1278,10 +1304,11 @@ class _BrowserScreenState extends State<BrowserScreen>
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (sheetContext) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: ListView(
+            shrinkWrap: true,
             children: [
               ListTile(
                 leading: Icon(
@@ -1443,10 +1470,11 @@ class _BrowserScreenState extends State<BrowserScreen>
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (sheetContext) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: ListView(
+            shrinkWrap: true,
             children: [
               ListTile(
                 leading: const Icon(Icons.drive_file_rename_outline_rounded),
