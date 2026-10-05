@@ -15,6 +15,10 @@ plugins {
 
 val rustCrateDir = rootProject.projectDir.parentFile.resolve("rust")
 val rustJniLibsDir = File(projectDir, "src/main/jniLibs")
+
+// 应用版本号唯一来源：仓库根目录的 VERSION 文件（形如 1.0）。
+val ordoVersionName: String =
+    rootProject.projectDir.parentFile.resolve("VERSION").readText().trim()
 val rustAbis: List<String> =
     (project.findProperty("ordo.rustAbis") as String?)
         ?.split(",")
@@ -24,7 +28,7 @@ val rustAbis: List<String> =
         ?: listOf("arm64-v8a", "armeabi-v7a", "x86_64")
 
 android {
-    namespace = "com.ordo.ordo"
+    namespace = "me.whynbnb.ordo"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,11 +38,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.ordo.ordo"
+        applicationId = "me.whynbnb.ordo"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionName = ordoVersionName
 
         ndk {
             // 只打包实际编译了 Rust 核心的 ABI，避免出现缺少原生库的架构。

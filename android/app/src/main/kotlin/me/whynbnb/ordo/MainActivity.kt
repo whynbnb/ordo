@@ -1,4 +1,4 @@
-package com.ordo.ordo
+package me.whynbnb.ordo
 
 import android.Manifest
 import android.content.ActivityNotFoundException

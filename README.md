@@ -89,6 +89,13 @@ Rust 中完成。连接密码保存在应用私有目录的 `ordo_connections.js
 所有原生函数的返回值都是 `{"ok":true,"data":...}` 或
 `{"ok":false,"error":"..."}`，字符串内存由 Rust 分配、Dart 释放。
 
+## 版本
+
+应用版本号以仓库根目录的 `VERSION` 文件为唯一来源，当前为 **1.0**（两段式
+`主版本.次版本`）。Rust 核心通过 `include_str!` 读取该文件并随 `ping` 返回，
+Android 的 `versionName` 由 Gradle 读取同一文件；`pubspec.yaml` 因 Dart 要求
+三段式而保留 `1.0.0+build`，仅用于 Flutter 工具链。
+
 ## 环境要求
 
 - Flutter（已启用 Android 工具链）

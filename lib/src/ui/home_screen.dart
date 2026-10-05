@@ -484,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen>
       context: context,
       applicationName: '安序 Ordo',
       applicationVersion: widget.version == null
-          ? '1.0.0'
+          ? 'v1.0'
           : 'v${widget.version}',
       applicationIcon: const Icon(Icons.folder_rounded, size: 40),
       children: const [

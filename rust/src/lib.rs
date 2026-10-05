@@ -388,6 +388,9 @@ pub unsafe extern "C" fn ordo_write_bytes(
     })
 }
 
+/// 应用版本号，唯一来源为仓库根目录的 `VERSION` 文件（形如 `1.0`）。
+pub const APP_VERSION: &str = include_str!("../../VERSION");
+
 /// 简单连通性检查，供 Dart 侧确认动态库已加载。
 #[no_mangle]
 pub extern "C" fn ordo_ping() -> *mut c_char {
@@ -395,7 +398,7 @@ pub extern "C" fn ordo_ping() -> *mut c_char {
         into_c_string(
             serde_json::json!({
                 "ok": true,
-                "data": { "name": "Ordo", "core": "ordo_core", "version": env!("CARGO_PKG_VERSION") }
+                "data": { "name": "Ordo", "core": "ordo_core", "version": APP_VERSION.trim() }
             })
             .to_string(),
         )
