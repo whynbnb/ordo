@@ -50,6 +50,9 @@ image = { version = "0.25", default-features = false, features = [
 ] }
 sha2 = "0.11"
 
+# 文件校验和工具：MD5（纯 Rust）。
+md5 = "0.7"
+
 [profile.release]
 lto = true
 opt-level = "z"

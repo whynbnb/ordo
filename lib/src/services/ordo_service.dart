@@ -172,6 +172,20 @@ class OrdoService {
     return AnalyzeResult.fromJson((data as Map).cast<String, dynamic>());
   }
 
+  /// 计算文件校验和（`sha256` 或 `md5`）。
+  Future<({String algorithm, String hash, int size})> hash(
+    String path, {
+    String algorithm = 'sha256',
+  }) async {
+    final data = await _background('hash', [path, algorithm]);
+    final map = (data as Map).cast<String, dynamic>();
+    return (
+      algorithm: map['algorithm']?.toString() ?? algorithm,
+      hash: map['hash']?.toString() ?? '',
+      size: (map['size'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   Future<TransferResult> copy(
     List<String> sources,
     String dest, {

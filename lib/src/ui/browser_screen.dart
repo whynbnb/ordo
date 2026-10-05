@@ -993,6 +993,15 @@ class _BrowserScreenState extends State<BrowserScreen>
                   _copyPath([entry.path]);
                 },
               ),
+              if (!entry.isDir)
+                ListTile(
+                  leading: const Icon(Icons.tag_rounded),
+                  title: const Text('校验和'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    showHashDialog(context, entry);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.drive_file_move_rounded),
                 title: const Text('移动'),

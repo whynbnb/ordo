@@ -271,6 +271,18 @@ pub extern "C" fn ordo_storage_roots() -> *mut c_char {
     guard(|| ok(storage::storage_roots()))
 }
 
+/// 计算文件校验和（`sha256` 或 `md5`）。
+///
+/// # Safety
+/// FFI 边界：两个指针均为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_hash(path: *const c_char, algorithm: *const c_char) -> *mut c_char {
+    guard(|| match (read_str(path), read_str(algorithm)) {
+        (Ok(p), Ok(a)) => result(vfs::hash(&p, &a)),
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
 /// 写入来自 Android `StorageManager` 的卷信息（用于命名与兜底）。
 ///
 /// 入参为 JSON 数组，元素形如

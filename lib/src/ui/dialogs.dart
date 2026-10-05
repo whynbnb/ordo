@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/format.dart';
 import '../core/models.dart';
+import '../services/ordo_service.dart';
 import 'entry_visuals.dart';
 
 /// 文本输入对话框，用于新建 / 重命名。
@@ -147,4 +149,134 @@ Future<void> showDetailsSheet(BuildContext context, FileEntry entry) {
       );
     },
   );
+}
+
+/// 显示文件的 SHA-256 与 MD5 校验和（计算全部由 Rust 完成）。
+Future<void> showHashDialog(BuildContext context, FileEntry entry) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => _HashDialog(entry: entry),
+  );
+}
+
+class _HashDialog extends StatefulWidget {
+  const _HashDialog({required this.entry});
+
+  final FileEntry entry;
+
+  @override
+  State<_HashDialog> createState() => _HashDialogState();
+}
+
+class _HashDialogState extends State<_HashDialog> {
+  final OrdoService _service = OrdoService.instance;
+
+  bool _loading = true;
+  String? _error;
+  ({String algorithm, String hash, int size})? _sha256;
+  ({String algorithm, String hash, int size})? _md5;
+
+  @override
+  void initState() {
+    super.initState();
+    _compute();
+  }
+
+  Future<void> _compute() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final sha = await _service.hash(widget.entry.path, algorithm: 'sha256');
+      final md5 = await _service.hash(widget.entry.path, algorithm: 'md5');
+      if (!mounted) return;
+      setState(() {
+        _sha256 = sha;
+        _md5 = md5;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$error';
+        _loading = false;
+      });
+    }
+  }
+
+  void _copy(String value) {
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('已复制')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('校验和'),
+      content: SizedBox(
+        width: 360,
+        child: _loading
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : _error != null
+            ? Text(_error!)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _hashRow('SHA-256', _sha256),
+                  const SizedBox(height: 16),
+                  _hashRow('MD5', _md5),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('关闭'),
+        ),
+      ],
+    );
+  }
+
+  Widget _hashRow(
+    String label,
+    ({String algorithm, String hash, int size})? value,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const Spacer(),
+            if (value != null)
+              IconButton(
+                tooltip: '复制',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                onPressed: () => _copy(value.hash),
+              ),
+          ],
+        ),
+        if (value == null)
+          const Text('—')
+        else
+          SelectableText(
+            value.hash,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 12,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+      ],
+    );
+  }
 }
