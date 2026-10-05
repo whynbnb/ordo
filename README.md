@@ -10,6 +10,14 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 
 > This project does **not** use Flutter's built-in file I/O APIs, and does **not** depend on any file-related third-party package. Dart only handles the UI and FFI calls; reading, writing, copying, moving, deleting, searching, archiving and analysis are all implemented in Rust.
 
+## Screenshots
+
+<p>
+  <img src="docs/en-home.jpg" width="230" alt="Home">
+  <img src="docs/en-actions.jpg" width="230" alt="File actions">
+  <img src="docs/en-media-info.jpg" width="230" alt="Media info">
+</p>
+
 ## Features
 
 ### Local file management

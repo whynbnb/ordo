@@ -126,6 +126,7 @@ class MainActivity : FlutterActivity() {
                 "shareFile" -> result.success(
                     sendFile(call.argument("path"), call.argument("mime"))
                 )
+                "openUrl" -> result.success(openUrl(call.argument("url")))
                 "resolveActivities" -> result.success(
                     resolveActivities(call.argument("mime"))
                 )
@@ -811,6 +812,20 @@ class MainActivity : FlutterActivity() {
     private fun guessMime(path: String): String {
         val ext = path.substringAfterLast('.', "").lowercase()
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+    }
+
+    /** 用系统默认应用（浏览器）打开链接，例如「关于」里的仓库地址。 */
+    private fun openUrl(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        return try {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     companion object {

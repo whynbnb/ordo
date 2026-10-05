@@ -79,9 +79,20 @@ class PlatformService {
     }
   }
 
+  /// 用系统默认应用（通常是浏览器）打开一个链接。
+  static Future<bool> openUrl(String url) async {
+    try {
+      return await _channel.invokeMethod<bool>('openUrl', {'url': url}) ??
+          false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   /// ADB 模式：与设备无线调试配对。
-  static Future<bool> privAdbPair({
-    required String host,
+  static Future<bool> privAdbPair({    required String host,
     required int port,
     required String code,
   }) async {

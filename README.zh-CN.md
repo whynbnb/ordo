@@ -14,6 +14,14 @@
 > 包**。Dart 侧只负责界面与 FFI 调用，实际的读 / 写 / 复制 / 移动 / 删除 / 搜索 /
 > 压缩 / 分析全部由 Rust 实现。
 
+## 截图
+
+<p>
+  <img src="docs/zh-home.jpg" width="230" alt="首页">
+  <img src="docs/zh-actions.jpg" width="230" alt="文件操作">
+  <img src="docs/zh-viewer.jpg" width="230" alt="查看器菜单">
+</p>
+
 ## 功能
 
 ### 本地文件管理
