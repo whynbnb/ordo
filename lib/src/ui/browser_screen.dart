@@ -9,6 +9,7 @@ import '../services/platform_service.dart';
 import '../state/browser_controller.dart';
 import '../state/drop_controller.dart';
 import '../state/favorites.dart';
+import '../state/recent_store.dart';
 import '../state/route_observer.dart';
 import '../state/settings.dart';
 import '../state/transfer_clipboard.dart';
@@ -36,11 +37,26 @@ class _BrowserScreenState extends State<BrowserScreen>
   final OrdoService _service = OrdoService.instance;
   late final BrowserController _controller;
 
+  /// 当前目录（支持在同一个页面内前进 / 后退，而不是层层压栈）。
+  late String _path;
+  late String _title;
+
+  /// 浏览历史与游标。
+  final List<_NavStep> _history = [];
+  int _historyIndex = -1;
+
+  bool get _canGoBack => _historyIndex > 0;
+  bool get _canGoForward => _historyIndex < _history.length - 1;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _controller = BrowserController(initialPath: widget.path);
+    _path = widget.path;
+    _title = widget.title;
+    _history.add(_NavStep(_path, _title));
+    _historyIndex = 0;
+    _controller = BrowserController(initialPath: _path);
     _controller.load();
     DropController.instance.revision.addListener(_onDropRevision);
     FavoritesStore.instance.loadIfNeeded();
@@ -81,7 +97,43 @@ class _BrowserScreenState extends State<BrowserScreen>
     // 栈中可能同时存在多个浏览页，只有当前可见的那个才设置目标。
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return;
-    DropController.instance.setActive(_controller.path, widget.title);
+    DropController.instance.setActive(_path, _title);
+  }
+
+  /// 在当前页面内进入新目录，并写入历史。
+  Future<void> _navigateToPath(String path, String title) async {
+    if (path == _path) return;
+    setState(() {
+      _path = path;
+      _title = title;
+      _history.removeRange(_historyIndex + 1, _history.length);
+      _history.add(_NavStep(path, title));
+      _historyIndex = _history.length - 1;
+    });
+    RecentStore.instance.record(path, title, true);
+    await _controller.navigateTo(path);
+    if (mounted) _updateDropTarget();
+  }
+
+  /// 前进 / 后退到历史中的某一步。
+  void _goHistory(int index) {
+    if (index < 0 || index >= _history.length || index == _historyIndex) return;
+    final step = _history[index];
+    setState(() {
+      _historyIndex = index;
+      _path = step.path;
+      _title = step.title;
+    });
+    _controller.navigateTo(step.path);
+    _updateDropTarget();
+  }
+
+  void _handleBack() {
+    if (_canGoBack) {
+      _goHistory(_historyIndex - 1);
+    } else {
+      Navigator.of(context).maybePop();
+    }
   }
 
   void _onDropRevision() {
@@ -97,25 +149,31 @@ class _BrowserScreenState extends State<BrowserScreen>
         FavoritesStore.instance,
       ]),
       builder: (context, _) {
-        return Scaffold(
-          appBar: _buildAppBar(context),
-          body: Stack(
-            children: [
-              RefreshIndicator(
-                onRefresh: _controller.refresh,
-                child: _buildBody(context),
-              ),
-              const DropOverlay(),
-            ],
-          ),
-          floatingActionButton: _controller.selectionMode
-              ? null
-              : FloatingActionButton.extended(
-                  onPressed: _showCreateSheet,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('新建'),
+        return PopScope(
+          canPop: !_canGoBack,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && _canGoBack) _goHistory(_historyIndex - 1);
+          },
+          child: Scaffold(
+            appBar: _buildAppBar(context),
+            body: Stack(
+              children: [
+                RefreshIndicator(
+                  onRefresh: _controller.refresh,
+                  child: _buildBody(context),
                 ),
-          bottomNavigationBar: _buildBottomBar(context),
+                const DropOverlay(),
+              ],
+            ),
+            floatingActionButton: _controller.selectionMode
+                ? null
+                : FloatingActionButton.extended(
+                    onPressed: _showCreateSheet,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('新建'),
+                  ),
+            bottomNavigationBar: _buildBottomBar(context),
+          ),
         );
       },
     );
@@ -140,11 +198,29 @@ class _BrowserScreenState extends State<BrowserScreen>
     }
 
     return AppBar(
+      automaticallyImplyLeading: false,
+      leadingWidth: 96,
+      leading: Row(
+        children: [
+          IconButton(
+            tooltip: '后退',
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: _handleBack,
+          ),
+          IconButton(
+            tooltip: '前进',
+            icon: const Icon(Icons.arrow_forward_rounded),
+            onPressed: _canGoForward
+                ? () => _goHistory(_historyIndex + 1)
+                : null,
+          ),
+        ],
+      ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          PathBreadcrumb(path: widget.path, onNavigate: _navigateTo),
+          Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          PathBreadcrumb(path: _path, onNavigate: _navigateTo),
         ],
       ),
       actions: [
@@ -348,19 +424,23 @@ class _BrowserScreenState extends State<BrowserScreen>
   // -------------------------------------------------------------------------
 
   Future<void> _openEntry(FileEntry entry) async {
+    if (entry.isDir) {
+      await _navigateToPath(entry.path, entry.name);
+      return;
+    }
     await openEntry(context, entry, onReturn: _controller.refresh);
   }
 
-  bool get _isFavorite => FavoritesStore.instance.contains(widget.path);
+  bool get _isFavorite => FavoritesStore.instance.contains(_path);
 
   Future<void> _toggleFavorite() async {
     try {
       if (_isFavorite) {
-        await FavoritesStore.instance.remove(widget.path);
+        await FavoritesStore.instance.remove(_path);
         _snack('已取消收藏');
       } else {
-        await FavoritesStore.instance.add(widget.title, widget.path);
-        _snack('已收藏「${widget.title}」');
+        await FavoritesStore.instance.add(_title, _path);
+        _snack('已收藏「$_title」');
       }
     } catch (error) {
       _snack('$error');
@@ -368,21 +448,17 @@ class _BrowserScreenState extends State<BrowserScreen>
   }
 
   void _navigateTo(PathCrumb crumb) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => BrowserScreen(path: crumb.path, title: crumb.label),
-      ),
-    );
+    _navigateToPath(crumb.path, crumb.label);
   }
 
   void _openSearch() {
-    if (isRemotePath(widget.path)) {
+    if (isRemotePath(_path)) {
       _snack('网络位置暂不支持搜索');
       return;
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => SearchScreen(root: widget.path, title: widget.title),
+        builder: (_) => SearchScreen(root: _path, title: _title),
       ),
     );
   }
@@ -451,7 +527,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     if (paths.isEmpty) return;
     final defaultName = paths.length == 1
         ? '${_stem(paths.first)}.zip'
-        : '${widget.title.isEmpty ? 'archive' : widget.title}.zip';
+        : '${_title.isEmpty ? 'archive' : _title}.zip';
     final name = await showNameDialog(
       context,
       title: '压缩为 ZIP',
@@ -899,4 +975,12 @@ class _BarAction extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 浏览历史中的一步。
+class _NavStep {
+  const _NavStep(this.path, this.title);
+
+  final String path;
+  final String title;
 }

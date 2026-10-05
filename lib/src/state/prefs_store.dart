@@ -94,16 +94,27 @@ class PrefsStore extends ChangeNotifier {
     }
   }
 
-  Future<void> setTarget(String category, OpenWithTarget? target) async {
-    final key = _key(category);
-    if (target == null) {
+  /// 读取任意偏好字符串。
+  String? value(String key) => _values[key];
+
+  /// 写入 / 删除任意偏好字符串。
+  Future<void> setValue(String key, String? value) async {
+    if (value == null) {
       await OrdoService.instance.prefRemove(key);
       _values = {..._values}..remove(key);
     } else {
-      final raw = jsonEncode(target.toJson());
-      await OrdoService.instance.prefSet(key, raw);
-      _values = {..._values, key: raw};
+      await OrdoService.instance.prefSet(key, value);
+      _values = {..._values, key: value};
     }
     notifyListeners();
+  }
+
+  Future<void> setTarget(String category, OpenWithTarget? target) async {
+    final key = _key(category);
+    if (target == null) {
+      await setValue(key, null);
+    } else {
+      await setValue(key, jsonEncode(target.toJson()));
+    }
   }
 }

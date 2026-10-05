@@ -6,6 +6,7 @@ import '../core/models.dart';
 import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
 import '../state/prefs_store.dart';
+import '../state/recent_store.dart';
 import 'browser_screen.dart';
 import 'viewer_screen.dart';
 
@@ -18,6 +19,7 @@ Future<void> openEntry(
   VoidCallback? onReturn,
 }) async {
   if (entry.isDir) {
+    RecentStore.instance.record(entry.path, entry.name, true);
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => BrowserScreen(path: entry.path, title: entry.name),
@@ -27,6 +29,7 @@ Future<void> openEntry(
     return;
   }
 
+  RecentStore.instance.record(entry.path, entry.name, false);
   if (isPreviewableExtension(entry.extension)) {
     await Navigator.of(
       context,
