@@ -300,6 +300,34 @@ class OrdoService {
         .toList();
   }
 
+  /// 覆盖写后删除（安全删除）。
+  Future<DeleteResult> secureDelete(List<String> paths, {int passes = 2}) async {
+    final data = await _background('secureDelete', [jsonEncode(paths), passes]);
+    return DeleteResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<VaultResult> vaultMove(List<String> paths) async {
+    final data = await _background('vaultMove', [jsonEncode(paths)]);
+    return VaultResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<List<FileEntry>> vaultList() async {
+    final data = await _background('vaultList', const []);
+    return (data as List? ?? const [])
+        .map((e) => FileEntry.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<VaultResult> vaultRestore(List<String> names, String dest) async {
+    final data = await _background('vaultRestore', [jsonEncode(names), dest]);
+    return VaultResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<DeleteResult> vaultDelete(List<String> names) async {
+    final data = await _background('vaultDelete', [jsonEncode(names)]);
+    return DeleteResult.fromJson((data as Map).cast<String, dynamic>());
+  }
+
   Future<List<StorageRoot>> storageRoots() async {
     try {
       final hints = await PlatformService.storageVolumes();

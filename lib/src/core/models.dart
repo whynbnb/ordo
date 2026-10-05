@@ -1002,3 +1002,25 @@ class TrendSnapshot {
     );
   }
 }
+
+/// 隐私空间迁移 / 还原 / 删除结果。
+class VaultResult {
+  const VaultResult({required this.count, required this.errors});
+
+  final int count;
+  final List<String> errors;
+
+  factory VaultResult.fromJson(Map<String, dynamic> json) {
+    final count =
+        (json['moved'] as num?)?.toInt() ??
+        (json['restored'] as num?)?.toInt() ??
+        (json['deleted'] as num?)?.toInt() ??
+        0;
+    return VaultResult(
+      count: count,
+      errors:
+          (json['errors'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
+    );
+  }
+}

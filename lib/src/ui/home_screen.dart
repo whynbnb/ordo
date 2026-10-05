@@ -19,6 +19,7 @@ import 'file_picker.dart';
 import 'analyzer_screen.dart';
 import 'cleanup_screen.dart';
 import 'trend_screen.dart';
+import 'vault_screen.dart';
 import 'qr_dialog.dart';
 import 'recent_screen.dart';
 import 'server_screen.dart';
@@ -515,6 +516,25 @@ class _HomeScreenState extends State<HomeScreen>
                   builder: (_) =>
                       TrendScreen(root: _primaryPath, title: _primaryName),
                 ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 0,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.5),
+          clipBehavior: Clip.antiAlias,
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: const Icon(Icons.lock_outline_rounded),
+            title: const Text('隐私空间'),
+            subtitle: const Text('把文件移入应用私有目录隐藏'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const VaultScreen()),
               );
             },
           ),

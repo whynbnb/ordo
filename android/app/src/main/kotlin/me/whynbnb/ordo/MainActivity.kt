@@ -1,6 +1,7 @@
 package me.whynbnb.ordo
 
 import android.Manifest
+import android.app.KeyguardManager
 import android.app.WallpaperManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
@@ -45,6 +46,7 @@ import java.io.File
 class MainActivity : FlutterActivity() {
 
     private var pendingPermissionResult: MethodChannel.Result? = null
+    private var pendingAuthResult: MethodChannel.Result? = null
     private var channel: MethodChannel? = null
 
     // 外部介质（U 盘 / 存储卡）插拔监听。
@@ -111,6 +113,8 @@ class MainActivity : FlutterActivity() {
                     result.success(path)
                 }
                 "sdkInt" -> result.success(Build.VERSION.SDK_INT)
+                "lockAvailable" -> result.success(lockAvailable())
+                "authenticate" -> authenticate(result)
                 "storageVolumes" -> result.success(storageVolumes())
                 "videoThumbnail" -> result.success(videoThumbnail(call.argument("path")))
                 "pdfPageCount" -> result.success(
@@ -536,6 +540,55 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // 应用锁：使用系统锁屏凭证（PIN / 图案 / 密码）验证
+    // -----------------------------------------------------------------------
+
+    private fun lockAvailable(): Boolean {
+        val manager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            ?: return false
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            manager.isDeviceSecure
+        } else {
+            @Suppress("DEPRECATION")
+            manager.isKeyguardSecure
+        }
+    }
+
+    private fun authenticate(result: MethodChannel.Result) {
+        if (pendingAuthResult != null) {
+            result.success(false)
+            return
+        }
+        val manager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        if (manager == null) {
+            result.success(false)
+            return
+        }
+        val intent = manager.createConfirmDeviceCredentialIntent("解锁安序", "验证设备锁屏凭证")
+        if (intent == null) {
+            result.success(false)
+            return
+        }
+        pendingAuthResult = result
+        try {
+            startActivityForResult(intent, REQUEST_UNLOCK)
+        } catch (_: Exception) {
+            pendingAuthResult = null
+            result.success(false)
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_UNLOCK) {
+            val pending = pendingAuthResult
+            pendingAuthResult = null
+            pending?.success(resultCode == RESULT_OK)
+        }
+    }
+
     private fun viewFile(
         path: String?,
         mime: String?,
@@ -702,6 +755,7 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "ordo/platform"
         private const val REQUEST_STORAGE = 4711
         private const val REQUEST_NOTIFICATIONS = 4712
+        private const val REQUEST_UNLOCK = 4713
         private const val STORAGE_CHECK_DELAY_MS = 500L
         private const val EXTRA_OPEN_PATH = "ordo_open_path"
     }

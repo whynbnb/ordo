@@ -133,6 +133,20 @@ class _OrdoBindings {
   late final _Dart1 trendHistory = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_trend_history',
   );
+  late final _DartStrU32 secureDelete = _lib
+      .lookupFunction<_NativeStrU32, _DartStrU32>('ordo_secure_delete');
+  late final _Dart1 vaultMove = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_vault_move',
+  );
+  late final _DartZero vaultList = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_vault_list',
+  );
+  late final _Dart2 vaultRestore = _lib.lookupFunction<_Native2, _Dart2>(
+    'ordo_vault_restore',
+  );
+  late final _Dart1 vaultDelete = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_vault_delete',
+  );
   late final _DartZero storageRoots = _lib
       .lookupFunction<_NativeZero, _DartZero>('ordo_storage_roots');
   late final _DartZero ping = _lib.lookupFunction<_NativeZero, _DartZero>(
@@ -426,6 +440,44 @@ dynamic nativeExecute(String op, List<Object?> args) {
             args[0] as String,
             (root) => bindings.trendHistory(root),
           ),
+        ),
+      );
+    case 'secureDelete':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (paths) => bindings.secureDelete(paths, args[1] as int),
+          ),
+        ),
+      );
+    case 'vaultMove':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (paths) => bindings.vaultMove(paths)),
+        ),
+      );
+    case 'vaultList':
+      return _decode(_take(bindings, bindings.vaultList()));
+    case 'vaultRestore':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (names) {
+            return _withCString(
+              args[1] as String,
+              (dest) => bindings.vaultRestore(names, dest),
+            );
+          }),
+        ),
+      );
+    case 'vaultDelete':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (names) => bindings.vaultDelete(names)),
         ),
       );
     case 'storageRoots':

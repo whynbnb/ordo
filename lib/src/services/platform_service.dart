@@ -315,6 +315,12 @@ class PlatformService {
     return await _invokeBool('setWallpaper', {'path': path});
   }
 
+  /// 设备是否设置了锁屏凭证（PIN / 图案 / 密码）。
+  static Future<bool> lockAvailable() => _invokeBool('lockAvailable', const {});
+
+  /// 请求系统锁屏凭证验证；通过返回 true。
+  static Future<bool> authenticate() => _invokeBool('authenticate', const {});
+
   static Future<bool> _invokeBool(
     String method,
     Map<String, Object?> args,

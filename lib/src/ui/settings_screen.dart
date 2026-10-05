@@ -20,6 +20,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final PrefsStore _prefs = PrefsStore.instance;
 
+  bool get _appLock => _prefs.value('app_lock') == '1';
+
   @override
   void initState() {
     super.initState();
@@ -124,6 +126,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _toggleLock(bool value) async {
+    if (value) {
+      final available = await PlatformService.lockAvailable();
+      if (!available) {
+        _snack('请先在系统设置中设置锁屏密码 / 图案');
+        return;
+      }
+      await _prefs.setValue('app_lock', '1');
+      _snack('已开启应用锁');
+    } else {
+      final ok = await PlatformService.authenticate();
+      if (!ok) return;
+      await _prefs.setValue('app_lock', null);
+      _snack('已关闭应用锁');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,6 +150,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
+          const SizedBox(height: 8),
+          Text(
+            '安全与隐私',
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('应用锁'),
+            subtitle: const Text('启动或回到前台时验证设备锁屏凭证'),
+            value: _appLock,
+            onChanged: _toggleLock,
+          ),
+          const Divider(),
           const SizedBox(height: 8),
           Text(
             '默认打开方式',

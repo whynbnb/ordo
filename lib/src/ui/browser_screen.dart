@@ -832,6 +832,53 @@ class _BrowserScreenState extends State<BrowserScreen>
     await _delete(paths);
   }
 
+  Future<void> _vaultMoveSelection() async {
+    final paths = _controller.selectedPaths.toList();
+    if (paths.isEmpty) return;
+    try {
+      final result = await _service.vaultMove(paths);
+      _controller.clearSelection();
+      await _controller.refresh();
+      _snack('已移入隐私空间 ${result.count} 项', errors: result.errors);
+    } catch (error) {
+      _snack('$error');
+    }
+  }
+
+  Future<void> _secureDeleteSelection() async {
+    final paths = _controller.selectedPaths.toList();
+    if (paths.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('安全删除'),
+        content: Text('将覆盖写入后永久删除 ${paths.length} 项，无法恢复。是否继续？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('安全删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final result = await _service.secureDelete(paths);
+      _controller.clearSelection();
+      await _controller.refresh();
+      _snack('已安全删除 ${result.deleted} 项', errors: result.errors);
+    } catch (error) {
+      _snack('$error');
+    }
+  }
+
   Future<void> _delete(List<String> paths) async {
     if (paths.isEmpty) return;
     final allowTrash = paths.every((path) => !isRemotePath(path));
@@ -1301,6 +1348,23 @@ class _BrowserScreenState extends State<BrowserScreen>
                       .toList();
                   Navigator.pop(sheetContext);
                   _pickLabel(paths);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.lock_outline_rounded),
+                title: const Text('移入隐私空间'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _vaultMoveSelection();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_forever_rounded),
+                title: const Text('安全删除'),
+                subtitle: const Text('覆盖写入后永久删除'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _secureDeleteSelection();
                 },
               ),
               ListTile(

@@ -18,11 +18,13 @@ mod model;
 mod prefs;
 mod qr;
 mod remote;
+mod secure;
 mod server;
 mod storage;
 mod thumbnail;
 mod trash;
 mod trend;
+mod vault;
 mod vfs;
 
 use remote::ProfileSpec;
@@ -323,6 +325,63 @@ pub unsafe extern "C" fn ordo_trend_record(root: *const c_char) -> *mut c_char {
 pub unsafe extern "C" fn ordo_trend_history(root: *const c_char) -> *mut c_char {
     guard(|| match read_str(root) {
         Ok(r) => ok(trend::history(&r)),
+        Err(e) => err(e),
+    })
+}
+
+/// 安全删除（覆盖写后删除）。入参为 JSON 字符串数组。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_secure_delete(paths: *const c_char, passes: u32) -> *mut c_char {
+    guard(|| match read_paths(paths) {
+        Ok(list) => ok(secure::secure_delete(&list, passes)),
+        Err(e) => err(e),
+    })
+}
+
+/// 移入隐私空间。入参为 JSON 字符串数组。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_vault_move(paths: *const c_char) -> *mut c_char {
+    guard(|| match read_paths(paths) {
+        Ok(list) => ok(vault::move_in(&list)),
+        Err(e) => err(e),
+    })
+}
+
+/// 列出隐私空间。
+#[no_mangle]
+pub extern "C" fn ordo_vault_list() -> *mut c_char {
+    guard(|| ok(vault::list()))
+}
+
+/// 从隐私空间还原到目标目录。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_vault_restore(
+    names: *const c_char,
+    dest: *const c_char,
+) -> *mut c_char {
+    guard(|| match (read_paths(names), read_str(dest)) {
+        (Ok(list), Ok(d)) => ok(vault::restore(&list, &d)),
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
+/// 从隐私空间彻底删除。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_vault_delete(names: *const c_char) -> *mut c_char {
+    guard(|| match read_paths(names) {
+        Ok(list) => ok(vault::delete(&list)),
         Err(e) => err(e),
     })
 }
