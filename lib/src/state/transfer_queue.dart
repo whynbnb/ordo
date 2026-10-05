@@ -16,7 +16,7 @@ class TransferTask {
   });
 
   final int id;
-  final List<String> sources;
+  List<String> sources;
   final String dest;
   final bool isMove;
 
@@ -139,9 +139,29 @@ class TransferQueue extends ChangeNotifier {
     }
   }
 
-  /// 重试（未完成的源会重新执行）。
+  /// 重试：先跳过目标目录中已存在的同名项（文件级续传），再重新排队。
   void retry(TransferTask task) {
     if (task.state == TransferState.done) return;
+    _retry(task);
+  }
+
+  Future<void> _retry(TransferTask task) async {
+    try {
+      final entries = await OrdoService.instance.listDir(task.dest);
+      final names = entries.map((entry) => entry.name).toSet();
+      task.sources = task.sources.where((source) {
+        final base = source.replaceAll(RegExp(r'/+$'), '').split('/').last;
+        return !names.contains(base);
+      }).toList();
+    } catch (_) {
+      // 无法列目录时按原样重试。
+    }
+    if (task.sources.isEmpty) {
+      task.state = TransferState.done;
+      task.error = null;
+      notifyListeners();
+      return;
+    }
     task.state = TransferState.queued;
     task.error = null;
     notifyListeners();
