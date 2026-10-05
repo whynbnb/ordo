@@ -8,9 +8,10 @@ pub mod ftp;
 pub mod http;
 
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
 use std::net::UdpSocket;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::JoinHandle;
 
@@ -37,6 +38,24 @@ pub struct ServerConfig {
     /// 只读模式。
     #[serde(default)]
     pub read_only: bool,
+    /// 多用户：非空时按用户鉴权，并可用 `path` 限定子目录。
+    #[serde(default)]
+    pub users: Vec<ServerUser>,
+}
+
+/// 单个访问账号。
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ServerUser {
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub password: String,
+    /// 限定子目录（相对共享根，空表示根目录）。
+    #[serde(default)]
+    pub path: String,
+    /// 该账号只读。
+    #[serde(default)]
+    pub read_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -48,7 +67,120 @@ pub struct ServerStatus {
     pub auth: bool,
     pub read_only: bool,
     pub addresses: Vec<String>,
+    pub users: Vec<String>,
     pub error: Option<String>,
+}
+
+/// 一条访问记录。
+#[derive(Debug, Clone, Serialize)]
+pub struct AccessEntry {
+    pub time: i64,
+    pub protocol: String,
+    pub client: String,
+    pub action: String,
+    pub path: String,
+    pub status: u16,
+}
+
+/// 最近活跃的客户端。
+#[derive(Debug, Clone, Serialize)]
+pub struct ClientEntry {
+    pub address: String,
+    pub protocol: String,
+    pub last_seen: i64,
+    pub requests: u64,
+}
+
+/// 服务器访问日志与客户端统计（HTTP / FTP 共享）。
+#[derive(Default)]
+pub struct Activity {
+    entries: Mutex<VecDeque<AccessEntry>>,
+    clients: Mutex<HashMap<String, ClientEntry>>,
+    revision: AtomicU64,
+}
+
+impl Activity {
+    pub fn record(&self, protocol: &str, client: &str, action: &str, path: &str, status: u16) {
+        let now = now_secs();
+        {
+            let mut entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
+            entries.push_front(AccessEntry {
+                time: now,
+                protocol: protocol.to_string(),
+                client: client.to_string(),
+                action: action.to_string(),
+                path: path.to_string(),
+                status,
+            });
+            while entries.len() > 300 {
+                entries.pop_back();
+            }
+        }
+        {
+            let mut clients = self.clients.lock().unwrap_or_else(|e| e.into_inner());
+            let entry = clients
+                .entry(client.to_string())
+                .or_insert_with(|| ClientEntry {
+                    address: client.to_string(),
+                    protocol: protocol.to_string(),
+                    last_seen: now,
+                    requests: 0,
+                });
+            entry.protocol = protocol.to_string();
+            entry.last_seen = now;
+            entry.requests += 1;
+        }
+        self.revision.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn snapshot(&self) -> (Vec<AccessEntry>, Vec<ClientEntry>, u64) {
+        let entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .cloned()
+            .collect();
+        let mut clients: Vec<ClientEntry> = self
+            .clients
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .values()
+            .cloned()
+            .collect();
+        clients.sort_by_key(|entry| std::cmp::Reverse(entry.last_seen));
+        let revision = self.revision.load(Ordering::SeqCst);
+        (entries, clients, revision)
+    }
+
+    pub fn clear(&self) {
+        self.entries
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        self.clients
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        // revision 单调递增，清空时也 +1 以便界面刷新。
+        self.revision.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+static ACTIVITY: OnceLock<Arc<Activity>> = OnceLock::new();
+
+/// 全局访问日志单例。
+pub fn activity() -> Arc<Activity> {
+    ACTIVITY
+        .get_or_init(|| Arc::new(Activity::default()))
+        .clone()
+}
+
+fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 /// 各协议线程共享的上下文。
@@ -58,6 +190,8 @@ pub struct ServerCtx {
     pub username: String,
     pub password: String,
     pub read_only: bool,
+    pub users: Vec<ServerUser>,
+    pub activity: Arc<Activity>,
 }
 
 struct RunningServer {
@@ -94,8 +228,16 @@ pub fn start(config: ServerConfig) -> Result<ServerStatus, String> {
     if config.auth && (config.username.trim().is_empty() || config.password.is_empty()) {
         return Err("启用密码保护时必须填写用户名与密码".into());
     }
+    for user in &config.users {
+        if user.username.trim().is_empty() || user.password.is_empty() {
+            return Err("多用户账号需要填写用户名与密码".into());
+        }
+    }
 
     stop();
+
+    let shared_activity = activity();
+    shared_activity.clear();
 
     let ctx = Arc::new(ServerCtx {
         root,
@@ -103,6 +245,8 @@ pub fn start(config: ServerConfig) -> Result<ServerStatus, String> {
         username: config.username.clone(),
         password: config.password.clone(),
         read_only: config.read_only,
+        users: config.users.clone(),
+        activity: shared_activity,
     });
 
     let mut http_running: Option<RunningServer> = None;
@@ -222,9 +366,10 @@ pub fn status() -> ServerStatus {
         http_port,
         ftp_port,
         root: config.root,
-        auth: config.auth,
+        auth: config.auth || !config.users.is_empty(),
         read_only: config.read_only,
         addresses,
+        users: config.users.iter().map(|u| u.username.clone()).collect(),
         error,
     }
 }
@@ -442,6 +587,87 @@ mod tests {
         assert!(!dir.join("renamed.txt").exists());
 
         ftp.quit().unwrap();
+
+        stop();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn http_multi_user_and_upload_page() {
+        let _guard = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = temp_dir("users");
+        std::fs::create_dir_all(dir.join("alice")).unwrap();
+        std::fs::write(dir.join("alice/a.txt"), "a").unwrap();
+        std::fs::write(dir.join("root.txt"), "r").unwrap();
+
+        let status = start(ServerConfig {
+            http: true,
+            users: vec![
+                ServerUser {
+                    username: "alice".into(),
+                    password: "pw".into(),
+                    path: "alice".into(),
+                    read_only: false,
+                },
+                ServerUser {
+                    username: "bob".into(),
+                    password: "pw".into(),
+                    path: String::new(),
+                    read_only: true,
+                },
+            ],
+            ..base_config(&dir)
+        })
+        .unwrap();
+        let base = format!("http://127.0.0.1:{}/", status.http_port.unwrap());
+        let client = reqwest::blocking::Client::new();
+
+        // 未认证返回 401。
+        assert_eq!(client.get(&base).send().unwrap().status().as_u16(), 401);
+
+        // alice 的根被限定在其子目录，且可上传。
+        let body = client
+            .get(&base)
+            .basic_auth("alice", Some("pw"))
+            .send()
+            .unwrap()
+            .text()
+            .unwrap();
+        assert!(body.contains("a.txt"), "alice listing: {body}");
+        assert!(!body.contains("root.txt"));
+        assert!(body.contains("上传文件"), "upload toolbar missing");
+
+        let response = client
+            .put(format!("{base}new.txt"))
+            .basic_auth("alice", Some("pw"))
+            .body("hi")
+            .send()
+            .unwrap();
+        assert!(response.status().is_success());
+        assert!(dir.join("alice/new.txt").exists());
+
+        // bob 只读：可读根目录，但禁止写入，且页面无上传工具栏。
+        let body = client
+            .get(&base)
+            .basic_auth("bob", Some("pw"))
+            .send()
+            .unwrap()
+            .text()
+            .unwrap();
+        assert!(body.contains("root.txt"));
+        assert!(!body.contains("上传文件"));
+        let response = client
+            .put(format!("{base}blocked.txt"))
+            .basic_auth("bob", Some("pw"))
+            .body("x")
+            .send()
+            .unwrap();
+        assert_eq!(response.status().as_u16(), 403);
+
+        // 访问日志包含请求记录。
+        let (entries, clients, _) = activity().snapshot();
+        assert!(!entries.is_empty());
+        assert!(clients.iter().any(|c| c.protocol == "http"));
 
         stop();
         let _ = std::fs::remove_dir_all(&dir);

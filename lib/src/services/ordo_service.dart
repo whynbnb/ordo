@@ -352,6 +352,15 @@ class OrdoService {
     return ServerStatus.fromJson((data as Map).cast<String, dynamic>());
   }
 
+  Future<ServerLog> serverLog() async {
+    final data = _direct('serverLog');
+    return ServerLog.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<void> serverLogClear() async {
+    _direct('serverLogClear');
+  }
+
   /// 导入外部拖入的文件（由 Android 原生移交的文件描述符）。
   Future<FileEntry> importFd({
     required int fd,

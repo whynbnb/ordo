@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'directory_picker.dart';
@@ -28,6 +31,10 @@ class _ServerScreenState extends State<ServerScreen> {
   bool _auth = false;
   bool _readOnly = false;
 
+  List<ServerUser> _users = <ServerUser>[];
+  ServerLog? _log;
+  Timer? _logTimer;
+
   ServerStatus? _status;
   bool _busy = true;
   String? _error;
@@ -36,10 +43,14 @@ class _ServerScreenState extends State<ServerScreen> {
   void initState() {
     super.initState();
     _load();
+    _logTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && (_status?.running ?? false)) _refreshLog();
+    });
   }
 
   @override
   void dispose() {
+    _logTimer?.cancel();
     _root.dispose();
     _httpPort.dispose();
     _ftpPort.dispose();
@@ -69,9 +80,11 @@ class _ServerScreenState extends State<ServerScreen> {
         _username.text = config.username;
         _password.text = config.password;
         _readOnly = config.readOnly;
+        _users = List.of(config.users);
         _status = status;
         _busy = false;
       });
+      await _refreshLog();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -92,6 +105,7 @@ class _ServerScreenState extends State<ServerScreen> {
       username: _username.text.trim(),
       password: _password.text,
       readOnly: _readOnly,
+      users: _users,
     );
   }
 
@@ -141,6 +155,47 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _pickRoot() async {
     final chosen = await pickDirectory(context, initial: _root.text.trim());
     if (chosen != null) setState(() => _root.text = chosen);
+  }
+
+  Future<void> _refreshLog() async {
+    try {
+      final log = await _service.serverLog();
+      if (!mounted) return;
+      setState(() => _log = log);
+    } catch (_) {
+      // 忽略日志读取异常。
+    }
+  }
+
+  Future<void> _clearLog() async {
+    try {
+      await _service.serverLogClear();
+      await _refreshLog();
+    } catch (error) {
+      _snack('清空失败：$error');
+    }
+  }
+
+  Future<void> _editUser([int? index]) async {
+    final existing = index == null ? null : _users[index];
+    final result = await showDialog<ServerUser>(
+      context: context,
+      builder: (_) => _UserDialog(initial: existing),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      final next = List<ServerUser>.of(_users);
+      if (index == null) {
+        next.add(result);
+      } else {
+        next[index] = result;
+      }
+      _users = next;
+    });
+  }
+
+  void _removeUser(int index) {
+    setState(() => _users = List<ServerUser>.of(_users)..removeAt(index));
   }
 
   void _snack(String message) {
@@ -249,6 +304,58 @@ class _ServerScreenState extends State<ServerScreen> {
                       ? null
                       : (value) => setState(() => _readOnly = value),
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _section('多用户')),
+                    TextButton.icon(
+                      onPressed: _busy ? null : () => _editUser(),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('添加用户'),
+                    ),
+                  ],
+                ),
+                Text(
+                  _users.isEmpty
+                      ? '未配置多用户时，使用上方的单账号（若启用）。'
+                      : '已启用多用户：上方单账号设置不再生效；每个账号可限定子目录与只读。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                for (var i = 0; i < _users.length; i++)
+                  Card(
+                    elevation: 0,
+                    margin: const EdgeInsets.only(top: 8),
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.5),
+                    child: ListTile(
+                      leading: const Icon(Icons.person_rounded),
+                      title: Text(_users[i].username),
+                      subtitle: Text(
+                        '${_users[i].path.isEmpty ? '根目录' : _users[i].path}'
+                        '${_users[i].readOnly ? ' · 只读' : ''}',
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: '编辑',
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            onPressed: _busy ? null : () => _editUser(i),
+                          ),
+                          IconButton(
+                            tooltip: '删除',
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                            ),
+                            onPressed: _busy ? null : () => _removeUser(i),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 20),
                 FilledButton.icon(
                   onPressed: _busy ? null : (running ? _stop : _start),
@@ -267,6 +374,73 @@ class _ServerScreenState extends State<ServerScreen> {
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
+                if (running) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: _section('访问日志')),
+                      TextButton.icon(
+                        onPressed: _refreshLog,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('刷新'),
+                      ),
+                      IconButton(
+                        tooltip: '清空',
+                        onPressed: _clearLog,
+                        icon: const Icon(
+                          Icons.cleaning_services_outlined,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if ((_log?.clients ?? const []).isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          for (final client in _log!.clients)
+                            Chip(
+                              visualDensity: VisualDensity.compact,
+                              label: Text(
+                                '${client.protocol.toUpperCase()} '
+                                '${client.address} · ${client.requests}',
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  if ((_log?.entries ?? const []).isEmpty)
+                    Text(
+                      '暂无访问记录',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    for (final entry in _log!.entries.take(50))
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Text(
+                          entry.protocol.toUpperCase(),
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                        title: Text(
+                          entry.path.isEmpty
+                              ? entry.action
+                              : '${entry.action} ${entry.path}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          '${entry.client} · ${formatDate(entry.time)} · '
+                          '${entry.status}',
+                        ),
+                      ),
+                ],
               ],
             ),
     );
@@ -416,6 +590,111 @@ class _ServerScreenState extends State<ServerScreen> {
           isDense: true,
         ),
       ),
+    );
+  }
+}
+
+class _UserDialog extends StatefulWidget {
+  const _UserDialog({this.initial});
+
+  final ServerUser? initial;
+
+  @override
+  State<_UserDialog> createState() => _UserDialogState();
+}
+
+class _UserDialogState extends State<_UserDialog> {
+  late final TextEditingController _username = TextEditingController(
+    text: widget.initial?.username ?? '',
+  );
+  late final TextEditingController _password = TextEditingController(
+    text: widget.initial?.password ?? '',
+  );
+  late final TextEditingController _path = TextEditingController(
+    text: widget.initial?.path ?? '',
+  );
+  late bool _readOnly = widget.initial?.readOnly ?? false;
+
+  @override
+  void dispose() {
+    _username.dispose();
+    _password.dispose();
+    _path.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final username = _username.text.trim();
+    if (username.isEmpty || _password.text.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('用户名与密码不能为空')));
+      return;
+    }
+    Navigator.pop(
+      context,
+      ServerUser(
+        username: username,
+        password: _password.text,
+        path: _path.text.trim(),
+        readOnly: _readOnly,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.initial == null ? '添加用户' : '编辑用户'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _username,
+              decoration: const InputDecoration(
+                labelText: '用户名',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _password,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: '密码',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _path,
+              decoration: const InputDecoration(
+                labelText: '限定子目录（可选）',
+                hintText: '相对共享根，如 Photos',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('该账号只读'),
+              value: _readOnly,
+              onChanged: (value) => setState(() => _readOnly = value),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('确定')),
+      ],
     );
   }
 }

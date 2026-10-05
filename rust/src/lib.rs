@@ -704,6 +704,28 @@ pub extern "C" fn ordo_server_config_load() -> *mut c_char {
     guard(|| ok(server::load_config()))
 }
 
+/// 读取服务器访问日志与客户端统计。
+#[no_mangle]
+pub extern "C" fn ordo_server_log() -> *mut c_char {
+    guard(|| {
+        let (entries, clients, revision) = server::activity().snapshot();
+        ok(serde_json::json!({
+            "entries": entries,
+            "clients": clients,
+            "revision": revision,
+        }))
+    })
+}
+
+/// 清空服务器访问日志。
+#[no_mangle]
+pub extern "C" fn ordo_server_log_clear() -> *mut c_char {
+    guard(|| {
+        server::activity().clear();
+        ok(true)
+    })
+}
+
 // ---------------------------------------------------------------------------
 // 导出函数：收藏夹
 // ---------------------------------------------------------------------------

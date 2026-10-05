@@ -168,6 +168,11 @@ class _OrdoBindings {
   );
   late final _DartZero serverConfigLoad = _lib
       .lookupFunction<_NativeZero, _DartZero>('ordo_server_config_load');
+  late final _DartZero serverLog = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_server_log',
+  );
+  late final _DartZero serverLogClear = _lib
+      .lookupFunction<_NativeZero, _DartZero>('ordo_server_log_clear');
   late final _DartImportFd importFd = _lib
       .lookupFunction<_NativeImportFd, _DartImportFd>('ordo_import_fd');
   late final _DartZero favoriteList = _lib
@@ -400,6 +405,10 @@ dynamic nativeExecute(String op, List<Object?> args) {
       );
     case 'serverConfigLoad':
       return _decode(_take(bindings, bindings.serverConfigLoad()));
+    case 'serverLog':
+      return _decode(_take(bindings, bindings.serverLog()));
+    case 'serverLogClear':
+      return _decode(_take(bindings, bindings.serverLogClear()));
     case 'importFd':
       return _decode(
         _take(

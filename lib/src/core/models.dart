@@ -552,6 +552,50 @@ class Favorite {
 }
 
 /// 本地文件服务器配置（HTTP/WebDAV + FTP）。
+class ServerUser {
+  const ServerUser({
+    required this.username,
+    required this.password,
+    required this.path,
+    required this.readOnly,
+  });
+
+  final String username;
+  final String password;
+  final String path;
+  final bool readOnly;
+
+  factory ServerUser.fromJson(Map<String, dynamic> json) {
+    return ServerUser(
+      username: json['username'] as String? ?? '',
+      password: json['password'] as String? ?? '',
+      path: json['path'] as String? ?? '',
+      readOnly: json['read_only'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'username': username,
+    'password': password,
+    'path': path,
+    'read_only': readOnly,
+  };
+
+  ServerUser copyWith({
+    String? username,
+    String? password,
+    String? path,
+    bool? readOnly,
+  }) {
+    return ServerUser(
+      username: username ?? this.username,
+      password: password ?? this.password,
+      path: path ?? this.path,
+      readOnly: readOnly ?? this.readOnly,
+    );
+  }
+}
+
 class ServerConfig {
   const ServerConfig({
     required this.root,
@@ -563,6 +607,7 @@ class ServerConfig {
     required this.username,
     required this.password,
     required this.readOnly,
+    this.users = const [],
   });
 
   final String root;
@@ -574,6 +619,7 @@ class ServerConfig {
   final String username;
   final String password;
   final bool readOnly;
+  final List<ServerUser> users;
 
   static const ServerConfig empty = ServerConfig(
     root: '',
@@ -598,6 +644,11 @@ class ServerConfig {
       username: json['username'] as String? ?? '',
       password: json['password'] as String? ?? '',
       readOnly: json['read_only'] as bool? ?? false,
+      users:
+          (json['users'] as List?)
+              ?.map((e) => ServerUser.fromJson((e as Map).cast<String, dynamic>()))
+              .toList() ??
+          const [],
     );
   }
 
@@ -611,6 +662,7 @@ class ServerConfig {
     'username': username,
     'password': password,
     'read_only': readOnly,
+    'users': [for (final user in users) user.toJson()],
   };
 
   ServerConfig copyWith({
@@ -623,6 +675,7 @@ class ServerConfig {
     String? username,
     String? password,
     bool? readOnly,
+    List<ServerUser>? users,
   }) {
     return ServerConfig(
       root: root ?? this.root,
@@ -634,6 +687,7 @@ class ServerConfig {
       username: username ?? this.username,
       password: password ?? this.password,
       readOnly: readOnly ?? this.readOnly,
+      users: users ?? this.users,
     );
   }
 }
@@ -648,6 +702,7 @@ class ServerStatus {
     required this.auth,
     required this.readOnly,
     required this.addresses,
+    required this.users,
     required this.error,
   });
 
@@ -658,6 +713,7 @@ class ServerStatus {
   final bool auth;
   final bool readOnly;
   final List<String> addresses;
+  final List<String> users;
   final String? error;
 
   factory ServerStatus.fromJson(Map<String, dynamic> json) {
@@ -671,6 +727,8 @@ class ServerStatus {
       addresses:
           (json['addresses'] as List?)?.map((e) => e.toString()).toList() ??
           const [],
+      users: (json['users'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
       error: json['error'] as String?,
     );
   }
@@ -680,4 +738,99 @@ class ServerStatus {
   String? get httpUrl => httpPort == null ? null : 'http://$host:$httpPort/';
 
   String? get ftpUrl => ftpPort == null ? null : 'ftp://$host:$ftpPort/';
+}
+
+/// 一条服务器访问记录。
+class ServerAccessEntry {
+  const ServerAccessEntry({
+    required this.time,
+    required this.protocol,
+    required this.client,
+    required this.action,
+    required this.path,
+    required this.status,
+  });
+
+  final int time;
+  final String protocol;
+  final String client;
+  final String action;
+  final String path;
+  final int status;
+
+  factory ServerAccessEntry.fromJson(Map<String, dynamic> json) {
+    return ServerAccessEntry(
+      time: (json['time'] as num?)?.toInt() ?? 0,
+      protocol: json['protocol'] as String? ?? '',
+      client: json['client'] as String? ?? '',
+      action: json['action'] as String? ?? '',
+      path: json['path'] as String? ?? '',
+      status: (json['status'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// 最近活跃的客户端。
+class ServerClientEntry {
+  const ServerClientEntry({
+    required this.address,
+    required this.protocol,
+    required this.lastSeen,
+    required this.requests,
+  });
+
+  final String address;
+  final String protocol;
+  final int lastSeen;
+  final int requests;
+
+  factory ServerClientEntry.fromJson(Map<String, dynamic> json) {
+    return ServerClientEntry(
+      address: json['address'] as String? ?? '',
+      protocol: json['protocol'] as String? ?? '',
+      lastSeen: (json['last_seen'] as num?)?.toInt() ?? 0,
+      requests: (json['requests'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// 服务器访问日志快照。
+class ServerLog {
+  const ServerLog({
+    required this.entries,
+    required this.clients,
+    required this.revision,
+  });
+
+  final List<ServerAccessEntry> entries;
+  final List<ServerClientEntry> clients;
+  final int revision;
+
+  static const ServerLog empty = ServerLog(
+    entries: [],
+    clients: [],
+    revision: 0,
+  );
+
+  factory ServerLog.fromJson(Map<String, dynamic> json) {
+    return ServerLog(
+      entries:
+          (json['entries'] as List?)
+              ?.map(
+                (e) =>
+                    ServerAccessEntry.fromJson((e as Map).cast<String, dynamic>()),
+              )
+              .toList() ??
+          const [],
+      clients:
+          (json['clients'] as List?)
+              ?.map(
+                (e) =>
+                    ServerClientEntry.fromJson((e as Map).cast<String, dynamic>()),
+              )
+              .toList() ??
+          const [],
+      revision: (json['revision'] as num?)?.toInt() ?? 0,
+    );
+  }
 }

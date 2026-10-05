@@ -1,13 +1,13 @@
 //! HTTP / WebDAV 文件服务器。
 //!
-//! 浏览器可直接浏览 / 下载；Windows、macOS、Linux 可将其映射为网络驱动器。
+//! 浏览器可直接浏览 / 上传 / 下载；Windows、macOS、Linux 可将其映射为网络驱动器。
 //! 支持 `GET`、`HEAD`、`PUT`、`DELETE`、`MKCOL`、`PROPFIND`、`PROPPATCH`、
 //! `MOVE`、`COPY`、`LOCK`、`UNLOCK` 与 `OPTIONS`。
 
 use super::fsutil;
 use super::ServerCtx;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -73,50 +73,94 @@ fn unauthorized(req: Request) {
     let _ = req.respond(response);
 }
 
-fn handle(request: Request, ctx: &ServerCtx) {
-    let method = request.method().as_str().to_ascii_uppercase();
-    if ctx.auth && method != "OPTIONS" && !authorized(&request, ctx) {
-        unauthorized(request);
-        return;
-    }
-    match method.as_str() {
-        "OPTIONS" => options(request),
-        "GET" => get(request, ctx, false),
-        "HEAD" => get(request, ctx, true),
-        "PROPFIND" => propfind(request, ctx),
-        "PROPPATCH" => proppatch(request),
-        "PUT" => put(request, ctx),
-        "DELETE" => delete(request, ctx),
-        "MKCOL" => mkcol(request, ctx),
-        "MOVE" => move_or_copy(request, ctx, true),
-        "COPY" => move_or_copy(request, ctx, false),
-        "LOCK" => lock(request),
-        "UNLOCK" => respond(request, 204, Vec::new(), ""),
-        _ => respond_text(request, 405, "方法不被支持".into()),
+/// 单次请求的访问范围（多用户可限定子目录 / 只读）。
+struct Access {
+    root: PathBuf,
+    read_only: bool,
+}
+
+fn basic_credentials(req: &Request) -> Option<(String, String)> {
+    let value = header(req, "authorization")?;
+    let encoded = value
+        .strip_prefix("Basic ")
+        .or_else(|| value.strip_prefix("basic "))?;
+    use base64::Engine;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(encoded.trim())
+        .ok()?;
+    let text = String::from_utf8(decoded).ok()?;
+    let (user, pass) = text.split_once(':')?;
+    Some((user.to_string(), pass.to_string()))
+}
+
+fn access(req: &Request, ctx: &ServerCtx) -> Option<Access> {
+    if !ctx.users.is_empty() {
+        let (user, pass) = basic_credentials(req)?;
+        let matched = ctx
+            .users
+            .iter()
+            .find(|u| u.username == user && u.password == pass)?;
+        let root = if matched.path.trim().is_empty() {
+            ctx.root.clone()
+        } else {
+            fsutil::resolve_rel(&ctx.root, matched.path.trim())?
+        };
+        Some(Access {
+            root,
+            read_only: ctx.read_only || matched.read_only,
+        })
+    } else if ctx.auth {
+        let (user, pass) = basic_credentials(req)?;
+        if user == ctx.username && pass == ctx.password {
+            Some(Access {
+                root: ctx.root.clone(),
+                read_only: ctx.read_only,
+            })
+        } else {
+            None
+        }
+    } else {
+        Some(Access {
+            root: ctx.root.clone(),
+            read_only: ctx.read_only,
+        })
     }
 }
 
-fn authorized(req: &Request, ctx: &ServerCtx) -> bool {
-    let Some(value) = header(req, "authorization") else {
-        return false;
+fn handle(request: Request, ctx: &ServerCtx) {
+    let method = request.method().as_str().to_ascii_uppercase();
+    let url = request_path(&request);
+    let client = request
+        .remote_addr()
+        .map(|addr| addr.ip().to_string())
+        .unwrap_or_else(|| "-".to_string());
+
+    if method == "OPTIONS" {
+        options(request);
+        return;
+    }
+
+    let Some(access) = access(&request, ctx) else {
+        ctx.activity.record("http", &client, &method, &url, 401);
+        unauthorized(request);
+        return;
     };
-    let encoded = if let Some(v) = value.strip_prefix("Basic ") {
-        v
-    } else if let Some(v) = value.strip_prefix("basic ") {
-        v
-    } else {
-        return false;
-    };
-    use base64::Engine;
-    let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(encoded.trim()) else {
-        return false;
-    };
-    let Ok(text) = String::from_utf8(decoded) else {
-        return false;
-    };
-    match text.split_once(':') {
-        Some((user, pass)) => user == ctx.username && pass == ctx.password,
-        None => false,
+
+    ctx.activity.record("http", &client, &method, &url, 200);
+
+    match method.as_str() {
+        "GET" => get(request, &access, false),
+        "HEAD" => get(request, &access, true),
+        "PROPFIND" => propfind(request, &access),
+        "PROPPATCH" => proppatch(request),
+        "PUT" => put(request, &access),
+        "DELETE" => delete(request, &access),
+        "MKCOL" => mkcol(request, &access),
+        "MOVE" => move_or_copy(request, &access, true),
+        "COPY" => move_or_copy(request, &access, false),
+        "LOCK" => lock(request),
+        "UNLOCK" => respond(request, 204, Vec::new(), ""),
+        _ => respond_text(request, 405, "方法不被支持".into()),
     }
 }
 
@@ -138,14 +182,14 @@ fn request_path(req: &Request) -> String {
     req.url().split('?').next().unwrap_or("/").to_string()
 }
 
-fn resolve(req: &Request, ctx: &ServerCtx) -> Option<std::path::PathBuf> {
+fn resolve(req: &Request, access: &Access) -> Option<PathBuf> {
     let path = request_path(req);
-    fsutil::resolve_rel(&ctx.root, &fsutil::decode(path.trim_start_matches('/')))
+    fsutil::resolve_rel(&access.root, &fsutil::decode(path.trim_start_matches('/')))
 }
 
-fn get(req: Request, ctx: &ServerCtx, head: bool) {
+fn get(req: Request, access: &Access, head: bool) {
     let url = request_path(&req);
-    let Some(fs_path) = resolve(&req, ctx) else {
+    let Some(fs_path) = resolve(&req, access) else {
         respond_text(req, 403, "禁止访问".into());
         return;
     };
@@ -162,7 +206,7 @@ fn get(req: Request, ctx: &ServerCtx, head: bool) {
             let _ = req.respond(response);
             return;
         }
-        respond_html(req, 200, render_listing(&fs_path));
+        respond_html(req, 200, render_listing(&fs_path, &url, access.read_only));
         return;
     }
 
@@ -268,7 +312,7 @@ fn parse_range(value: &str, len: u64) -> Option<(u64, u64)> {
     }
 }
 
-fn render_listing(fs_path: &Path) -> String {
+fn render_listing(fs_path: &Path, url: &str, read_only: bool) -> String {
     let entries = crate::api::list_dir(&fs_path.to_string_lossy()).unwrap_or_default();
     let mut rows = String::new();
     rows.push_str("<tr><td>📁 <a href=\"../\">../</a></td><td>—</td><td>—</td></tr>");
@@ -290,6 +334,20 @@ fn render_listing(fs_path: &Path) -> String {
             name = fsutil::html_escape(&entry.name),
         ));
     }
+
+    let dir = serde_json::to_string(url).unwrap_or_else(|_| "\"/\"".to_string());
+    let toolbar = if read_only {
+        String::new()
+    } else {
+        "<div class=\"bar\">\
+<button onclick=\"document.getElementById('file').click()\">上传文件</button>\
+<button onclick=\"newFolder()\">新建文件夹</button>\
+<input id=\"file\" type=\"file\" multiple hidden onchange=\"upload(this.files)\">\
+<span id=\"status\"></span></div>"
+            .to_string()
+    };
+    let drop_attr = if read_only { "" } else { " data-drop=\"1\"" };
+
     format!(
         "<!doctype html><html lang=\"zh\"><head><meta charset=\"utf-8\">\
 <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
@@ -298,19 +356,49 @@ body{{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;margin:0;backgro
 header{{background:#6750a4;color:#fff;padding:16px 24px}}\
 header h1{{margin:0;font-size:20px;font-weight:600}}\
 main{{padding:16px 24px}}\
+.bar{{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}}\
+.bar button{{background:#6750a4;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer}}\
+.bar button:hover{{opacity:.9}}\
+#status{{color:#666;font-size:13px}}\
 table{{border-collapse:collapse;width:100%;max-width:900px}}\
 th,td{{text-align:left;padding:8px 12px;border-bottom:1px solid #eee;white-space:nowrap}}\
 td:first-child{{overflow:hidden;text-overflow:ellipsis;max-width:520px}}\
 a{{color:#6750a4;text-decoration:none}}a:hover{{text-decoration:underline}}\
+body.dragover{{background:#efe8ff}}\
 </style></head><body><header><h1>安序 Ordo · 文件服务器</h1></header><main>\
-<table><thead><tr><th>名称</th><th>大小</th><th>修改时间</th></tr></thead>\
-<tbody>{rows}</tbody></table></main></body></html>"
+{toolbar}\
+<table{drop_attr}><thead><tr><th>名称</th><th>大小</th><th>修改时间</th></tr></thead>\
+<tbody>{rows}</tbody></table></main>\
+<script>\
+var DIR={dir};\
+function encodeName(n){{return encodeURIComponent(n);}}\
+async function upload(files){{\
+ var s=document.getElementById('status');\
+ for(var i=0;i<files.length;i++){{\
+  s.textContent='上传 '+(i+1)+'/'+files.length+'：'+files[i].name;\
+  var res=await fetch(DIR+encodeName(files[i].name),{{method:'PUT',body:files[i]}});\
+  if(!res.ok){{s.textContent='上传失败：'+files[i].name+' ('+res.status+')';return;}}\
+ }}\
+ s.textContent='上传完成，正在刷新…';location.reload();\
+}}\
+async function newFolder(){{\
+ var name=prompt('文件夹名称');if(!name)return;\
+ var res=await fetch(DIR+encodeName(name),{{method:'MKCOL'}});\
+ if(res.ok||res.status===405){{location.reload();}}else{{alert('创建失败 ('+res.status+')');}}\
+}}\
+var table=document.querySelector('table');\
+if(table&&table.getAttribute('data-drop')){{\
+ document.addEventListener('dragover',function(e){{e.preventDefault();document.body.classList.add('dragover');}});\
+ document.addEventListener('dragleave',function(e){{if(e.target===document.documentElement)document.body.classList.remove('dragover');}});\
+ document.addEventListener('drop',function(e){{e.preventDefault();document.body.classList.remove('dragover');if(e.dataTransfer&&e.dataTransfer.files.length){{upload(e.dataTransfer.files);}}}});\
+}}\
+</script></body></html>"
     )
 }
 
-fn propfind(req: Request, ctx: &ServerCtx) {
+fn propfind(req: Request, access: &Access) {
     let url = request_path(&req);
-    let Some(fs_path) = resolve(&req, ctx) else {
+    let Some(fs_path) = resolve(&req, access) else {
         respond_text(req, 403, "禁止访问".into());
         return;
     };
@@ -402,12 +490,12 @@ fn proppatch(req: Request) {
     respond_xml(req, 207, xml.to_string());
 }
 
-fn put(mut req: Request, ctx: &ServerCtx) {
-    if ctx.read_only {
+fn put(mut req: Request, access: &Access) {
+    if access.read_only {
         respond_text(req, 403, "服务器为只读".into());
         return;
     }
-    let Some(fs_path) = resolve(&req, ctx) else {
+    let Some(fs_path) = resolve(&req, access) else {
         respond_text(req, 403, "禁止访问".into());
         return;
     };
@@ -430,12 +518,12 @@ fn put(mut req: Request, ctx: &ServerCtx) {
     }
 }
 
-fn delete(req: Request, ctx: &ServerCtx) {
-    if ctx.read_only {
+fn delete(req: Request, access: &Access) {
+    if access.read_only {
         respond_text(req, 403, "服务器为只读".into());
         return;
     }
-    let Some(fs_path) = resolve(&req, ctx) else {
+    let Some(fs_path) = resolve(&req, access) else {
         respond_text(req, 403, "禁止访问".into());
         return;
     };
@@ -453,12 +541,12 @@ fn delete(req: Request, ctx: &ServerCtx) {
     }
 }
 
-fn mkcol(req: Request, ctx: &ServerCtx) {
-    if ctx.read_only {
+fn mkcol(req: Request, access: &Access) {
+    if access.read_only {
         respond_text(req, 403, "服务器为只读".into());
         return;
     }
-    let Some(fs_path) = resolve(&req, ctx) else {
+    let Some(fs_path) = resolve(&req, access) else {
         respond_text(req, 403, "禁止访问".into());
         return;
     };
@@ -487,12 +575,12 @@ fn destination_path(value: &str) -> String {
     fsutil::decode(path.split('?').next().unwrap_or("/"))
 }
 
-fn move_or_copy(req: Request, ctx: &ServerCtx, is_move: bool) {
-    if ctx.read_only {
+fn move_or_copy(req: Request, access: &Access, is_move: bool) {
+    if access.read_only {
         respond_text(req, 403, "服务器为只读".into());
         return;
     }
-    let Some(source) = resolve(&req, ctx) else {
+    let Some(source) = resolve(&req, access) else {
         respond_text(req, 403, "禁止访问".into());
         return;
     };
@@ -501,7 +589,7 @@ fn move_or_copy(req: Request, ctx: &ServerCtx, is_move: bool) {
         return;
     };
     let Some(target) = fsutil::resolve_rel(
-        &ctx.root,
+        &access.root,
         destination_path(destination).trim_start_matches('/'),
     ) else {
         respond_text(req, 403, "目标路径非法".into());

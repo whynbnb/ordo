@@ -48,13 +48,23 @@ fn handle_client(stream: TcpStream, ctx: Arc<ServerCtx>) -> std::io::Result<()> 
         .local_addr()
         .map(|addr| addr.ip().to_string())
         .unwrap_or_else(|_| "127.0.0.1".to_string());
+    let peer = stream
+        .peer_addr()
+        .map(|addr| addr.ip().to_string())
+        .unwrap_or_else(|_| "-".to_string());
     let mut writer = stream.try_clone()?;
     let mut reader = BufReader::new(stream);
 
+    let root = ctx.root.clone();
+    let read_only = ctx.read_only;
+    ctx.activity.record("ftp", &peer, "CONNECT", "", 200);
     write_line(&mut writer, "220 Ordo FTP server ready")?;
 
     let mut session = Session {
         ctx,
+        root,
+        read_only,
+        peer,
         cwd: "/".to_string(),
         data: DataMode::None,
         rename_from: None,
@@ -96,6 +106,9 @@ enum DataMode {
 
 struct Session {
     ctx: Arc<ServerCtx>,
+    root: PathBuf,
+    read_only: bool,
+    peer: String,
     cwd: String,
     data: DataMode,
     rename_from: Option<PathBuf>,
@@ -106,6 +119,12 @@ struct Session {
 
 const PRE_AUTH: &[&str] = &[
     "USER", "PASS", "QUIT", "FEAT", "SYST", "NOOP", "OPTS", "AUTH", "PBSZ", "PROT", "TYPE",
+];
+
+/// 记录到访问日志的命令。
+const LOGGED: &[&str] = &[
+    "RETR", "STOR", "APPE", "DELE", "MKD", "XMKD", "RMD", "XRMD", "RNTO", "LIST", "NLST", "MLSD",
+    "CWD",
 ];
 
 impl Session {
@@ -120,9 +139,15 @@ impl Session {
             return Ok(true);
         }
 
+        if LOGGED.contains(&command) {
+            self.ctx
+                .activity
+                .record("ftp", &self.peer, command, argument, 200);
+        }
+
         match command {
             "USER" => {
-                if self.ctx.auth {
+                if !self.ctx.users.is_empty() || self.ctx.auth {
                     self.pending_user = argument.to_string();
                     self.authenticated = false;
                     write_line(writer, "331 User name okay, need password.")?;
@@ -132,10 +157,40 @@ impl Session {
                 }
             }
             "PASS" => {
-                if !self.ctx.auth
-                    || (self.pending_user == self.ctx.username && argument == self.ctx.password)
+                let matched = self
+                    .ctx
+                    .users
+                    .iter()
+                    .find(|u| u.username == self.pending_user && u.password == argument)
+                    .cloned();
+                if let Some(user) = matched {
+                    self.root = if user.path.trim().is_empty() {
+                        self.ctx.root.clone()
+                    } else {
+                        fsutil::resolve_rel(&self.ctx.root, user.path.trim())
+                            .unwrap_or_else(|| self.ctx.root.clone())
+                    };
+                    self.read_only = self.ctx.read_only || user.read_only;
+                    self.authenticated = true;
+                    self.cwd = "/".to_string();
+                    self.ctx
+                        .activity
+                        .record("ftp", &self.peer, "LOGIN", &user.username, 200);
+                    write_line(writer, "230 Login successful.")?;
+                } else if self.ctx.users.is_empty()
+                    && (!self.ctx.auth
+                        || (self.pending_user == self.ctx.username
+                            && argument == self.ctx.password))
                 {
                     self.authenticated = true;
+                    let who = if self.ctx.auth {
+                        self.pending_user.clone()
+                    } else {
+                        "anonymous".to_string()
+                    };
+                    self.ctx
+                        .activity
+                        .record("ftp", &self.peer, "LOGIN", &who, 200);
                     write_line(writer, "230 Login successful.")?;
                 } else {
                     write_line(writer, "530 Login incorrect.")?;
@@ -208,7 +263,7 @@ impl Session {
             "STOR" => self.store(argument, false, writer)?,
             "APPE" => self.store(argument, true, writer)?,
             "DELE" => {
-                if self.ctx.read_only {
+                if self.read_only {
                     write_line(writer, "550 Read-only server.")?;
                 } else if let Some(path) = self.fs_path(argument) {
                     if path.is_file() && std::fs::remove_file(&path).is_ok() {
@@ -221,7 +276,7 @@ impl Session {
                 }
             }
             "MKD" | "XMKD" => {
-                if self.ctx.read_only {
+                if self.read_only {
                     write_line(writer, "550 Read-only server.")?;
                 } else if let Some(path) = self.fs_path(argument) {
                     if std::fs::create_dir(&path).is_ok() {
@@ -234,7 +289,7 @@ impl Session {
                 }
             }
             "RMD" | "XRMD" => {
-                if self.ctx.read_only {
+                if self.read_only {
                     write_line(writer, "550 Read-only server.")?;
                 } else if let Some(path) = self.fs_path(argument) {
                     if std::fs::remove_dir(&path).is_ok() {
@@ -259,7 +314,7 @@ impl Session {
                 }
             }
             "RNTO" => {
-                if self.ctx.read_only {
+                if self.read_only {
                     write_line(writer, "550 Read-only server.")?;
                     self.rename_from = None;
                 } else {
@@ -303,7 +358,7 @@ impl Session {
 
     fn fs_path(&self, argument: &str) -> Option<PathBuf> {
         let ftp_path = ftp_join(&self.cwd, argument);
-        fsutil::resolve_rel(&self.ctx.root, ftp_path.trim_start_matches('/'))
+        fsutil::resolve_rel(&self.root, ftp_path.trim_start_matches('/'))
     }
 
     fn enter_passive(&mut self, writer: &mut TcpStream, extended: bool) -> std::io::Result<()> {
@@ -552,7 +607,7 @@ impl Session {
         append: bool,
         writer: &mut TcpStream,
     ) -> std::io::Result<()> {
-        if self.ctx.read_only {
+        if self.read_only {
             write_line(writer, "550 Read-only server.")?;
             return Ok(());
         }
