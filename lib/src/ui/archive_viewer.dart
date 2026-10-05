@@ -6,6 +6,7 @@ import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'archive_actions.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 查看归档（ZIP / TAR / TAR.GZ）内容，可整体解压或单独提取条目。
 class ArchiveViewerScreen extends StatefulWidget {
@@ -82,9 +83,7 @@ class _ArchiveViewerScreenState extends State<ArchiveViewerScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showOrdoSnack(context, message);
   }
 
   @override

@@ -29,6 +29,7 @@ import 'tabbed_browser.dart';
 import 'settings_screen.dart';
 import 'trash_screen.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.version});
@@ -638,9 +639,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showOrdoSnack(context, message);
   }
 
   Widget _sectionTitle(String text) {

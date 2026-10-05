@@ -29,7 +29,9 @@ import 'open_entry.dart';
 import 'path_breadcrumb.dart';
 import 'search_screen.dart';
 import 'transfer_screen.dart';
+import 'viewer_screen.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 供父级（标签页容器）控制 / 观察单个浏览页的返回能力与会话状态。
 class BrowserScreenController extends ChangeNotifier {
@@ -98,6 +100,9 @@ class _BrowserScreenState extends State<BrowserScreen>
   final List<NavStep> _history = [];
   int _historyIndex = -1;
 
+  /// 文件列表滚动位置（用于返回时恢复）。
+  final ScrollController _scroll = ScrollController();
+
   bool get _canGoBack => _historyIndex > 0;
   bool get _canGoForward => _historyIndex < _history.length - 1;
 
@@ -120,6 +125,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     _controller = BrowserController(initialPath: _path);
     _controller.load();
     _controller.addListener(_onControllerNotify);
+    _scroll.addListener(_onScroll);
     DropController.instance.revision.addListener(_onDropRevision);
     TransferQueue.instance.completed.addListener(_onTransferCompleted);
     ViewStore.instance.loadIfNeeded();
@@ -130,6 +136,8 @@ class _BrowserScreenState extends State<BrowserScreen>
       if (!mounted) return;
       widget.onLocationChanged?.call(_path, _title);
       _syncState();
+      final offset = _history[_historyIndex].offset;
+      if (offset > 0) _jumpTo(offset);
     });
   }
 
@@ -152,6 +160,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     widget.controller?._detach();
     _controller.removeListener(_onControllerNotify);
     _controller.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -192,7 +201,10 @@ class _BrowserScreenState extends State<BrowserScreen>
     widget.onLocationChanged?.call(_path, _title);
     _syncState();
     await _controller.navigateTo(path);
-    if (mounted) _updateDropTarget();
+    if (mounted) {
+      _jumpTo(0);
+      _updateDropTarget();
+    }
   }
 
   /// 前进 / 后退到历史中的某一步。
@@ -207,7 +219,36 @@ class _BrowserScreenState extends State<BrowserScreen>
     widget.onLocationChanged?.call(_path, _title);
     _syncState();
     _controller.navigateTo(step.path);
+    _jumpTo(step.offset);
     _updateDropTarget();
+  }
+
+  void _onScroll() {
+    if (_historyIndex >= 0 &&
+        _historyIndex < _history.length &&
+        _scroll.hasClients) {
+      _history[_historyIndex].offset = _scroll.offset;
+    }
+  }
+
+  /// 恢复滚动位置；列表尚未布局完成时多试几帧。
+  void _jumpTo(double offset, [int attempt = 0]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final max = _scroll.position.maxScrollExtent;
+      if (max == 0 && offset > 0 && attempt < 5) {
+        _jumpTo(offset, attempt + 1);
+        return;
+      }
+      _scroll.jumpTo(offset.clamp(0.0, max));
+    });
+  }
+
+  void _goUp() {
+    final parent = parentOf(_path);
+    if (parent == _path) return;
+    final title = parent == '/' ? '/' : baseName(parent);
+    _navigateToPath(parent, title.isEmpty ? parent : title);
   }
 
   void _handleBack() {
@@ -288,13 +329,6 @@ class _BrowserScreenState extends State<BrowserScreen>
                 const DropOverlay(),
               ],
             ),
-            floatingActionButton: _controller.selectionMode
-                ? null
-                : FloatingActionButton.extended(
-                    onPressed: _showCreateSheet,
-                    icon: const Icon(Icons.add_rounded),
-                    label: Text(tr('新建')),
-                  ),
             bottomNavigationBar: _buildBottomBar(context),
           ),
         );
@@ -329,9 +363,15 @@ class _BrowserScreenState extends State<BrowserScreen>
 
     return AppBar(
       automaticallyImplyLeading: false,
-      leadingWidth: 96,
+      leadingWidth: ViewStore.instance.showUp ? 144 : 96,
       leading: Row(
         children: [
+          if (ViewStore.instance.showUp)
+            IconButton(
+              tooltip: tr('向上一级'),
+              icon: const Icon(Icons.arrow_upward_rounded),
+              onPressed: parentOf(_path) == _path ? null : _goUp,
+            ),
           IconButton(
             tooltip: tr('后退'),
             icon: const Icon(Icons.arrow_back_rounded),
@@ -401,13 +441,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
             ),
             const PopupMenuDivider(),
-            PopupMenuItem(value: 'folder', child: Text(tr('新建文件夹'))),
-            PopupMenuItem(value: 'file', child: Text(tr('新建文件'))),
-            PopupMenuItem(
-              value: 'paste',
-              enabled: !TransferClipboard.instance.isEmpty,
-              child: Text(tr('粘贴到此处 ({p0})', {'p0': TransferClipboard.instance.count})),
-            ),
+            PopupMenuItem(value: 'create', child: Text(tr('新建…'))),
             const PopupMenuDivider(),
             PopupMenuItem(
               value: 'view',
@@ -493,6 +527,7 @@ class _BrowserScreenState extends State<BrowserScreen>
           final extent = ViewStore.instance.tileExtent;
           final count = (constraints.maxWidth / extent).floor().clamp(2, 8);
           return GridView.builder(
+            controller: _scroll,
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: count,
@@ -520,6 +555,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     }
 
     return ListView.builder(
+      controller: _scroll,
       padding: const EdgeInsets.only(bottom: 96),
       itemCount: entries.length,
       itemBuilder: (context, index) {
@@ -659,12 +695,8 @@ class _BrowserScreenState extends State<BrowserScreen>
         _controller.refresh();
       case 'hidden':
         _controller.setShowHidden(!_controller.showHidden);
-      case 'folder':
-        _create(folder: true);
-      case 'file':
-        _create(folder: false);
-      case 'paste':
-        _paste();
+      case 'create':
+        _showCreateSheet();
       case 'view':
         ViewStore.instance.toggleGrid();
       case 'iconSize':
@@ -1322,6 +1354,20 @@ class _BrowserScreenState extends State<BrowserScreen>
                   _openEntry(entry);
                 },
               ),
+              if (!entry.isDir)
+                ListTile(
+                  leading: const Icon(Icons.text_snippet_outlined),
+                  title: Text(tr('以文本方式打开')),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            ViewerScreen(entry: entry, forceText: true),
+                      ),
+                    );
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.drive_file_rename_outline_rounded),
                 title: Text(tr('重命名')),
@@ -1570,9 +1616,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     final text = errors.isEmpty
         ? message
         : '$message\n${errors.take(3).join('\n')}';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    showOrdoSnack(context, text);
   }
 }
 

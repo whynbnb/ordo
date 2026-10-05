@@ -4,21 +4,32 @@ import 'package:flutter/foundation.dart';
 
 import 'prefs_store.dart';
 
-/// 浏览历史中的一步（路径 + 标题）。
+/// 浏览历史中的一步（路径 + 标题 + 列表滚动位置）。
 class NavStep {
-  const NavStep(this.path, this.title);
+  NavStep(this.path, this.title, {this.offset = 0});
 
   final String path;
   final String title;
 
-  Map<String, Object?> toJson() => {'path': path, 'title': title};
+  /// 该目录列表的滚动位置（返回时用于恢复）。
+  double offset;
+
+  Map<String, Object?> toJson() => {
+    'path': path,
+    'title': title,
+    'offset': offset,
+  };
 
   static NavStep fromJson(Object? raw) {
     if (raw is Map) {
       final map = raw.cast<String, Object?>();
-      return NavStep('${map['path'] ?? ''}', '${map['title'] ?? ''}');
+      return NavStep(
+        '${map['path'] ?? ''}',
+        '${map['title'] ?? ''}',
+        offset: (map['offset'] as num?)?.toDouble() ?? 0,
+      );
     }
-    return const NavStep('', '');
+    return NavStep('', '');
   }
 }
 

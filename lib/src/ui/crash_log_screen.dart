@@ -5,6 +5,7 @@ import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'directory_picker.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 崩溃 / 错误日志查看与导出。
 class CrashLogScreen extends StatefulWidget {
@@ -72,9 +73,7 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showOrdoSnack(context, message);
   }
 
   @override

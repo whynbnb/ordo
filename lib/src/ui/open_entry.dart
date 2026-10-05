@@ -10,6 +10,7 @@ import '../state/recent_store.dart';
 import 'browser_screen.dart';
 import 'viewer_screen.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 打开一个条目：文件夹进入浏览；图片 / 音频 / 文本在应用内预览；其余交给系统。
 ///
@@ -69,7 +70,5 @@ Future<void> openWithDefault(BuildContext context, FileEntry entry) async {
 }
 
 void _snack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+  showOrdoSnack(context, message);
 }

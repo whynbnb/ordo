@@ -6,7 +6,7 @@ import 'package:ordo/src/state/session_store.dart';
 void main() {
   group('会话序列化', () {
     test('round trip', () {
-      const session = BrowserSession(
+      final session = BrowserSession(
         tabs: [
           TabSession(
             path: '/sdcard/A',

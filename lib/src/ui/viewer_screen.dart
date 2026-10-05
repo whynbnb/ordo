@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/file_types.dart';
 import '../core/format.dart';
@@ -11,15 +11,19 @@ import '../services/platform_service.dart';
 import 'dialogs.dart';
 import 'open_entry.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 应用内预览：图片渲染、音频播放、文本查看与编辑。
 ///
 /// 文件读取 / 写入全部经由 Rust 核心；音频通过与系统 `MediaPlayer` 通信播放，
 /// 视频不做应用内预览。
 class ViewerScreen extends StatefulWidget {
-  const ViewerScreen({super.key, required this.entry});
+  const ViewerScreen({super.key, required this.entry, this.forceText = false});
 
   final FileEntry entry;
+
+  /// 强制以纯文本方式查看（用于「以文本方式打开」）。
+  final bool forceText;
 
   @override
   State<ViewerScreen> createState() => _ViewerScreenState();
@@ -52,6 +56,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final Map<int, Future<Uint8List?>> _pdfFutures = {};
 
   _PreviewKind get _kind {
+    if (widget.forceText) return _PreviewKind.text;
     final ext = widget.entry.extension;
     if (isImageExtension(ext)) return _PreviewKind.image;
     if (isAudioExtension(ext)) return _PreviewKind.audio;
@@ -235,9 +240,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showOrdoSnack(context, message);
   }
 
   @override
@@ -304,7 +307,83 @@ class _ViewerScreenState extends State<ViewerScreen> {
             ? null
             : () => openWithDefault(context, widget.entry),
       ),
+      PopupMenuButton<String>(
+        tooltip: tr('更多'),
+        onSelected: _onMoreAction,
+        itemBuilder: (context) => [
+          PopupMenuItem(value: 'details', child: Text(tr('详细信息'))),
+          PopupMenuItem(value: 'copy_path', child: Text(tr('复制路径'))),
+          if (!widget.entry.isDir)
+            PopupMenuItem(value: 'hash', child: Text(tr('校验和'))),
+          if (isImageExtension(widget.entry.extension))
+            PopupMenuItem(value: 'media', child: Text(tr('媒体信息'))),
+          PopupMenuItem(value: 'share', child: Text(tr('分享'))),
+          const PopupMenuDivider(),
+          PopupMenuItem(value: 'rename', child: Text(tr('重命名'))),
+          PopupMenuItem(
+            value: 'delete',
+            child: Text(
+              tr('删除'),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
     ];
+  }
+
+  Future<void> _onMoreAction(String value) async {
+    final entry = widget.entry;
+    switch (value) {
+      case 'details':
+        await showDetailsSheet(context, entry);
+      case 'copy_path':
+        await Clipboard.setData(ClipboardData(text: entry.path));
+        _snack(tr('已复制路径'));
+      case 'hash':
+        await showHashDialog(context, entry);
+      case 'media':
+        await showMediaInfoDialog(context, entry);
+      case 'share':
+        final ok = await PlatformService.shareFile(
+          entry.path,
+          mime: mimeOfExtension(entry.extension),
+        );
+        if (!ok) _snack(tr('分享失败'));
+      case 'rename':
+        await _rename();
+      case 'delete':
+        await _delete();
+    }
+  }
+
+  Future<void> _rename() async {
+    final entry = widget.entry;
+    final name = await showNameDialog(
+      context,
+      title: tr('重命名'),
+      initialText: entry.name,
+    );
+    if (name == null || name.isEmpty || name == entry.name || !mounted) return;
+    try {
+      await _service.rename(entry.path, name);
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      _snack('$error');
+    }
+  }
+
+  Future<void> _delete() async {
+    final entry = widget.entry;
+    final allowTrash = !isRemotePath(entry.path);
+    final toTrash = await confirmDelete(context, 1, allowTrash: allowTrash);
+    if (toTrash == null || !mounted) return;
+    try {
+      await _service.delete([entry.path], toTrash: toTrash);
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      _snack('$error');
+    }
   }
 
   Future<void> _onImageAction(String value) async {

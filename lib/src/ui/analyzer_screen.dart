@@ -11,6 +11,7 @@ import 'directory_picker.dart';
 import 'job_progress.dart';
 import 'open_entry.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 存储分析：分类占用、最大文件、重复文件。
 class AnalyzerScreen extends StatefulWidget {
@@ -216,9 +217,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
     final text = errors.isEmpty
         ? message
         : '$message\n${errors.take(3).join('\n')}';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    showOrdoSnack(context, text);
   }
 
   String _categoryLabel(String category) => switch (category) {

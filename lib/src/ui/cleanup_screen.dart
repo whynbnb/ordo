@@ -4,6 +4,7 @@ import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 智能清理：分类列出可安全删除的垃圾文件，一键清理。
 class CleanupScreen extends StatefulWidget {
@@ -107,9 +108,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showOrdoSnack(context, message);
   }
 
   @override

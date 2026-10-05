@@ -4,6 +4,7 @@ import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 存储趋势：记录并比较目录用量快照。
 class TrendScreen extends StatefulWidget {
@@ -69,9 +70,7 @@ class _TrendScreenState extends State<TrendScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showOrdoSnack(context, message);
   }
 
   @override

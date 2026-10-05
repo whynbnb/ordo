@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../i18n/i18n.dart';
 import '../state/privilege_store.dart';
+import 'snack.dart';
 
 /// 权限模式设置：Root / Shizuku /（后续）ADB。
 class PrivilegeScreen extends StatefulWidget {
@@ -55,9 +56,7 @@ class _PrivilegeScreenState extends State<PrivilegeScreen> {
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showOrdoSnack(context, message);
   }
 
   @override

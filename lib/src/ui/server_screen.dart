@@ -9,6 +9,7 @@ import '../services/ordo_service.dart';
 import 'directory_picker.dart';
 import 'qr_dialog.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 在本机开启 HTTP/WebDAV 与 FTP 服务器，供同一局域网内的其他设备访问。
 class ServerScreen extends StatefulWidget {
@@ -201,9 +202,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showOrdoSnack(context, message);
   }
 
   Future<void> _copy(String text) async {

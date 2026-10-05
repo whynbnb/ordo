@@ -227,6 +227,47 @@ class _DetailsSheetState extends State<_DetailsSheet> {
   }
 }
 
+/// 删除确认对话框：返回 `true` 移入回收站、`false` 永久删除、`null` 取消。
+Future<bool?> confirmDelete(
+  BuildContext context,
+  int count, {
+  required bool allowTrash,
+}) {
+  return showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      final scheme = Theme.of(dialogContext).colorScheme;
+      return AlertDialog(
+        title: Text(tr('删除')),
+        content: Text(
+          allowTrash
+              ? tr('确定删除选中的 {p0} 项吗？\n移入回收站后可在「回收站」中恢复。', {
+                  'p0': count,
+                })
+              : tr('确定删除选中的 {p0} 项吗？\n网络位置不支持回收站，将永久删除。', {
+                  'p0': count,
+                }),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(tr('取消')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(tr('永久删除'), style: TextStyle(color: scheme.error)),
+          ),
+          if (allowTrash)
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(tr('移入回收站')),
+            ),
+        ],
+      );
+    },
+  );
+}
+
 /// 显示文件的 SHA-256 与 MD5 校验和（计算全部由 Rust 完成）。
 Future<void> showHashDialog(BuildContext context, FileEntry entry) {
   return showDialog<void>(

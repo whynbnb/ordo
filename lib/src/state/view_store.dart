@@ -11,10 +11,14 @@ class ViewStore extends ChangeNotifier {
 
   bool _grid = false;
   String _iconSize = 'medium';
+  bool _showUp = false;
   bool _loaded = false;
 
   bool get grid => _grid;
   String get iconSize => _iconSize;
+
+  /// 是否在浏览页显示「向上一级」按钮（默认关闭）。
+  bool get showUp => _showUp;
   bool get loaded => _loaded;
 
   /// 网格每格的目标边长（像素）。
@@ -36,6 +40,7 @@ class ViewStore extends ChangeNotifier {
     await PrefsStore.instance.loadIfNeeded();
     _grid = PrefsStore.instance.value('browser_view') == 'grid';
     _iconSize = PrefsStore.instance.value('browser_icon_size') ?? 'medium';
+    _showUp = PrefsStore.instance.value('browser_show_up') == '1';
     _loaded = true;
     notifyListeners();
   }
@@ -50,6 +55,12 @@ class ViewStore extends ChangeNotifier {
     _iconSize = size;
     notifyListeners();
     await PrefsStore.instance.setValue('browser_icon_size', size);
+  }
+
+  Future<void> setShowUp(bool value) async {
+    _showUp = value;
+    notifyListeners();
+    await PrefsStore.instance.setValue('browser_show_up', value ? '1' : null);
   }
 
   String get iconSizeLabel => switch (_iconSize) {

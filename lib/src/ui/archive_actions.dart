@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/ordo_service.dart';
 import 'job_progress.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 归档格式。
 enum ArchiveFormat { zip, tar, tarGz }
@@ -123,9 +124,7 @@ Future<bool> runArchiveExtract(
         continue;
       }
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(message)));
+        showOrdoSnack(context, message);
       }
       return false;
     }

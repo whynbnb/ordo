@@ -5,11 +5,13 @@ import '../i18n/locale_store.dart';
 import '../state/prefs_store.dart';
 import '../state/session_store.dart';
 import '../state/theme_store.dart';
+import '../state/view_store.dart';
 import 'about_dialog.dart';
 import 'crash_log_screen.dart';
 import 'home_layout_screen.dart';
 import 'privilege_screen.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 选择应用的结果：`null` 表示取消选择动作本身。
 class _PickResult {
@@ -37,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _prefs.addListener(_onChanged);
     _prefs.loadIfNeeded();
+    ViewStore.instance.loadIfNeeded();
   }
 
   @override
@@ -131,9 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showOrdoSnack(context, message);
   }
 
   Future<void> _toggleLock(bool value) async {
@@ -268,6 +269,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: Text(tr('完全关闭后仍保留标签页与浏览位置')),
               value: SessionStore.instance.remember,
               onChanged: (value) => SessionStore.instance.setRemember(value),
+            ),
+          ),
+          ListenableBuilder(
+            listenable: ViewStore.instance,
+            builder: (context, _) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(tr('显示向上一级')),
+              subtitle: Text(tr('在浏览页显示「向上一级」按钮')),
+              value: ViewStore.instance.showUp,
+              onChanged: (value) => ViewStore.instance.setShowUp(value),
             ),
           ),
           const Divider(height: 32),

@@ -5,6 +5,7 @@ import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'dialogs.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 回收站：查看、恢复或彻底删除此前移入的文件。
 class TrashScreen extends StatefulWidget {
@@ -97,9 +98,7 @@ class _TrashScreenState extends State<TrashScreen> {
     final text = errors.isEmpty
         ? message
         : '$message\n${errors.take(3).join('\n')}';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    showOrdoSnack(context, text);
   }
 
   @override

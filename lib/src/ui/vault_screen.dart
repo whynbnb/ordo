@@ -5,6 +5,7 @@ import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'directory_picker.dart';
 import '../i18n/i18n.dart';
+import 'snack.dart';
 
 /// 隐私空间：文件存放在应用私有目录，常规文件浏览器中不可见。
 class VaultScreen extends StatefulWidget {
@@ -108,9 +109,7 @@ class _VaultScreenState extends State<VaultScreen> {
     final text = errors.isEmpty
         ? message
         : '$message\n${errors.take(3).join('\n')}';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    showOrdoSnack(context, text);
   }
 
   @override
