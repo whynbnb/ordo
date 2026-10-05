@@ -120,10 +120,16 @@ bool isVideoExtension(String extension) =>
 bool isAudioExtension(String extension) =>
     _audio.contains(extension.toLowerCase());
 
-/// 能否在应用内预览（图片 / 音频 / 文本）。视频不做应用内预览。
+/// 是否为 PDF。
+bool isPdfExtension(String extension) => extension.toLowerCase() == 'pdf';
+
+/// 能否在应用内预览（图片 / 音频 / 文本 / PDF）。视频不做应用内预览。
 bool isPreviewableExtension(String extension) {
   final ext = extension.toLowerCase();
-  return _image.contains(ext) || _audio.contains(ext) || _text.contains(ext);
+  return _image.contains(ext) ||
+      _audio.contains(ext) ||
+      _text.contains(ext) ||
+      ext == 'pdf';
 }
 
 /// 「默认打开方式」使用的分类键。

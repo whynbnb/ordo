@@ -279,6 +279,37 @@ class PlatformService {
     }
   }
 
+  /// PDF 页数（通过系统 `PdfRenderer`）。
+  static Future<int> pdfPageCount(String path) async {
+    try {
+      return await _channel.invokeMethod<int>('pdfPageCount', {'path': path}) ??
+          0;
+    } on PlatformException {
+      return 0;
+    } on MissingPluginException {
+      return 0;
+    }
+  }
+
+  /// 渲染 PDF 某一页为 JPEG 字节。
+  static Future<Uint8List?> pdfPage(
+    String path,
+    int page, {
+    int width = 1080,
+  }) async {
+    try {
+      return await _channel.invokeMethod<Uint8List>('pdfPage', {
+        'path': path,
+        'page': page,
+        'width': width,
+      });
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
   static Future<bool> _invokeBool(
     String method,
     Map<String, Object?> args,

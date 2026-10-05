@@ -23,7 +23,7 @@ class ViewerScreen extends StatefulWidget {
   State<ViewerScreen> createState() => _ViewerScreenState();
 }
 
-enum _PreviewKind { image, audio, text }
+enum _PreviewKind { image, audio, text, pdf }
 
 class _ViewerScreenState extends State<ViewerScreen> {
   final OrdoService _service = OrdoService.instance;
@@ -43,10 +43,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool _audioReady = false;
   Timer? _audioTimer;
 
+  // PDF
+  String? _pdfPath;
+  int _pdfPageCount = 0;
+  int _pdfPageIndex = 0;
+  final Map<int, Future<Uint8List?>> _pdfFutures = {};
+
   _PreviewKind get _kind {
     final ext = widget.entry.extension;
     if (isImageExtension(ext)) return _PreviewKind.image;
     if (isAudioExtension(ext)) return _PreviewKind.audio;
+    if (isPdfExtension(ext)) return _PreviewKind.pdf;
     return _PreviewKind.text;
   }
 
@@ -102,6 +109,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
           });
         case _PreviewKind.audio:
           await _loadAudio();
+        case _PreviewKind.pdf:
+          await _loadPdf();
       }
     } catch (error) {
       if (!mounted) return;
@@ -110,6 +119,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _loadPdf() async {
+    var path = widget.entry.path;
+    if (isRemotePath(path)) {
+      final cached = await _service.downloadToCache(path);
+      path = cached.path;
+    }
+    final count = await PlatformService.pdfPageCount(path);
+    if (!mounted) return;
+    if (count <= 0) {
+      setState(() {
+        _error = '无法打开此 PDF（可能已加密或损坏）';
+        _loading = false;
+      });
+      return;
+    }
+    setState(() {
+      _pdfPath = path;
+      _pdfPageCount = count;
+      _pdfPageIndex = 0;
+      _loading = false;
+    });
+  }
+
+  Future<Uint8List?> _renderPdfPage(int index) async {
+    final path = _pdfPath;
+    if (path == null) return null;
+    return PlatformService.pdfPage(path, index);
   }
 
   Future<void> _loadAudio() async {
@@ -280,9 +318,68 @@ class _ViewerScreenState extends State<ViewerScreen> {
         return _buildImage();
       case _PreviewKind.audio:
         return _buildAudio(context);
+      case _PreviewKind.pdf:
+        return _buildPdf(context);
       case _PreviewKind.text:
         return _buildText(context);
     }
+  }
+
+  Widget _buildPdf(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: PageView.builder(
+            itemCount: _pdfPageCount,
+            onPageChanged: (index) => setState(() => _pdfPageIndex = index),
+            itemBuilder: (context, index) {
+              final future = _pdfFutures.putIfAbsent(
+                index,
+                () => _renderPdfPage(index),
+              );
+              return FutureBuilder<Uint8List?>(
+                future: future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final bytes = snapshot.data;
+                  if (bytes == null) {
+                    return Center(
+                      child: Text(
+                        '无法渲染第 ${index + 1} 页',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    );
+                  }
+                  return InteractiveViewer(
+                    maxScale: 6,
+                    child: Center(
+                      child: Image.memory(
+                        bytes,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            '第 ${_pdfPageIndex + 1} / $_pdfPageCount 页 · 左右滑动翻页',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildImage() {

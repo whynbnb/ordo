@@ -12,6 +12,7 @@ import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Icon
+import android.graphics.pdf.PdfRenderer
 import android.hardware.usb.UsbManager
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
@@ -114,6 +115,16 @@ class MainActivity : FlutterActivity() {
                 "sdkInt" -> result.success(Build.VERSION.SDK_INT)
                 "storageVolumes" -> result.success(storageVolumes())
                 "videoThumbnail" -> result.success(videoThumbnail(call.argument("path")))
+                "pdfPageCount" -> result.success(
+                    pdfPageCount(call.argument("path"))
+                )
+                "pdfPage" -> result.success(
+                    pdfPage(
+                        call.argument("path"),
+                        call.argument<Int>("page") ?: 0,
+                        call.argument<Int>("width") ?: 1080,
+                    )
+                )
                 "paths" -> result.success(
                     mapOf(
                         "filesDir" to filesDir.absolutePath,
@@ -402,6 +413,68 @@ class MainActivity : FlutterActivity() {
         val targetWidth = (width * ratio).toInt().coerceAtLeast(1)
         val targetHeight = (height * ratio).toInt().coerceAtLeast(1)
         return Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
+    }
+
+    // -----------------------------------------------------------------------
+    // PDF 应用内预览（系统 PdfRenderer，逐页转 JPEG）
+    // -----------------------------------------------------------------------
+
+    private class PdfHandle(val renderer: PdfRenderer, val pfd: ParcelFileDescriptor) {
+        fun close() {
+            runCatching { renderer.close() }
+            runCatching { pfd.close() }
+        }
+    }
+
+    private fun openPdf(path: String?): PdfHandle? {
+        if (path.isNullOrEmpty()) return null
+        return try {
+            val file = File(path)
+            if (!file.exists()) return null
+            val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+            PdfHandle(PdfRenderer(pfd), pfd)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun pdfPageCount(path: String?): Int {
+        val handle = openPdf(path) ?: return 0
+        return try {
+            handle.renderer.pageCount
+        } catch (_: Exception) {
+            0
+        } finally {
+            handle.close()
+        }
+    }
+
+    private fun pdfPage(path: String?, pageIndex: Int, targetWidth: Int): ByteArray? {
+        val handle = openPdf(path) ?: return null
+        return try {
+            val renderer = handle.renderer
+            if (pageIndex < 0 || pageIndex >= renderer.pageCount) return null
+            val page = renderer.openPage(pageIndex)
+            try {
+                val safeWidth = targetWidth.coerceIn(200, 2400)
+                val ratio = safeWidth.toFloat() / page.width
+                val width = safeWidth
+                val height = (page.height * ratio).toInt().coerceAtLeast(1)
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                bitmap.eraseColor(android.graphics.Color.WHITE)
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                val output = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, output)
+                bitmap.recycle()
+                output.toByteArray()
+            } finally {
+                runCatching { page.close() }
+            }
+        } catch (_: Exception) {
+            null
+        } finally {
+            handle.close()
+        }
     }
 
     private fun requestStoragePermission(result: MethodChannel.Result) {
