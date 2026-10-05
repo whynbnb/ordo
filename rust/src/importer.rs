@@ -5,23 +5,28 @@
 //! Rust 直接在 fd 上做读写与落盘，保证「文件 IO 都在 Rust」这一原则。
 
 use crate::model::FileEntry;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::os::fd::FromRawFd;
 use std::path::{Path, PathBuf};
 
 /// 把已移交所有权的 `fd` 内容写入 `dest_dir/name`（自动去重），返回新文件条目。
 ///
-/// 调用方需保证 `fd` 可读且未在别处使用；本函数负责在结束时关闭它。
+/// `dest_dir` 可以是本地路径，也可以是远程 URI（`webdav://` / `ftp://` /
+/// `smb://`）。调用方需保证 `fd` 可读且未在别处使用；本函数负责在结束时关闭它。
 pub fn import_fd(fd: i32, dest_dir: &str, name: &str) -> Result<FileEntry, String> {
     if fd < 0 {
         return Err("无效的文件描述符".into());
+    }
+    let safe = sanitize(name);
+    if crate::remote::is_remote(dest_dir) {
+        return import_fd_remote(fd, dest_dir, &safe);
     }
     let dir = Path::new(dest_dir);
     if !dir.is_dir() {
         return Err(format!("目标目录不存在：{dest_dir}"));
     }
 
-    let dest = unique_path(dir, &sanitize(name));
+    let dest = unique_path(dir, &safe);
     // 接管 fd 的所有权：出错时 File 析构也会关闭它。
     let mut source = unsafe { std::fs::File::from_raw_fd(fd) };
     let mut output = std::fs::File::create(&dest).map_err(|e| format!("创建文件失败：{e}"))?;
@@ -30,6 +35,52 @@ pub fn import_fd(fd: i32, dest_dir: &str, name: &str) -> Result<FileEntry, Strin
     drop(source);
 
     crate::api::stat(&dest.to_string_lossy())
+}
+
+/// 导入到远程目录：先读入 fd 内容，再通过远程会话写入（自动去重）。
+fn import_fd_remote(fd: i32, dest_dir: &str, name: &str) -> Result<FileEntry, String> {
+    // 接管 fd 的所有权。
+    let mut source = unsafe { std::fs::File::from_raw_fd(fd) };
+    let mut data = Vec::new();
+    source
+        .read_to_end(&mut data)
+        .map_err(|e| format!("读取失败：{e}"))?;
+    drop(source);
+
+    let target = unique_remote_path(dest_dir, name);
+    crate::vfs::write(&target, &data)
+}
+
+fn join_remote(dir: &str, name: &str) -> String {
+    if dir.ends_with('/') {
+        format!("{dir}{name}")
+    } else {
+        format!("{dir}/{name}")
+    }
+}
+
+fn unique_remote_path(dir: &str, name: &str) -> String {
+    let candidate = join_remote(dir, name);
+    if !crate::vfs::exists(&candidate) {
+        return candidate;
+    }
+    let (stem, ext) = match name.rfind('.') {
+        Some(index) if index > 0 => (&name[..index], &name[index + 1..]),
+        _ => (name, ""),
+    };
+    let mut index = 1u32;
+    loop {
+        let new_name = if ext.is_empty() {
+            format!("{stem} ({index})")
+        } else {
+            format!("{stem} ({index}).{ext}")
+        };
+        let candidate = join_remote(dir, &new_name);
+        if !crate::vfs::exists(&candidate) {
+            return candidate;
+        }
+        index += 1;
+    }
 }
 
 fn sanitize(name: &str) -> String {
@@ -74,7 +125,6 @@ fn unique_path(dir: &Path, name: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Read;
 
     fn temp(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("ordo_import_{name}_{}", std::process::id()));

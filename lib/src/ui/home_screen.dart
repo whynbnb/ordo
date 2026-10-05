@@ -336,6 +336,7 @@ class _HomeScreenState extends State<HomeScreen>
           for (final favorite in _favorites.items) ...[
             _FavoriteCard(
               favorite: favorite,
+              subtitle: _favoriteSubtitle(favorite),
               onTap: () => _openPath(favorite.path, favorite.name),
               onRemove: () => _favorites.remove(favorite.path),
             ),
@@ -481,6 +482,30 @@ class _HomeScreenState extends State<HomeScreen>
       style: Theme.of(context).textTheme.titleMedium
           ?.copyWith(fontWeight: FontWeight.w600),
     );
+  }
+
+  /// 收藏项副标题：远程收藏用「协议 · 连接名 + 路径」代替带连接 ID 的原始 URI。
+  String _favoriteSubtitle(Favorite favorite) {
+    if (!isRemotePath(favorite.path)) return favorite.path;
+    final uri = Uri.tryParse(favorite.path);
+    if (uri == null) return favorite.path;
+    final inner = uri.path.isEmpty ? '/' : uri.path;
+    final label = switch (uri.scheme) {
+      'smb' => 'SMB',
+      'ftp' => 'FTP',
+      _ => 'WebDAV',
+    };
+    String? name;
+    for (final profile in _connections.profiles) {
+      if (profile.id == uri.host) {
+        name = profile.name;
+        break;
+      }
+    }
+    if (name == null || name.isEmpty) {
+      return '$label · $inner';
+    }
+    return '$label · $name$inner';
   }
 
   void _showAbout() {
@@ -711,11 +736,13 @@ class _ConnectionCard extends StatelessWidget {
 class _FavoriteCard extends StatelessWidget {
   const _FavoriteCard({
     required this.favorite,
+    required this.subtitle,
     required this.onTap,
     required this.onRemove,
   });
 
   final Favorite favorite;
+  final String subtitle;
   final VoidCallback onTap;
   final VoidCallback onRemove;
 
@@ -738,11 +765,7 @@ class _FavoriteCard extends StatelessWidget {
           ),
         ),
         title: Text(favorite.name),
-        subtitle: Text(
-          favorite.path,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: IconButton(
           tooltip: '移除收藏',
           icon: const Icon(Icons.close_rounded),

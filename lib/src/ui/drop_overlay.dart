@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../state/drop_controller.dart';
 
 /// 外部文件拖到窗口上方时显示的提示层（放在 `Stack` 中）。
+///
+/// 使用顶部细横幅 + 极淡的整体着色，避免占用中间区域，为正常浏览操作留出空间。
 class DropOverlay extends StatelessWidget {
   const DropOverlay({super.key});
 
@@ -15,33 +17,46 @@ class DropOverlay extends StatelessWidget {
         final scheme = Theme.of(context).colorScheme;
         return Positioned.fill(
           child: IgnorePointer(
-            child: Container(
-              color: scheme.primary.withValues(alpha: 0.10),
-              alignment: Alignment.center,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 20,
-                ),
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: scheme.primary, width: 2),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.download_rounded,
-                      size: 44,
-                      color: scheme.primary,
+            child: ColoredBox(
+              color: scheme.primary.withValues(alpha: 0.06),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Material(
+                    elevation: 2,
+                    borderRadius: BorderRadius.circular(24),
+                    color: scheme.primaryContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.download_rounded,
+                            size: 20,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              '松手导入到「${DropController.instance.activeLabel}」',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: scheme.onPrimaryContainer,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '松手导入到「${DropController.instance.activeLabel}」',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
