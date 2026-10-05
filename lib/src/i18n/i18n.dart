@@ -578,6 +578,8 @@ const Map<String, String> enTranslations = {
   '向上一级': 'Up one level',
   '显示向上一级': 'Show "up one level" button',
   '在浏览页显示「向上一级」按钮': 'Show an "up one level" button in the browser',
+  '开源仓库': 'Repository',
+  '基于 MIT 许可证开源': 'Open-sourced under the MIT License',
   '黄': 'Yellow',
   '默认 2121': 'Default 2121',
   '默认 8080': 'Default 8080',

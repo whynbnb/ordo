@@ -229,3 +229,9 @@ cargo build --manifest-path rust/Cargo.toml
 ORDO_CORE_LIB="$PWD/rust/target/debug/libordo_core.dylib" \
   flutter test test/ffi_integration_test.dart
 ```
+
+## License
+
+Ordo is released under the [MIT License](LICENSE).
+
+- Repository: <https://github.com/whynbnb/ordo>

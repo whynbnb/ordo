@@ -71,7 +71,9 @@ class _ServerScreenState extends State<ServerScreen> {
       final status = await _service.serverStatus();
       if (!mounted) return;
       setState(() {
-        _root.text = config.root.isEmpty ? '/storage/emulated/0' : config.root;
+        _root.text = config.root.isEmpty
+            ? '/storage/emulated/0/Download'
+            : config.root;
         _http = config.http;
         _ftp = config.ftp;
         _httpPort.text = (config.httpPort == 0 ? 8080 : config.httpPort)

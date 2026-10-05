@@ -92,6 +92,15 @@ class RecentStore extends ChangeNotifier {
     await PrefsStore.instance.setValue(_key, null);
   }
 
+  /// 删除单条最近访问记录。
+  Future<void> remove(String path) async {
+    final next = _items.where((item) => item.path != path).toList();
+    if (next.length == _items.length) return;
+    _items = next;
+    notifyListeners();
+    await _persist();
+  }
+
   Future<void> _persist() async {
     try {
       await PrefsStore.instance.setValue(

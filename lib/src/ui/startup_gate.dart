@@ -10,6 +10,7 @@ import '../state/navigation.dart';
 import '../state/prefs_store.dart';
 import '../state/privilege_store.dart';
 import '../state/session_store.dart';
+import '../state/settings.dart';
 import '../state/theme_store.dart';
 import 'home_screen.dart';
 import '../i18n/i18n.dart';
@@ -93,6 +94,7 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
       await LocaleStore.instance.load();
       await PrivilegeStore.instance.load();
       await SessionStore.instance.load();
+      await AppSettings.instance.load();
     }
 
     final granted = await _hasPermission();

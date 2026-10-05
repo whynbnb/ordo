@@ -129,10 +129,20 @@ class _RecentScreenState extends State<RecentScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: Text(
-                    _relativeTime(item.time),
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _relativeTime(item.time),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                      IconButton(
+                        tooltip: tr('删除'),
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        onPressed: () => _recent.remove(item.path),
+                      ),
+                    ],
                   ),
                   onTap: () => _open(item),
                 );

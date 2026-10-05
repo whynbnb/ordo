@@ -249,3 +249,9 @@ cargo build --manifest-path rust/Cargo.toml
 ORDO_CORE_LIB="$PWD/rust/target/debug/libordo_core.dylib" \
   flutter test test/ffi_integration_test.dart
 ```
+
+## 许可证
+
+安序以 [MIT 许可证](LICENSE) 开源。
+
+- 仓库地址：<https://github.com/whynbnb/ordo>
