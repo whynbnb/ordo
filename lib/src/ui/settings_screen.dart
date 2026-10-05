@@ -4,7 +4,9 @@ import '../services/platform_service.dart';
 import '../i18n/locale_store.dart';
 import '../state/prefs_store.dart';
 import '../state/theme_store.dart';
+import 'about_dialog.dart';
 import 'crash_log_screen.dart';
+import 'home_layout_screen.dart';
 import '../i18n/i18n.dart';
 
 /// 选择应用的结果：`null` 表示取消选择动作本身。
@@ -13,9 +15,11 @@ class _PickResult {
   final OpenWithTarget? target;
 }
 
-/// 设置：为各类文件指定「默认跳转查看内容的应用」。
+/// 设置：外观 / 语言 / 安全 / 默认打开方式 / 关于。
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.version});
+
+  final String? version;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -234,6 +238,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.dashboard_customize_outlined),
+            title: Text(tr('首页布局')),
+            subtitle: Text(tr('调整工具与常用目录的顺序 / 显隐')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const HomeLayoutScreen(),
+                ),
+              );
+            },
+          ),
           const Divider(height: 32),
           Text(
             tr('安全与隐私'),
@@ -280,6 +298,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _categoryTile(category),
             const SizedBox(height: 8),
           ],
+          const Divider(height: 32),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.info_outline_rounded),
+            title: Text(tr('关于')),
+            subtitle: Text(
+              widget.version == null || widget.version!.isEmpty
+                  ? 'v1.0'
+                  : 'v${widget.version}',
+            ),
+            onTap: () => showOrdoAbout(context, widget.version),
+          ),
         ],
       ),
     );

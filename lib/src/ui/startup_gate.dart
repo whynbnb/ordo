@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../i18n/locale_store.dart';
 import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
 import '../state/navigation.dart';
 import '../state/prefs_store.dart';
+import '../state/theme_store.dart';
 import 'home_screen.dart';
 import '../i18n/i18n.dart';
 
@@ -83,6 +85,9 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
         configDir: paths.filesDir,
         cacheDir: paths.cacheDir,
       );
+      // 配置目录就绪后再载入持久化偏好（主题 / 语言 / 应用锁）。
+      await ThemeStore.instance.load();
+      await LocaleStore.instance.load();
     }
 
     final granted = await _hasPermission();

@@ -530,6 +530,8 @@ const Map<String, String> enTranslations = {
   '音频': 'Audio',
   '音频 · {p0}': 'Audio · {p0}',
   '首页布局': 'Home layout',
+  '调整工具与常用目录的顺序 / 显隐':
+      'Reorder or hide tools and quick folders',
   '黄': 'Yellow',
   '默认 2121': 'Default 2121',
   '默认 8080': 'Default 8080',

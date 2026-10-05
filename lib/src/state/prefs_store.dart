@@ -64,8 +64,18 @@ class PrefsStore extends ChangeNotifier {
   Future<void>? _loading;
 
   Future<void> loadIfNeeded() {
+    // 配置目录就绪前不读取，避免把空偏好缓存下来导致设置看起来被重置。
+    if (!OrdoService.instance.configReady) return Future.value();
     if (_loaded) return Future.value();
     return _loading ??= _load();
+  }
+
+  /// 重新从磁盘读取（配置目录就绪 / 外部修改后调用）。
+  Future<void> reload() async {
+    if (!OrdoService.instance.configReady) return;
+    _loaded = false;
+    _loading = null;
+    await loadIfNeeded();
   }
 
   Future<void> _load() async {

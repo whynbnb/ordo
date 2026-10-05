@@ -366,7 +366,13 @@ class OrdoService {
   /// 设置配置目录与缓存目录，启动时调用一次。
   void configInit({required String configDir, required String cacheDir}) {
     _direct('configInit', [configDir, cacheDir]);
+    _configReady = true;
   }
+
+  bool _configReady = false;
+
+  /// 配置目录是否已初始化；未初始化前读写偏好都没有意义。
+  bool get configReady => _configReady;
 
   Future<List<ConnectionProfile>> profiles() async {
     final data = _direct('profileList');

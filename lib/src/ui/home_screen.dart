@@ -19,7 +19,6 @@ import 'drop_overlay.dart';
 import 'file_picker.dart';
 import 'analyzer_screen.dart';
 import 'cleanup_screen.dart';
-import 'home_layout_screen.dart';
 import 'trend_screen.dart';
 import 'vault_screen.dart';
 import 'qr_dialog.dart';
@@ -54,13 +53,13 @@ class _HomeScreenState extends State<HomeScreen>
   Map<String, String> _knownRemovable = const {};
   bool _loadedOnce = false;
 
-  List<_QuickFolder> get _quickCandidates => [
-    _QuickFolder(tr('下载'), 'Download', Icons.download_rounded),
-    _QuickFolder(tr('图片'), 'Pictures', Icons.photo_library_rounded),
-    _QuickFolder(tr('相机'), 'DCIM', Icons.photo_camera_rounded),
-    _QuickFolder(tr('音乐'), 'Music', Icons.library_music_rounded),
-    _QuickFolder(tr('视频'), 'Movies', Icons.video_library_rounded),
-    _QuickFolder(tr('文档'), 'Documents', Icons.folder_special_rounded),
+  List<_QuickFolder> get _quickCandidates => const [
+    _QuickFolder('下载', 'Download', Icons.download_rounded),
+    _QuickFolder('图片', 'Pictures', Icons.photo_library_rounded),
+    _QuickFolder('相机', 'DCIM', Icons.photo_camera_rounded),
+    _QuickFolder('音乐', 'Music', Icons.library_music_rounded),
+    _QuickFolder('视频', 'Movies', Icons.video_library_rounded),
+    _QuickFolder('文档', 'Documents', Icons.folder_special_rounded),
   ];
 
   @override
@@ -212,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (added.isNotEmpty) {
       _promptStorageAdded(added.first.key, added.first.value);
     } else if (removed.isNotEmpty) {
-      _snack(tr('外部存储已移除：「{p0}」', {'p0': removed.first.value}));
+      _snack(tr('外部存储已移除：「{p0}」', {'p0': tr(removed.first.value)}));
     }
   }
 
@@ -222,11 +221,13 @@ class _HomeScreenState extends State<HomeScreen>
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(tr('已检测到外部存储「{name}」', {'name': name})),
+          content: Text(
+            tr('已检测到外部存储「{name}」', {'name': tr(name)}),
+          ),
           duration: const Duration(seconds: 6),
           action: SnackBarAction(
             label: tr('打开'),
-            onPressed: () => _openPath(path, name),
+            onPressed: () => _openPath(path, tr(name)),
           ),
         ),
       );
@@ -249,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen>
       _roots.isNotEmpty ? _roots.first.path : '/storage/emulated/0';
 
   String get _primaryName =>
-      _roots.isNotEmpty ? _roots.first.name : tr('内部存储');
+      tr(_roots.isNotEmpty ? _roots.first.name : '内部存储');
 
   List<_QuickFolder> get _orderedQuickFolders {
     final order = HomeLayoutStore.instance.quick;
@@ -340,26 +341,6 @@ class _HomeScreenState extends State<HomeScreen>
         title: Text(tr('安序')),
         actions: [
           IconButton(
-            tooltip: tr('首页布局'),
-            icon: const Icon(Icons.dashboard_customize_outlined),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const HomeLayoutScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: tr('设置'),
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
-              );
-            },
-          ),
-          IconButton(
             tooltip: tr('文件服务器'),
             icon: const Icon(Icons.router_rounded),
             onPressed: () {
@@ -375,9 +356,15 @@ class _HomeScreenState extends State<HomeScreen>
             },
           ),
           IconButton(
-            tooltip: tr('关于'),
-            icon: const Icon(Icons.info_outline_rounded),
-            onPressed: _showAbout,
+            tooltip: tr('设置'),
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => SettingsScreen(version: widget.version),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -433,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen>
           for (final root in _roots) ...[
             _StorageCard(
               root: root,
-              onTap: () => _openPath(root.path, root.name),
+              onTap: () => _openPath(root.path, tr(root.name)),
             ),
             const SizedBox(height: 12),
           ],
@@ -452,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen>
               for (final folder in _orderedQuickFolders)
                 _QuickCard(
                   folder: folder,
-                  onTap: () => _openPath(folder.path!, folder.label),
+                  onTap: () => _openPath(folder.path!, tr(folder.label)),
                 ),
             ],
           ),
@@ -660,22 +647,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
     return '$label · $name$inner';
   }
-
-  void _showAbout() {
-    showAboutDialog(
-      context: context,
-      applicationName: tr('安序 Ordo'),
-      applicationVersion: widget.version == null
-          ? 'v1.0'
-          : 'v${widget.version}',
-      applicationIcon: const Icon(Icons.folder_rounded, size: 40),
-      children: [
-        Text(
-          tr('一个使用 Flutter + Rust 构建的安卓文件管理器。所有文件操作均由本地 Rust 核心完成。'),
-        ),
-      ],
-    );
-  }
 }
 
 class _StorageCard extends StatelessWidget {
@@ -719,7 +690,7 @@ class _StorageCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          root.name,
+                          tr(root.name),
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
@@ -800,7 +771,10 @@ class _QuickCard extends StatelessWidget {
           children: [
             Icon(folder.icon, color: scheme.primary),
             const SizedBox(height: 8),
-            Text(folder.label, style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              tr(folder.label),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ],
         ),
       ),

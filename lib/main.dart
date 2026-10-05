@@ -23,9 +23,8 @@ void main() {
   StorageEvents.instance.register();
   // 桌面快捷方式打开指定路径。
   PlatformService.setOpenPathHandler(openPathFromShortcut);
-  // 载入主题与语言偏好（异步，加载完成后重建界面）。
-  ThemeStore.instance.load();
-  LocaleStore.instance.load();
+
+  // 主题与语言偏好由 StartupGate 在配置目录就绪后载入（见 StartupGate）。
 
   // 记录 Flutter 与 Dart 未捕获错误，便于在设置中导出排查。
   FlutterError.onError = (details) {
