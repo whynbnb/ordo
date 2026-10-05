@@ -489,7 +489,13 @@ class _HomeScreenState extends State<HomeScreen>
     if (!isRemotePath(favorite.path)) return favorite.path;
     final uri = Uri.tryParse(favorite.path);
     if (uri == null) return favorite.path;
-    final inner = uri.path.isEmpty ? '/' : uri.path;
+    // `Uri.path` 会做百分号编码，这里解码回可读文本（中文文件名等）。
+    var inner = uri.path.isEmpty ? '/' : uri.path;
+    try {
+      inner = Uri.decodeComponent(inner);
+    } catch (_) {
+      // 保留原始文本。
+    }
     final label = switch (uri.scheme) {
       'smb' => 'SMB',
       'ftp' => 'FTP',
