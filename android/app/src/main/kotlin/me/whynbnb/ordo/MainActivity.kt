@@ -16,7 +16,6 @@ import android.graphics.drawable.Icon
 import android.graphics.pdf.PdfRenderer
 import android.hardware.usb.UsbManager
 import android.media.MediaMetadataRetriever
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -54,9 +53,6 @@ class MainActivity : FlutterActivity() {
     private var lastVolumeSignature: String? = null
     private var pendingStorageCheck: Runnable? = null
 
-    // 应用内音频预览使用的播放器。
-    private var audioPlayer: MediaPlayer? = null
-
     // 桌面快捷方式带来的待打开路径（冷启动）。
     private var pendingOpenPath: String? = null
 
@@ -85,20 +81,21 @@ class MainActivity : FlutterActivity() {
                 )
                 "audioLoad" -> audioLoad(call.argument("path"), result)
                 "audioPlay" -> {
-                    audioPlayer?.start()
+                    AudioPlayerHolder.play()
                     result.success(true)
                 }
                 "audioPause" -> {
-                    if (audioPlayer?.isPlaying == true) audioPlayer?.pause()
+                    AudioPlayerHolder.pause()
                     result.success(true)
                 }
                 "audioSeek" -> {
-                    audioPlayer?.seekTo(call.argument<Int>("ms") ?: 0)
+                    AudioPlayerHolder.seek(call.argument<Int>("ms") ?: 0)
                     result.success(true)
                 }
-                "audioStatus" -> result.success(audioStatus())
+                "audioStatus" -> result.success(AudioPlayerHolder.status())
                 "audioStop" -> {
-                    audioRelease()
+                    AudioPlayerHolder.release()
+                    AudioPlaybackService.stop(this)
                     result.success(true)
                 }
                 "shortcutSupported" -> result.success(shortcutSupported())
@@ -242,7 +239,6 @@ class MainActivity : FlutterActivity() {
         storageReceiver = null
         pendingStorageCheck?.let { mainHandler.removeCallbacks(it) }
         pendingStorageCheck = null
-        audioRelease()
         super.onDestroy()
     }
 
@@ -650,49 +646,34 @@ class MainActivity : FlutterActivity() {
     }
 
     // -----------------------------------------------------------------------
-    // 应用内音频预览（系统 MediaPlayer，不依赖任何第三方包）
+    // 音频播放（前台服务 + MediaSession，支持后台与通知栏控制）
     // -----------------------------------------------------------------------
 
     private fun audioLoad(path: String?, result: MethodChannel.Result) {
-        audioRelease()
         if (path.isNullOrEmpty()) {
             result.success(-1)
             return
         }
-        val player = MediaPlayer()
-        audioPlayer = player
-        player.setOnPreparedListener { mp ->
-            result.success(mp.duration)
+        ensureNotificationPermission()
+        AudioPlaybackService.start(this)
+        val name = File(path).name
+        AudioPlayerHolder.load(this, path, name) { duration ->
+            runCatching { result.success(duration) }
         }
-        player.setOnErrorListener { mp, _, _ ->
-            if (audioPlayer === mp) audioPlayer = null
-            runCatching { mp.release() }
-            result.success(-1)
-            true
+    }
+
+    private fun ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
         }
         try {
-            player.setDataSource(path)
-            player.prepareAsync()
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
         } catch (_: Exception) {
-            audioRelease()
-            result.success(-1)
+            // 忽略。
         }
-    }
-
-    private fun audioStatus(): Map<String, Any?> {
-        val player = audioPlayer
-            ?: return mapOf("position" to 0, "duration" to 0, "playing" to false)
-        val duration = runCatching { player.duration }.getOrDefault(0)
-        val position = runCatching { player.currentPosition }.getOrDefault(0)
-        val playing = runCatching { player.isPlaying }.getOrDefault(false)
-        return mapOf("position" to position, "duration" to duration, "playing" to playing)
-    }
-
-    private fun audioRelease() {
-        val player = audioPlayer ?: return
-        audioPlayer = null
-        runCatching { if (player.isPlaying) player.stop() }
-        runCatching { player.release() }
     }
 
     private fun sendFile(path: String?, mime: String?): Boolean {
@@ -720,6 +701,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "ordo/platform"
         private const val REQUEST_STORAGE = 4711
+        private const val REQUEST_NOTIFICATIONS = 4712
         private const val STORAGE_CHECK_DELAY_MS = 500L
         private const val EXTRA_OPEN_PATH = "ordo_open_path"
     }
