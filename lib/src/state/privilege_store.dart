@@ -23,7 +23,9 @@ class PrivilegeStore extends ChangeNotifier {
 
   bool _rootAvailable = false;
   bool _shizukuAvailable = false;
+  bool _adbAvailable = false;
   int _shizukuPermission = -1;
+  String? _hostIp;
   bool _loaded = false;
 
   /// `off` / `root` / `shizuku` / `adb`
@@ -33,7 +35,9 @@ class PrivilegeStore extends ChangeNotifier {
   String? get error => _error;
   bool get rootAvailable => _rootAvailable;
   bool get shizukuAvailable => _shizukuAvailable;
+  bool get adbAvailable => _adbAvailable;
   bool get shizukuGranted => _shizukuPermission == 0;
+  String? get hostIp => _hostIp;
   bool get loaded => _loaded;
 
   Future<void> load() async {
@@ -49,7 +53,9 @@ class PrivilegeStore extends ChangeNotifier {
     final info = await PlatformService.privDetect();
     _rootAvailable = info['root'] == true;
     _shizukuAvailable = info['shizuku'] == true;
+    _adbAvailable = info['adb'] == true;
     _shizukuPermission = (info['shizukuPermission'] as num?)?.toInt() ?? -1;
+    _hostIp = info['hostIp'] as String?;
     notifyListeners();
   }
 
@@ -58,6 +64,23 @@ class PrivilegeStore extends ChangeNotifier {
     final granted = await PlatformService.privShizukuRequest();
     await detect();
     return granted;
+  }
+
+  /// ADB 模式：与设备无线调试配对。
+  Future<bool> pairAdb({
+    required String host,
+    required int port,
+    required String code,
+  }) async {
+    final paired = await PlatformService.privAdbPair(
+      host: host,
+      port: port,
+      code: code,
+    );
+    if (paired) {
+      await detect();
+    }
+    return paired;
   }
 
   /// 启用指定模式。

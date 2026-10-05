@@ -541,8 +541,19 @@ const Map<String, String> enTranslations = {
   '可访问全部文件，包括其它应用的私有数据。':
       'Access all files, including other apps\u2019 private data.',
   '未检测到 Root。': 'Root not detected.',
-  '通过无线调试直接连接，能力与 Shizuku 相同（即将支持）。':
-      'Connect directly via wireless debugging; same capability as Shizuku (coming soon).',
+  '通过无线调试直接连接，能力与 Shizuku 相同。':
+      'Connect directly via wireless debugging; same capability as Shizuku.',
+  '未开启无线调试。': 'Wireless debugging is off.',
+  'ADB 配对': 'ADB pairing',
+  '在「开发者选项 → 无线调试 → 使用配对码配对设备」中查看主机、配对端口与验证码。':
+      'Find the host, pairing port and code under "Developer options → Wireless debugging → Pair device with pairing code".',
+  '主机': 'Host',
+  '配对端口': 'Pairing port',
+  '验证码': 'Pairing code',
+  '已配对，直接启用': 'Already paired — enable',
+  '配对并启用': 'Pair & enable',
+  '请填写主机、配对端口与验证码': 'Enter host, pairing port and code',
+  '配对失败，请检查端口与验证码': 'Pairing failed; check the port and code',
   'Shizuku 未运行。': 'Shizuku is not running.',
   'Shizuku 已运行，点击以请求授权。':
       'Shizuku is running; tap to request permission.',
@@ -578,6 +589,10 @@ const Map<String, String> enErrorMessages = {
   'Shizuku 未运行': 'Shizuku is not running',
   '未授予 Shizuku 权限': 'Shizuku permission not granted',
   '高权限服务启动超时': 'Privilege service startup timed out',
+  '部署高权限服务超时': 'Deploying privilege service timed out',
+  '无法连接 ADB（请确认已开启无线调试并已配对）':
+      'Cannot connect to ADB (make sure wireless debugging is on and paired)',
+  'ADB 高权限服务启动超时': 'ADB privilege service startup timed out',
   '配置目录不可用': 'Config directory unavailable',
   '请先进入一个共享': 'Open a share first',
   '回收站不可用': 'Recycle bin unavailable',

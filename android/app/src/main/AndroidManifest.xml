@@ -31,6 +31,9 @@
     <!-- Shizuku：用户主动启用后借用 ADB 级权限访问 Android/data 等受保护目录。 -->
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
+    <!-- ADB 模式：通过无线调试直接连接本机 adbd，需要 mDNS 发现端口。 -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
     <!-- 声明支持 USB Host，用于识别并提示打开插入的 U 盘 / 移动硬盘。 -->
     <uses-feature
         android:name="android.hardware.usb.host"

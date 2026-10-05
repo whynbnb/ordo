@@ -41,6 +41,19 @@ class _PrivilegeScreenState extends State<PrivilegeScreen> {
     }
   }
 
+  Future<void> _selectAdb() async {
+    if (_store.mode == 'adb' && _store.active) return;
+    final enable = await showDialog<bool>(
+      context: context,
+      builder: (_) => _AdbPairDialog(store: _store),
+    );
+    if (enable != true || !mounted) return;
+    final ok = await _store.activate('adb');
+    if (!ok && mounted && _store.error != null) {
+      _snack(tr('启用失败：{p0}', {'p0': trError(_store.error ?? '')}));
+    }
+  }
+
   void _snack(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -96,8 +109,11 @@ class _PrivilegeScreenState extends State<PrivilegeScreen> {
               _modeTile(
                 mode: 'adb',
                 title: 'ADB',
-                subtitle: tr('通过无线调试直接连接，能力与 Shizuku 相同（即将支持）。'),
-                available: false,
+                subtitle: _store.adbAvailable
+                    ? tr('通过无线调试直接连接，能力与 Shizuku 相同。')
+                    : tr('未开启无线调试。'),
+                available: _store.adbAvailable,
+                onTap: _selectAdb,
               ),
             ],
           );
@@ -111,6 +127,7 @@ class _PrivilegeScreenState extends State<PrivilegeScreen> {
     required String title,
     required String subtitle,
     required bool available,
+    VoidCallback? onTap,
   }) {
     final selected = _store.mode == mode && (mode == 'off' || _store.active);
     final scheme = Theme.of(context).colorScheme;
@@ -132,7 +149,7 @@ class _PrivilegeScreenState extends State<PrivilegeScreen> {
         trailing: mode != 'off' && _store.active && selected
             ? Icon(Icons.check_circle_rounded, color: scheme.primary)
             : null,
-        onTap: available ? () => _select(mode) : null,
+        onTap: available ? (onTap ?? () => _select(mode)) : null,
       ),
     );
   }
@@ -141,5 +158,128 @@ class _PrivilegeScreenState extends State<PrivilegeScreen> {
     if (!_store.shizukuAvailable) return tr('Shizuku 未运行。');
     if (!_store.shizukuGranted) return tr('Shizuku 已运行，点击以请求授权。');
     return tr('可访问 Android/data 与 Android/obb。');
+  }
+}
+
+/// ADB 配对对话框：填写无线调试的配对端口与验证码。
+class _AdbPairDialog extends StatefulWidget {
+  const _AdbPairDialog({required this.store});
+
+  final PrivilegeStore store;
+
+  @override
+  State<_AdbPairDialog> createState() => _AdbPairDialogState();
+}
+
+class _AdbPairDialogState extends State<_AdbPairDialog> {
+  final TextEditingController _host = TextEditingController();
+  final TextEditingController _port = TextEditingController();
+  final TextEditingController _code = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final host = widget.store.hostIp;
+    if (host != null && host.isNotEmpty) {
+      _host.text = host;
+    }
+  }
+
+  @override
+  void dispose() {
+    _host.dispose();
+    _port.dispose();
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pair() async {
+    final port = int.tryParse(_port.text.trim());
+    if (_host.text.trim().isEmpty || port == null || _code.text.trim().isEmpty) {
+      setState(() => _error = tr('请填写主机、配对端口与验证码'));
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final ok = await widget.store.pairAdb(
+      host: _host.text.trim(),
+      port: port,
+      code: _code.text.trim(),
+    );
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() {
+        _busy = false;
+        _error = tr('配对失败，请检查端口与验证码');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(tr('ADB 配对')),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tr('在「开发者选项 → 无线调试 → 使用配对码配对设备」中查看主机、配对端口与验证码。'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _host,
+              decoration: InputDecoration(labelText: tr('主机')),
+            ),
+            TextField(
+              controller: _port,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: tr('配对端口')),
+            ),
+            TextField(
+              controller: _code,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: tr('验证码')),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(false),
+          child: Text(tr('取消')),
+        ),
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(true),
+          child: Text(tr('已配对，直接启用')),
+        ),
+        FilledButton(
+          onPressed: _busy ? null : _pair,
+          child: _busy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(tr('配对并启用')),
+        ),
+      ],
+    );
   }
 }

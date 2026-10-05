@@ -83,6 +83,16 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 - **Private vault**: moves files into the app's private directory so they are hidden from regular file managers, restorable or securely deletable
 - **Secure delete**: overwrites file contents before deleting (note: due to wear levelling this has limited value on SSDs)
 
+### Privileged access modes (Root / Shizuku / ADB)
+
+On Android 11+ scoped storage, "All files access" still does **not** include `/sdcard/Android/data`, `/sdcard/Android/obb`, or another app's `/data/data`. Ordo can borrow a higher privilege to browse and manage those folders:
+
+- **Root** — everything, including other apps' private `/data/data`
+- **Shizuku** — `Android/data` and `Android/obb` (read/write) through an ADB-/root-level shell service
+- **ADB** — the same capability by connecting directly to the device's own wireless-debugging `adbd` (no Shizuku app needed); pair once with the code shown in Developer options
+
+All three share a single privileged helper process (`ordo-privd`), which is a second entry point of the same Rust core, so every file operation is still performed in Rust. The helper is deployed to `/data/local/tmp` and talks to the app over a token-protected loopback socket. Configure it in Settings → Security & privacy → Privileged mode.
+
 ### Diagnostics
 
 - Uncaught Flutter / Dart errors and Rust panics are written to `ordo_crash.log` in the app's private directory
@@ -103,6 +113,9 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 - External media: the app parses `/proc/self/mountinfo` and uses Android's `StorageManager` to detect SD cards and pluggable USB storage. Insertion / removal refreshes the list automatically, and returning to the foreground or pull-to-refresh also updates it. On some devices that do not expose the USB volume's underlying path to apps, the volume is still listed and marked "access not granted" instead of being hidden (a system limitation).
 - Connection passwords are stored in the app's private directory in `ordo_connections.json` (plaintext, accessible only to this app).
 - The app has no analytics or telemetry and uploads nothing to the developer; network traffic only occurs for the remote connections you configure and the local file server you start.
+- Privileged modes are opt-in and do not survive a device reboot: Root, Shizuku and ADB all need to be (re)enabled once per boot. Root sees everything; Shizuku and ADB see `Android/data` and `Android/obb` but **not** other apps' `/data/data` (that is root-only).
+- Deleting a file inside a privileged folder bypasses the recycle bin (it is permanently deleted).
+- Modules that read files directly (thumbnails, EXIF, archive, storage analysis) may not work on privileged folders; browsing, opening, copying, renaming and deleting do.
 
 ## Architecture
 
@@ -134,6 +147,8 @@ rust/                     Rust core (cdylib)
   src/vault.rs            private vault (move into app-private storage)
   src/qr.rs               QR code PNG generation
   src/crash.rs            crash / error log persistence
+  src/privileged.rs       high-privilege backend client (Root / Shizuku / ADB)
+  src/bin/ordo_privd.rs   privileged helper process (same core, shell/root uid)
   src/remote/             WebDAV / FTP / SFTP / SMB clients and connection sessions
   src/server/             HTTP/WebDAV and FTP servers
   src/model.rs            metadata models
@@ -141,7 +156,9 @@ android/                  Android project
   app/.../MainActivity.kt storage permissions, open / share, cross-app drop, USB events, app lock
   app/.../AudioPlayback.kt audio foreground service + media session
   app/.../TransferService.kt transfer progress foreground service
-  app/build.gradle.kts    runs cargo-ndk to build Rust into jniLibs
+  app/.../PrivilegeManager.kt deploy & start the helper as root / via Shizuku / via ADB
+  app/.../AdbManager.kt   direct ADB (wireless debugging) connection & pairing
+  app/build.gradle.kts    runs cargo-ndk to build Rust into jniLibs (and the helper into assets)
 scripts/                  manual build scripts
 ```
 

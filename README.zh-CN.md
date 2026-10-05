@@ -85,6 +85,20 @@
 - **隐私空间**：把文件移入应用私有目录，常规文件管理器中不可见，可还原或彻底删除
 - **安全删除**：删除前先覆盖写入（注：SSD 因磨损均衡，意义有限）
 
+### 高权限模式（Root / Shizuku / ADB）
+
+Android 11+ 的分区存储下，「所有文件访问」权限**仍不包含** `/sdcard/Android/data`、
+`/sdcard/Android/obb`，更看不到其它应用的 `/data/data`。安序可以借用更高权限来浏览
+与管理这些目录：
+
+- **Root** —— 全部文件，包括其它应用的私有数据 `/data/data`
+- **Shizuku** —— 通过 ADB / root 级 shell 服务访问 `Android/data` 与 `Android/obb`（可读写）
+- **ADB** —— 直接连接设备自身的无线调试 `adbd`，能力与 Shizuku 相同（无需安装 Shizuku），用开发者选项中的配对码配对一次即可
+
+三种模式共用同一个高权限辅助进程 `ordo-privd`，它是同一套 Rust 核心的另一个入口，
+因此所有文件操作依然全部在 Rust 中完成。辅助进程部署到 `/data/local/tmp`，通过带
+令牌鉴权的本地回环套接字与主进程通信。在「设置 → 安全与隐私 → 权限模式」中配置。
+
 ### 诊断
 
 - Flutter / Dart 未捕获异常与 Rust panic 会写入应用私有目录的 `ordo_crash.log`
@@ -111,6 +125,12 @@
 - 连接密码保存在应用私有目录的 `ordo_connections.json`（明文，仅本应用可访问）。
 - 应用没有统计 / 上报，不会向开发者上传任何数据；只有你主动配置的远程连接与局域网
   文件服务器会产生网络流量。
+- 高权限模式需手动开启，且**重启后不保留**：Root、Shizuku、ADB 每次开机都需重新启用。
+  Root 可看到全部文件；Shizuku 与 ADB 只能看到 `Android/data` 与 `Android/obb`，
+  **看不到**其它应用的 `/data/data`（后者仅 Root 可见）。
+- 在受保护目录中删除文件会跳过回收站（直接永久删除）。
+- 直接读取文件的模块（缩略图、EXIF、压缩包、存储分析）在受保护目录中可能不可用；
+  浏览、打开、复制、重命名与删除不受影响。
 
 ## 架构
 
@@ -142,6 +162,8 @@ rust/                     Rust 核心（cdylib）
   src/vault.rs            隐私空间（移入应用私有目录）
   src/qr.rs               二维码 PNG 生成
   src/crash.rs            崩溃 / 错误日志持久化
+  src/privileged.rs       高权限后端客户端（Root / Shizuku / ADB）
+  src/bin/ordo_privd.rs   高权限辅助进程（同一核心，以 shell / root 身份运行）
   src/remote/             WebDAV / FTP / SFTP / SMB 客户端与连接会话
   src/server/             HTTP/WebDAV 与 FTP 服务端
   src/model.rs            元数据模型
@@ -149,7 +171,9 @@ android/                  Android 工程
   app/.../MainActivity.kt 存储权限、文件打开 / 分享、跨应用拖放接收、USB 插拔、应用锁
   app/.../AudioPlayback.kt 音频前台服务 + 媒体会话
   app/.../TransferService.kt 传输进度前台服务
-  app/build.gradle.kts    调用 cargo-ndk 编译 Rust 并放入 jniLibs
+  app/.../PrivilegeManager.kt 以 root / Shizuku / ADB 部署并启动辅助进程
+  app/.../AdbManager.kt   直接连接本机 ADB（无线调试）与配对
+  app/build.gradle.kts    调用 cargo-ndk 编译 Rust 放入 jniLibs（辅助进程放入 assets）
 scripts/                  手动构建脚本
 ```
 

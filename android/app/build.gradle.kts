@@ -50,11 +50,26 @@ android {
         }
     }
 
+    // 依赖（如 Conscrypt）会带上其它 ABI 的预编译库；这里按实际编出的 ABI 剔除，
+    // 否则 Android 可能为这些「半残」架构安装本应用。
+    packaging {
+        jniLibs {
+            val allAbis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            (allAbis - rustAbis.toSet()).forEach { abi ->
+                excludes += "lib/$abi/**"
+            }
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
@@ -72,6 +87,11 @@ dependencies {
     // Shizuku：把 ADB / root 级权限借给普通应用（用于访问 Android/data 等）。
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
+
+    // 直接连接本机 ADB（无线调试）实现「ADB 模式」，能力与 Shizuku 相同。
+    implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
+    implementation("org.conscrypt:conscrypt-android:2.5.3")
+    implementation("com.github.MuntashirAkon:sun-security-android:1.1")
 }
 
 flutter {

@@ -66,9 +66,24 @@ class MainActivity : FlutterActivity() {
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "privDetect" -> Thread {
-                    val info = PrivilegeManager.detect()
+                    val info = PrivilegeManager.detect(applicationContext)
                     runOnUiThread { result.success(info) }
                 }.start()
+                "privAdbPair" -> {
+                    val host = call.argument<String>("host") ?: ""
+                    val port = call.argument<Int>("port") ?: 0
+                    val code = call.argument<String>("code") ?: ""
+                    Thread {
+                        try {
+                            val paired = AdbManager.pair(applicationContext, host, port, code)
+                            runOnUiThread { result.success(paired) }
+                        } catch (error: Exception) {
+                            runOnUiThread {
+                                result.error("PRIV_ADB_PAIR", error.message ?: "配对失败", null)
+                            }
+                        }
+                    }.start()
+                }
                 "privStart" -> {
                     val mode = call.argument<String>("mode") ?: ""
                     Thread {

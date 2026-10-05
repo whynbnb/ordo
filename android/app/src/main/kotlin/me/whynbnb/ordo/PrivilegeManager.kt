@@ -45,14 +45,15 @@ object PrivilegeManager {
     // 状态探测
     // ---------------------------------------------------------------------
 
-    fun detect(): Map<String, Any> {
+    fun detect(context: Context): Map<String, Any> {
         val shizukuBinder = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
         val shizukuPermission = if (shizukuBinder) shizukuPermission() else -1
         return mapOf(
             "root" to rootAvailable(),
             "shizuku" to shizukuBinder,
             "shizukuPermission" to shizukuPermission,
-            "adb" to false,
+            "adb" to AdbManager.available(context),
+            "hostIp" to (AdbManager.hostIp(context) ?: ""),
             "active" to (session != null),
             "mode" to (session?.mode ?: "off"),
         )
@@ -101,6 +102,7 @@ object PrivilegeManager {
         val port = when (mode) {
             "root" -> startWithSu(context, token)
             "shizuku" -> startWithShizuku(context, token)
+            "adb" -> AdbManager.start(context, token)
             else -> throw IllegalArgumentException("暂不支持的权限模式：$mode")
         }
         return Session(mode, port, token).also { session = it }
@@ -112,6 +114,7 @@ object PrivilegeManager {
         runCatching { shizukuProcess?.destroy() }
         suProcess = null
         shizukuProcess = null
+        runCatching { AdbManager.stop() }
     }
 
     private fun startWithSu(context: Context, token: String): Int {

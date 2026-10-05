@@ -79,6 +79,25 @@ class PlatformService {
     }
   }
 
+  /// ADB 模式：与设备无线调试配对。
+  static Future<bool> privAdbPair({
+    required String host,
+    required int port,
+    required String code,
+  }) async {
+    try {
+      return await _channel.invokeMethod<bool>('privAdbPair', {
+        'host': host,
+        'port': port,
+        'code': code,
+      }) ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   static Future<bool> openFile(
     String path, {
     String? mime,
