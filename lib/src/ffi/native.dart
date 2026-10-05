@@ -233,6 +233,9 @@ class _OrdoBindings {
   late final _Dart2 symlink = _lib.lookupFunction<_Native2, _Dart2>(
     'ordo_symlink',
   );
+  late final _Dart1 mediaInfo = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_media_info',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -562,6 +565,16 @@ dynamic nativeExecute(String op, List<Object?> args) {
               (link) => bindings.symlink(target, link),
             );
           }),
+        ),
+      );
+    case 'mediaInfo':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(
+            args[0] as String,
+            (path) => bindings.mediaInfo(path),
+          ),
         ),
       );
     case 'readBytes':

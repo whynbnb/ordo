@@ -376,3 +376,126 @@ class _FolderSizeDialogState extends State<_FolderSizeDialog> {
     );
   }
 }
+
+/// 显示图片的 EXIF / 媒体信息（解析全部由 Rust 完成）。
+Future<void> showMediaInfoDialog(BuildContext context, FileEntry entry) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => _MediaInfoDialog(entry: entry),
+  );
+}
+
+class _MediaInfoDialog extends StatefulWidget {
+  const _MediaInfoDialog({required this.entry});
+
+  final FileEntry entry;
+
+  @override
+  State<_MediaInfoDialog> createState() => _MediaInfoDialogState();
+}
+
+class _MediaInfoDialogState extends State<_MediaInfoDialog> {
+  bool _loading = true;
+  String? _error;
+  Map<String, dynamic> _info = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final info = await OrdoService.instance.mediaInfo(widget.entry.path);
+      if (!mounted) return;
+      setState(() {
+        _info = info;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$error';
+        _loading = false;
+      });
+    }
+  }
+
+  List<(String, String)> get _rows {
+    final rows = <(String, String)>[
+      ('文件', widget.entry.name),
+      (
+        '大小',
+        formatBytes((_info['size'] as num?)?.toInt() ?? widget.entry.size),
+      ),
+    ];
+    final width = (_info['width'] as num?)?.toInt();
+    final height = (_info['height'] as num?)?.toInt();
+    if (width != null && height != null) {
+      rows.add(('尺寸', '$width × $height'));
+    }
+    void add(String key, String label) {
+      final value = _info[key];
+      if (value != null && '$value'.isNotEmpty) rows.add((label, '$value'));
+    }
+
+    add('date_taken', '拍摄时间');
+    add('camera', '相机');
+    add('orientation', '方向');
+    add('f_number', '光圈');
+    add('exposure_time', '曝光时间');
+    add('iso', 'ISO');
+    return rows;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AlertDialog(
+      title: const Text('媒体信息'),
+      content: _loading
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : _error != null
+          ? Text(_error!)
+          : SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final row in _rows)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 72,
+                            child: Text(
+                              row.$1,
+                              style: TextStyle(color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                          Expanded(child: SelectableText(row.$2)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('关闭'),
+        ),
+      ],
+    );
+  }
+}

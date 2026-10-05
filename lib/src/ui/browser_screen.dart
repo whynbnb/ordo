@@ -1139,6 +1139,15 @@ class _BrowserScreenState extends State<BrowserScreen>
                     showHashDialog(context, entry);
                   },
                 ),
+              if (isImageExtension(entry.extension))
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_back_outlined),
+                  title: const Text('媒体信息'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    showMediaInfoDialog(context, entry);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.label_outline_rounded),
                 title: const Text('标签颜色'),

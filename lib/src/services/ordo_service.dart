@@ -80,6 +80,12 @@ class OrdoService {
     return FileEntry.fromJson((data as Map).cast<String, dynamic>());
   }
 
+  /// 图片 EXIF / 媒体信息。
+  Future<Map<String, dynamic>> mediaInfo(String path) async {
+    final data = await _background('mediaInfo', [path]);
+    return (data as Map).cast<String, dynamic>();
+  }
+
   Future<FileEntry> rename(String path, String newName) async {
     final data = _direct('rename', [path, newName]);
     return FileEntry.fromJson((data as Map).cast<String, dynamic>());

@@ -11,6 +11,7 @@ mod archive;
 mod favorites;
 mod importer;
 mod jobs;
+mod media;
 mod model;
 mod prefs;
 mod remote;
@@ -291,6 +292,18 @@ pub unsafe extern "C" fn ordo_hash(path: *const c_char, algorithm: *const c_char
 pub unsafe extern "C" fn ordo_dir_size(path: *const c_char) -> *mut c_char {
     guard(|| match read_str(path) {
         Ok(p) => result(vfs::dir_size(&p)),
+        Err(e) => err(e),
+    })
+}
+
+/// 读取图片的 EXIF / 媒体信息。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_media_info(path: *const c_char) -> *mut c_char {
+    guard(|| match read_str(path) {
+        Ok(p) => result(media::info(&p)),
         Err(e) => err(e),
     })
 }
