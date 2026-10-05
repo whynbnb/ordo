@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
+import '../i18n/i18n.dart';
 
 /// 存储趋势：记录并比较目录用量快照。
 class TrendScreen extends StatefulWidget {
@@ -58,11 +59,11 @@ class _TrendScreenState extends State<TrendScreen> {
         _history = history;
         _busy = false;
       });
-      _snack('已记录当前快照');
+      _snack(tr('已记录当前快照'));
     } catch (error) {
       if (!mounted) return;
       setState(() => _busy = false);
-      _snack('记录失败：$error');
+      _snack(tr('记录失败：{error}', {'error': error}));
     }
   }
 
@@ -77,10 +78,10 @@ class _TrendScreenState extends State<TrendScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('存储趋势「${widget.title}」'),
+        title: Text(tr('存储趋势「{p0}」', {'p0': widget.title})),
         actions: [
           IconButton(
-            tooltip: '记录当前快照',
+            tooltip: tr('记录当前快照'),
             onPressed: _busy ? null : _record,
             icon: const Icon(Icons.add_chart_rounded),
           ),
@@ -106,12 +107,12 @@ class _TrendScreenState extends State<TrendScreen> {
                     color: Theme.of(context).colorScheme.outline,
                   ),
                   const SizedBox(height: 12),
-                  const Text('还没有快照记录'),
+                  Text(tr('还没有快照记录')),
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: _record,
                     icon: const Icon(Icons.add_chart_rounded),
-                    label: const Text('记录当前快照'),
+                    label: Text(tr('记录当前快照')),
                   ),
                 ],
               ),
@@ -124,7 +125,7 @@ class _TrendScreenState extends State<TrendScreen> {
                 _chart(context),
                 const SizedBox(height: 16),
                 Text(
-                  '历史记录',
+                  tr('历史记录'),
                   style: Theme.of(context).textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
@@ -134,7 +135,7 @@ class _TrendScreenState extends State<TrendScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.circle, size: 10),
                     title: Text(formatDate(snapshot.time)),
-                    subtitle: Text('${snapshot.files} 个文件'),
+                    subtitle: Text(tr('{p0} 个文件', {'p0': snapshot.files})),
                     trailing: Text(formatBytes(snapshot.bytes)),
                   ),
               ],
@@ -167,12 +168,11 @@ class _TrendScreenState extends State<TrendScreen> {
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
-            Text('当前：${latest.files} 个文件'),
+            Text(tr('当前：{p0} 个文件', {'p0': latest.files})),
             if (previous != null) ...[
               const SizedBox(height: 4),
               Text(
-                '较上次：$sign${formatBytes(delta.abs())}'
-                '${delta < 0 ? '（减少）' : (delta > 0 ? '（增加）' : '')}',
+                tr('较上次：{sign}{p1}{p2}', {'sign': sign, 'p1': formatBytes(delta.abs()), 'p2': delta < 0 ? tr('（减少）') : (delta > 0 ? tr('（增加）') : '')}),
                 style: TextStyle(color: deltaColor),
               ),
             ],

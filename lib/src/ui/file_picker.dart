@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/models.dart';
 import '../core/ordo_exception.dart';
 import '../services/ordo_service.dart';
+import '../i18n/i18n.dart';
 
 /// 打开文件选择器，返回所选文件的绝对路径（取消返回 null）。
 Future<String?> pickFile(BuildContext context, {String? initial}) {
@@ -78,7 +79,7 @@ class _FilePickerState extends State<_FilePicker> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('选择文件')),
+      appBar: AppBar(title: Text(tr('选择文件'))),
       body: Column(
         children: [
           Container(
@@ -115,7 +116,7 @@ class _FilePickerState extends State<_FilePicker> {
         if (_path != '/')
           ListTile(
             leading: const Icon(Icons.arrow_upward_rounded),
-            title: const Text('上级目录'),
+            title: Text(tr('上级目录')),
             onTap: _goUp,
           ),
         for (final entry in _entries)

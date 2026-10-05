@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
 import '../core/ordo_exception.dart';
+import '../i18n/i18n.dart';
 
 // ---------------------------------------------------------------------------
 // C ABI 类型
@@ -86,7 +87,7 @@ DynamicLibrary _openLibrary() {
   if (Platform.isWindows) {
     return DynamicLibrary.open('ordo_core.dll');
   }
-  throw UnsupportedError('当前平台不受支持');
+  throw UnsupportedError(tr('当前平台不受支持'));
 }
 
 /// 每个 isolate 各自持有一份符号表（`static final` 在每个 isolate 内独立初始化）。
@@ -805,13 +806,13 @@ dynamic nativeExecute(String op, List<Object?> args) {
         ),
       );
     default:
-      throw OrdoException('未知操作：$op');
+      throw OrdoException(tr('未知操作：{op}', {'op': op}));
   }
 }
 
 String _take(_OrdoBindings bindings, Pointer<Utf8> ptr) {
   if (ptr == nullptr) {
-    throw const OrdoException('原生核心返回空指针');
+    throw OrdoException(tr('原生核心返回空指针'));
   }
   try {
     return ptr.toDartString();
@@ -834,13 +835,13 @@ dynamic _decode(String raw) {
   try {
     decoded = jsonDecode(raw);
   } on FormatException {
-    throw const OrdoException('无法解析原生核心返回的数据');
+    throw OrdoException(tr('无法解析原生核心返回的数据'));
   }
   if (decoded is Map && decoded['ok'] == true) {
     return decoded['data'];
   }
   final message = decoded is Map ? decoded['error']?.toString() : null;
-  throw OrdoException(message ?? '原生核心返回未知错误');
+  throw OrdoException(message ?? tr('原生核心返回未知错误'));
 }
 
 Uint8List _readBytes(_OrdoBindings bindings, String path) {
@@ -849,7 +850,7 @@ Uint8List _readBytes(_OrdoBindings bindings, String path) {
     final pointer = _withCString(path, (p) => bindings.readBytes(p, outLen));
     final length = outLen.value;
     if (pointer == nullptr) {
-      throw const OrdoException('无法读取文件内容');
+      throw OrdoException(tr('无法读取文件内容'));
     }
     if (length == 0) {
       return Uint8List(0);

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../services/platform_service.dart';
+import '../i18n/locale_store.dart';
 import '../state/prefs_store.dart';
 import '../state/theme_store.dart';
 import 'crash_log_screen.dart';
+import '../i18n/i18n.dart';
 
 /// 选择应用的结果：`null` 表示取消选择动作本身。
 class _PickResult {
@@ -55,25 +57,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               ListTile(
                 title: Text(
-                  '默认打开方式 · ${category.label}',
+                  tr('默认打开方式 · {p0}', {'p0': tr(category.label)}),
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.help_outline_rounded),
-                title: const Text('每次询问'),
-                subtitle: const Text('不设置默认应用，弹出系统选择器'),
+                title: Text(tr('每次询问')),
+                subtitle: Text(tr('不设置默认应用，弹出系统选择器')),
                 trailing: _prefs.targetForCategory(category.key) == null
                     ? Icon(Icons.check_rounded, color: scheme.primary)
                     : null,
                 onTap: () => Navigator.pop(sheetContext, const _PickResult(null)),
               ),
               if (apps.isEmpty)
-                const ListTile(
+                ListTile(
                   enabled: false,
                   leading: Icon(Icons.apps_outlined),
-                  title: Text('未找到可处理该类型的应用'),
+                  title: Text(tr('未找到可处理该类型的应用')),
                 )
               else
                 for (final app in apps)
@@ -107,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (result == null || !mounted) return;
     await _prefs.setTarget(category.key, result.target);
     _snack(
-      result.target == null ? '已设为每次询问' : '默认打开方式：${result.target!.label}',
+      result.target == null ? tr('已设为每次询问') : tr('默认打开方式：{p0}', {'p0': result.target!.label}),
     );
   }
 
@@ -132,29 +134,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (value) {
       final available = await PlatformService.lockAvailable();
       if (!available) {
-        _snack('请先在系统设置中设置锁屏密码 / 图案');
+        _snack(tr('请先在系统设置中设置锁屏密码 / 图案'));
         return;
       }
       await _prefs.setValue('app_lock', '1');
-      _snack('已开启应用锁');
+      _snack(tr('已开启应用锁'));
     } else {
       final ok = await PlatformService.authenticate();
       if (!ok) return;
       await _prefs.setValue('app_lock', null);
-      _snack('已关闭应用锁');
+      _snack(tr('已关闭应用锁'));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+      appBar: AppBar(title: Text(tr('设置'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           const SizedBox(height: 8),
           Text(
-            '外观',
+            tr('外观'),
             style: Theme.of(context).textTheme.titleMedium
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
@@ -172,7 +174,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            '主色',
+            tr('主色'),
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: 8),
@@ -206,24 +208,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
             ],
           ),
+          const SizedBox(height: 12),
+          Text(
+            tr('语言'),
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: Text(tr('跟随系统')),
+                selected: LocaleStore.instance.mode == 'system',
+                onSelected: (_) => LocaleStore.instance.setMode('system'),
+              ),
+              ChoiceChip(
+                label: Text(tr('简体中文')),
+                selected: LocaleStore.instance.mode == 'zh',
+                onSelected: (_) => LocaleStore.instance.setMode('zh'),
+              ),
+              ChoiceChip(
+                label: const Text('English'),
+                selected: LocaleStore.instance.mode == 'en',
+                onSelected: (_) => LocaleStore.instance.setMode('en'),
+              ),
+            ],
+          ),
           const Divider(height: 32),
           Text(
-            '安全与隐私',
+            tr('安全与隐私'),
             style: Theme.of(context).textTheme.titleMedium
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('应用锁'),
-            subtitle: const Text('启动或回到前台时验证设备锁屏凭证'),
+            title: Text(tr('应用锁')),
+            subtitle: Text(tr('启动或回到前台时验证设备锁屏凭证')),
             value: _appLock,
             onChanged: _toggleLock,
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.bug_report_outlined),
-            title: const Text('崩溃日志'),
-            subtitle: const Text('查看、导出或清空错误日志'),
+            title: Text(tr('崩溃日志')),
+            subtitle: Text(tr('查看、导出或清空错误日志')),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () {
               Navigator.of(context).push(
@@ -236,14 +264,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(),
           const SizedBox(height: 8),
           Text(
-            '默认打开方式',
+            tr('默认打开方式'),
             style: Theme.of(context).textTheme.titleMedium
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
-            '为「用其它应用打开」指定默认应用；未指定时每次弹出系统选择器。'
-            '图片 / 音频 / 文本仍可在应用内直接预览。',
+            tr('为「用其它应用打开」指定默认应用；未指定时每次弹出系统选择器。图片 / 音频 / 文本仍可在应用内直接预览。'),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -268,8 +295,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       margin: EdgeInsets.zero,
       child: ListTile(
         leading: Icon(_iconFor(category.key), color: scheme.primary),
-        title: Text(category.label),
-        subtitle: Text(target?.label ?? '每次询问'),
+        title: Text(tr(category.label)),
+        subtitle: Text(target?.label ?? tr('每次询问')),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: () => _pick(category),
       ),
@@ -277,10 +304,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _modeLabel(OrdoThemeMode mode) => switch (mode) {
-    OrdoThemeMode.system => '跟随系统',
-    OrdoThemeMode.light => '浅色',
-    OrdoThemeMode.dark => '深色',
-    OrdoThemeMode.black => '纯黑',
+    OrdoThemeMode.system => tr('跟随系统'),
+    OrdoThemeMode.light => tr('浅色'),
+    OrdoThemeMode.dark => tr('深色'),
+    OrdoThemeMode.black => tr('纯黑'),
   };
 
   IconData _iconFor(String category) => switch (category) {

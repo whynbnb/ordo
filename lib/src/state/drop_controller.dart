@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
+import '../i18n/i18n.dart';
 
 /// 跨应用拖放的全局状态与处理：把外部应用（如相册）拖入的文件导入当前目录。
 class DropController {
@@ -20,7 +21,7 @@ class DropController {
   final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
   String? _activePath;
-  String _activeLabel = '内部存储';
+  String _activeLabel = tr('内部存储');
 
   /// 当前可见浏览页面的目录；未设置时回退到内部存储根目录。
   String get activePath => _activePath ?? '/storage/emulated/0';
@@ -29,7 +30,7 @@ class DropController {
   /// 由当前可见页面设置导入目标。
   void setActive(String? path, String? label) {
     _activePath = path;
-    _activeLabel = (label == null || label.isEmpty) ? '内部存储' : label;
+    _activeLabel = (label == null || label.isEmpty) ? tr('内部存储') : label;
   }
 
   void register() {
@@ -46,7 +47,7 @@ class DropController {
     final target = activePath;
     final label = activeLabel;
     if (items.isEmpty) {
-      _snack('没有识别到可导入的文件');
+      _snack(tr('没有识别到可导入的文件'));
       return;
     }
 
@@ -70,7 +71,7 @@ class DropController {
 
     if (imported > 0) revision.value++;
     _snack(
-      imported > 0 ? '已导入 $imported 个文件到「$label」' : '导入失败',
+      imported > 0 ? tr('已导入 {imported} 个文件到「{label}」', {'imported': imported, 'label': label}) : tr('导入失败'),
       errors: errors,
     );
   }

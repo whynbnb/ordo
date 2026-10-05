@@ -1,3 +1,5 @@
+import '../i18n/i18n.dart';
+
 /// 原生核心或服务层抛出的错误。
 class OrdoException implements Exception {
   const OrdoException(this.message);
@@ -5,5 +7,5 @@ class OrdoException implements Exception {
   final String message;
 
   @override
-  String toString() => message;
+  String toString() => trError(message);
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
+import '../i18n/i18n.dart';
 
 enum TransferState { queued, running, done, failed, cancelled }
 
@@ -27,7 +28,7 @@ class TransferTask {
   int total = 0;
   String? error;
 
-  String get label => isMove ? '移动' : '复制';
+  String get label => isMove ? tr('移动') : tr('复制');
   double? get fraction => total > 0 ? (done / total).clamp(0.0, 1.0) : null;
 }
 
@@ -93,8 +94,8 @@ class TransferQueue extends ChangeNotifier {
     task.jobId = service.jobCreate();
     notifyListeners();
     PlatformService.transferNotify(
-      '正在${task.label}',
-      '${task.sources.length} 项 → ${task.dest}',
+      tr('正在{p0}', {'p0': task.label}),
+      tr('{p0} 项 → {p1}', {'p0': task.sources.length, 'p1': task.dest}),
       -1,
     );
 
@@ -107,7 +108,7 @@ class TransferQueue extends ChangeNotifier {
         if (task.state == TransferState.running) {
           notifyListeners();
           PlatformService.transferNotify(
-            '正在${task.label}',
+            tr('正在{p0}', {'p0': task.label}),
             task.dest,
             task.total > 0 ? (task.done * 100 ~/ task.total) : -1,
           );

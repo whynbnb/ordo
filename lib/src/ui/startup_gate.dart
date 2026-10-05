@@ -7,6 +7,7 @@ import '../services/platform_service.dart';
 import '../state/navigation.dart';
 import '../state/prefs_store.dart';
 import 'home_screen.dart';
+import '../i18n/i18n.dart';
 
 /// 启动检查：确认 Rust 核心可用、存储权限已授予。
 class StartupGate extends StatefulWidget {
@@ -183,17 +184,17 @@ class _LockScreen extends StatelessWidget {
             children: [
               Icon(Icons.lock_rounded, size: 56, color: scheme.primary),
               const SizedBox(height: 16),
-              Text('安序已锁定', style: Theme.of(context).textTheme.titleLarge),
+              Text(tr('安序已锁定'), style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 8),
               Text(
-                '使用设备锁屏凭证解锁。',
+                tr('使用设备锁屏凭证解锁。'),
                 style: TextStyle(color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: onUnlock,
                 icon: const Icon(Icons.lock_open_rounded),
-                label: const Text('解锁'),
+                label: Text(tr('解锁')),
               ),
             ],
           ),
@@ -221,7 +222,7 @@ class _CoreErrorScreen extends StatelessWidget {
               const Icon(Icons.memory_rounded, size: 56),
               const SizedBox(height: 16),
               Text(
-                '无法加载 Rust 核心',
+                tr('无法加载 Rust 核心'),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 12),
@@ -233,7 +234,7 @@ class _CoreErrorScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              FilledButton.tonal(onPressed: onRetry, child: const Text('重试')),
+              FilledButton.tonal(onPressed: onRetry, child: Text(tr('重试'))),
             ],
           ),
         ),
@@ -270,11 +271,10 @@ class _PermissionScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              Text('需要存储权限', style: Theme.of(context).textTheme.headlineSmall),
+              Text(tr('需要存储权限'), style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 12),
               Text(
-                '安序需要「所有文件访问权限」来浏览和管理设备上的文件。'
-                '所有读取与修改都由本地 Rust 核心完成，不会上传任何数据。',
+                tr('安序需要「所有文件访问权限」来浏览和管理设备上的文件。所有读取与修改都由本地 Rust 核心完成，不会上传任何数据。'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: scheme.onSurfaceVariant),
               ),
@@ -283,7 +283,7 @@ class _PermissionScreen extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: onRequest,
-                  child: const Text('前往授权'),
+                  child: Text(tr('前往授权')),
                 ),
               ),
             ],

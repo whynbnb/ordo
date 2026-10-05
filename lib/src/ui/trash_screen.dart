@@ -4,6 +4,7 @@ import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'dialogs.dart';
+import '../i18n/i18n.dart';
 
 /// 回收站：查看、恢复或彻底删除此前移入的文件。
 class TrashScreen extends StatefulWidget {
@@ -52,7 +53,7 @@ class _TrashScreenState extends State<TrashScreen> {
       final result = await _service.trashRestore([entry.id]);
       await _load();
       _snack(
-        result.restored > 0 ? '已恢复「${entry.name}」' : '恢复失败',
+        result.restored > 0 ? tr('已恢复「{p0}」', {'p0': entry.name}) : tr('恢复失败'),
         errors: result.errors,
       );
     } catch (error) {
@@ -65,7 +66,7 @@ class _TrashScreenState extends State<TrashScreen> {
       final result = await _service.trashRemove([entry.id]);
       await _load();
       _snack(
-        result.deleted > 0 ? '已彻底删除「${entry.name}」' : '删除失败',
+        result.deleted > 0 ? tr('已彻底删除「{p0}」', {'p0': entry.name}) : tr('删除失败'),
         errors: result.errors,
       );
     } catch (error) {
@@ -76,16 +77,16 @@ class _TrashScreenState extends State<TrashScreen> {
   Future<void> _empty() async {
     final confirmed = await showConfirmDialog(
       context,
-      title: '清空回收站',
-      message: '将彻底删除回收站中的 ${_entries.length} 项，无法恢复。',
-      confirmLabel: '清空',
+      title: tr('清空回收站'),
+      message: tr('将彻底删除回收站中的 {p0} 项，无法恢复。', {'p0': _entries.length}),
+      confirmLabel: tr('清空'),
       destructive: true,
     );
     if (!confirmed || !mounted) return;
     try {
       final deleted = await _service.trashEmpty();
       await _load();
-      _snack('已清空 $deleted 项');
+      _snack(tr('已清空 {deleted} 项', {'deleted': deleted}));
     } catch (error) {
       _snack('$error');
     }
@@ -105,10 +106,10 @@ class _TrashScreenState extends State<TrashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('回收站'),
+        title: Text(tr('回收站')),
         actions: [
           IconButton(
-            tooltip: '清空回收站',
+            tooltip: tr('清空回收站'),
             icon: const Icon(Icons.delete_sweep_rounded),
             onPressed: _entries.isEmpty ? null : _empty,
           ),
@@ -142,7 +143,7 @@ class _TrashScreenState extends State<TrashScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              '回收站是空的',
+              tr('回收站是空的'),
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -174,7 +175,7 @@ class _TrashScreenState extends State<TrashScreen> {
           ),
           isThreeLine: true,
           trailing: PopupMenuButton<String>(
-            tooltip: '更多',
+            tooltip: tr('更多'),
             onSelected: (value) {
               if (value == 'restore') {
                 _restore(entry);
@@ -182,9 +183,9 @@ class _TrashScreenState extends State<TrashScreen> {
                 _remove(entry);
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'restore', child: Text('恢复')),
-              PopupMenuItem(value: 'delete', child: Text('彻底删除')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'restore', child: Text(tr('恢复'))),
+              PopupMenuItem(value: 'delete', child: Text(tr('彻底删除'))),
             ],
           ),
         );

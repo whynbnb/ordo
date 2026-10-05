@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../state/drop_controller.dart';
+import '../i18n/i18n.dart';
 
 /// 外部文件拖到窗口上方时显示的提示层（放在 `Stack` 中）。
 ///
@@ -43,7 +44,7 @@ class DropOverlay extends StatelessWidget {
                           const SizedBox(width: 10),
                           Flexible(
                             child: Text(
-                              '松手导入到「${DropController.instance.activeLabel}」',
+                              tr('松手导入到「{p0}」', {'p0': DropController.instance.activeLabel}),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodyMedium

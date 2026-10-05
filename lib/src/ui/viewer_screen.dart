@@ -10,6 +10,7 @@ import '../services/ordo_service.dart';
 import '../services/platform_service.dart';
 import 'dialogs.dart';
 import 'open_entry.dart';
+import '../i18n/i18n.dart';
 
 /// 应用内预览：图片渲染、音频播放、文本查看与编辑。
 ///
@@ -89,7 +90,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
           const maxPreview = 32 * 1024 * 1024;
           if (widget.entry.size > maxPreview) {
             setState(() {
-              _error = '图片过大（${formatBytes(widget.entry.size)}），无法在应用内预览';
+              _error = tr('图片过大（{p0}），无法在应用内预览', {'p0': formatBytes(widget.entry.size)});
               _loading = false;
             });
             return;
@@ -132,7 +133,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (!mounted) return;
     if (count <= 0) {
       setState(() {
-        _error = '无法打开此 PDF（可能已加密或损坏）';
+        _error = tr('无法打开此 PDF（可能已加密或损坏）');
         _loading = false;
       });
       return;
@@ -161,7 +162,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (!mounted) return;
     if (duration < 0) {
       setState(() {
-        _error = '无法播放此音频文件';
+        _error = tr('无法播放此音频文件');
         _loading = false;
       });
       return;
@@ -195,7 +196,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   void _enterEdit() {
     if (!_canEdit) {
-      _snack('文件过大，未完整加载，无法编辑');
+      _snack(tr('文件过大，未完整加载，无法编辑'));
       return;
     }
     _controller.text = _text!.content;
@@ -224,11 +225,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
         _editMode = false;
         _saving = false;
       });
-      _snack('已保存');
+      _snack(tr('已保存'));
     } catch (error) {
       if (!mounted) return;
       setState(() => _saving = false);
-      _snack('保存失败：$error');
+      _snack(tr('保存失败：{error}', {'error': error}));
     }
   }
 
@@ -258,12 +259,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (_editMode) {
       return [
         IconButton(
-          tooltip: '取消',
+          tooltip: tr('取消'),
           icon: const Icon(Icons.close_rounded),
           onPressed: _saving ? null : _cancelEdit,
         ),
         IconButton(
-          tooltip: '保存',
+          tooltip: tr('保存'),
           icon: _saving
               ? const SizedBox(
                   width: 20,
@@ -278,26 +279,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
     return [
       if (_kind == _PreviewKind.text)
         IconButton(
-          tooltip: '编辑',
+          tooltip: tr('编辑'),
           icon: const Icon(Icons.edit_outlined),
           onPressed: _canEdit ? _enterEdit : null,
         ),
       if (_kind == _PreviewKind.image)
         PopupMenuButton<String>(
-          tooltip: '图片操作',
+          tooltip: tr('图片操作'),
           icon: const Icon(Icons.photo_filter_rounded),
           onSelected: _onImageAction,
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'rotate_left', child: Text('向左旋转')),
-            PopupMenuItem(value: 'rotate_right', child: Text('向右旋转')),
-            PopupMenuItem(value: 'rotate_180', child: Text('旋转 180°')),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'rotate_left', child: Text(tr('向左旋转'))),
+            PopupMenuItem(value: 'rotate_right', child: Text(tr('向右旋转'))),
+            PopupMenuItem(value: 'rotate_180', child: Text(tr('旋转 180°'))),
             PopupMenuDivider(),
-            PopupMenuItem(value: 'save_as', child: Text('另存为')),
-            PopupMenuItem(value: 'wallpaper', child: Text('设为壁纸')),
+            PopupMenuItem(value: 'save_as', child: Text(tr('另存为'))),
+            PopupMenuItem(value: 'wallpaper', child: Text(tr('设为壁纸'))),
           ],
         ),
       IconButton(
-        tooltip: '用其它应用打开',
+        tooltip: tr('用其它应用打开'),
         icon: const Icon(Icons.open_in_new_rounded),
         onPressed: _loading
             ? null
@@ -326,9 +327,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
       await _service.rotateImage(widget.entry.path, direction);
       _imageBytes = null;
       await _load();
-      _snack('已旋转');
+      _snack(tr('已旋转'));
     } catch (error) {
-      _snack('旋转失败：$error');
+      _snack(tr('旋转失败：{error}', {'error': error}));
     }
   }
 
@@ -340,17 +341,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final extension = dot > 0 ? widget.entry.name.substring(dot) : '';
     final name = await showNameDialog(
       context,
-      title: '另存为',
+      title: tr('另存为'),
       initialText: '${base}_copy$extension',
-      confirmLabel: '保存',
+      confirmLabel: tr('保存'),
     );
     if (name == null || name.isEmpty || !mounted) return;
     final dest = joinPath(parentOf(widget.entry.path), name);
     try {
       await _service.copyFile(widget.entry.path, dest);
-      _snack('已保存为「$name」');
+      _snack(tr('已保存为「{name}」', {'name': name}));
     } catch (error) {
-      _snack('保存失败：$error');
+      _snack(tr('保存失败：{error}', {'error': error}));
     }
   }
 
@@ -362,9 +363,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
         path = cached.path;
       }
       final ok = await PlatformService.setWallpaper(path);
-      _snack(ok ? '已设为壁纸' : '设置壁纸失败');
+      _snack(ok ? tr('已设为壁纸') : tr('设置壁纸失败'));
     } catch (error) {
-      _snack('设置壁纸失败：$error');
+      _snack(tr('设置壁纸失败：{error}', {'error': error}));
     }
   }
 
@@ -383,7 +384,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               const SizedBox(height: 16),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              FilledButton.tonal(onPressed: _load, child: const Text('重试')),
+              FilledButton.tonal(onPressed: _load, child: Text(tr('重试'))),
             ],
           ),
         ),
@@ -424,7 +425,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   if (bytes == null) {
                     return Center(
                       child: Text(
-                        '无法渲染第 ${index + 1} 页',
+                        tr('无法渲染第 {p0} 页', {'p0': index + 1}),
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -449,7 +450,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Text(
-            '第 ${_pdfPageIndex + 1} / $_pdfPageCount 页 · 左右滑动翻页',
+            tr('第 {p0} / {_pdfPageCount} 页 · 左右滑动翻页', {'p0': _pdfPageIndex + 1, '_pdfPageCount': _pdfPageCount}),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -471,8 +472,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
           child: Image.memory(
             bytes,
             fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => const Text(
-              '无法预览此图片',
+            errorBuilder: (context, error, stackTrace) => Text(
+              tr('无法预览此图片'),
               style: TextStyle(color: Colors.white70),
             ),
           ),
@@ -503,7 +504,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              '音频 · ${mimeOfExtension(widget.entry.extension)}',
+              tr('音频 · {p0}', {'p0': mimeOfExtension(widget.entry.extension)}),
               style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
@@ -565,13 +566,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
             width: double.infinity,
             color: Theme.of(context).colorScheme.secondaryContainer,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('文件较大，仅显示前面部分（共 ${formatBytes(text.size)}）'),
+            child: Text(tr('文件较大，仅显示前面部分（共 {p0}）', {'p0': formatBytes(text.size)})),
           ),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: SelectableText(
-              text.content.isEmpty ? '（空文件）' : text.content,
+              text.content.isEmpty ? tr('（空文件）') : text.content,
               style: const TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 13,

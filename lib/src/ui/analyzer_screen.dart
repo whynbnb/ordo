@@ -10,6 +10,7 @@ import 'dialogs.dart';
 import 'directory_picker.dart';
 import 'job_progress.dart';
 import 'open_entry.dart';
+import '../i18n/i18n.dart';
 
 /// 存储分析：分类占用、最大文件、重复文件。
 class AnalyzerScreen extends StatefulWidget {
@@ -42,7 +43,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
     try {
       final result = await runWithJobProgress<AnalyzeResult>(
         context,
-        '正在分析',
+        tr('正在分析'),
         (jobId) => _service.analyze(_root, jobId: jobId),
       );
       if (!mounted) return;
@@ -55,9 +56,9 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
   Future<void> _cleanGroup(DuplicateGroup group) async {
     final confirmed = await showConfirmDialog(
       context,
-      title: '删除重复文件',
-      message: '保留第一个，将其余 ${group.files.length - 1} 个移入回收站？',
-      confirmLabel: '删除',
+      title: tr('删除重复文件'),
+      message: tr('保留第一个，将其余 {p0} 个移入回收站？', {'p0': group.files.length - 1}),
+      confirmLabel: tr('删除'),
       destructive: true,
     );
     if (!confirmed || !mounted) return;
@@ -65,7 +66,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
     try {
       final result = await _service.delete(paths, toTrash: true);
       _snack(
-        result.trashed > 0 ? '已移入回收站 ${result.trashed} 个' : '删除失败',
+        result.trashed > 0 ? tr('已移入回收站 {p0} 个', {'p0': result.trashed}) : tr('删除失败'),
         errors: result.errors,
       );
       await _run();
@@ -100,22 +101,22 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.open_in_new_rounded),
-                title: const Text('打开'),
+                title: Text(tr('打开')),
                 onTap: () => Navigator.pop(sheetContext, 'open'),
               ),
               ListTile(
                 leading: const Icon(Icons.folder_open_rounded),
-                title: const Text('打开所在文件夹'),
+                title: Text(tr('打开所在文件夹')),
                 onTap: () => Navigator.pop(sheetContext, 'folder'),
               ),
               ListTile(
                 leading: const Icon(Icons.share_outlined),
-                title: const Text('分享'),
+                title: Text(tr('分享')),
                 onTap: () => Navigator.pop(sheetContext, 'share'),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline_rounded),
-                title: const Text('移入回收站'),
+                title: Text(tr('移入回收站')),
                 onTap: () => Navigator.pop(sheetContext, 'trash'),
               ),
               ListTile(
@@ -123,7 +124,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
                   Icons.delete_forever_outlined,
                   color: scheme.error,
                 ),
-                title: Text('永久删除', style: TextStyle(color: scheme.error)),
+                title: Text(tr('永久删除'), style: TextStyle(color: scheme.error)),
                 onTap: () => Navigator.pop(sheetContext, 'delete'),
               ),
             ],
@@ -178,26 +179,26 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
       file.path,
       mime: mimeOfExtension(_extensionOf(file.name)),
     );
-    if (!ok && mounted) _snack('没有可以分享此文件的应用');
+    if (!ok && mounted) _snack(tr('没有可以分享此文件的应用'));
   }
 
   Future<void> _deleteFile(AnalysisFile file, {required bool toTrash}) async {
     final confirmed = await showConfirmDialog(
       context,
-      title: toTrash ? '移入回收站' : '永久删除',
+      title: toTrash ? tr('移入回收站') : tr('永久删除'),
       message: toTrash
-          ? '将「${file.name}」移入回收站？可在「回收站」中恢复。'
-          : '永久删除「${file.name}」？此操作不可恢复。',
-      confirmLabel: toTrash ? '移入回收站' : '删除',
+          ? tr('将「{p0}」移入回收站？可在「回收站」中恢复。', {'p0': file.name})
+          : tr('永久删除「{p0}」？此操作不可恢复。', {'p0': file.name}),
+      confirmLabel: toTrash ? tr('移入回收站') : tr('删除'),
       destructive: true,
     );
     if (!confirmed || !mounted) return;
     try {
       final result = await _service.delete([file.path], toTrash: toTrash);
       final parts = <String>[];
-      if (result.trashed > 0) parts.add('已移入回收站');
-      if (result.deleted > 0) parts.add('已永久删除');
-      _snack(parts.isEmpty ? '删除失败' : parts.join('，'), errors: result.errors);
+      if (result.trashed > 0) parts.add(tr('已移入回收站'));
+      if (result.deleted > 0) parts.add(tr('已永久删除'));
+      _snack(parts.isEmpty ? tr('删除失败') : parts.join('，'), errors: result.errors);
       await _run();
     } catch (error) {
       _snack('$error');
@@ -221,14 +222,14 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
   }
 
   String _categoryLabel(String category) => switch (category) {
-    'image' => '图片',
-    'video' => '视频',
-    'audio' => '音频',
-    'document' => '文档',
-    'archive' => '压缩包',
-    'apk' => '安装包',
-    'text' => '文本',
-    _ => '其它',
+    'image' => tr('图片'),
+    'video' => tr('视频'),
+    'audio' => tr('音频'),
+    'document' => tr('文档'),
+    'archive' => tr('压缩包'),
+    'apk' => tr('安装包'),
+    'text' => tr('文本'),
+    _ => tr('其它'),
   };
 
   IconData _categoryIcon(String category) => switch (category) {
@@ -246,16 +247,16 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('存储分析'),
+        title: Text(tr('存储分析')),
         actions: [
           IconButton(
-            tooltip: '选择目录',
+            tooltip: tr('选择目录'),
             icon: const Icon(Icons.folder_open_rounded),
             onPressed: _pickRoot,
           ),
           if (_result != null)
             IconButton(
-              tooltip: '重新分析',
+              tooltip: tr('重新分析'),
               icon: const Icon(Icons.refresh_rounded),
               onPressed: _run,
             ),
@@ -279,10 +280,10 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
               color: scheme.primary,
             ),
             const SizedBox(height: 16),
-            Text('分析存储占用', style: Theme.of(context).textTheme.titleLarge),
+            Text(tr('分析存储占用'), style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              '目录：$_root\n统计分类占用、最大文件与重复文件。',
+              tr('目录：{_root}\n统计分类占用、最大文件与重复文件。', {'_root': _root}),
               textAlign: TextAlign.center,
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),
@@ -290,7 +291,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
             FilledButton.icon(
               onPressed: _run,
               icon: const Icon(Icons.search_rounded),
-              label: const Text('开始分析'),
+              label: Text(tr('开始分析')),
             ),
           ],
         ),
@@ -313,12 +314,12 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '已用 ${formatBytes(result.totalSize)}',
+                  tr('已用 {p0}', {'p0': formatBytes(result.totalSize)}),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${result.fileCount} 个文件 · ${result.dirCount} 个文件夹\n${result.root}',
+                  tr('{p0} 个文件 · {p1} 个文件夹\n{p2}', {'p0': result.fileCount, 'p1': result.dirCount, 'p2': result.root}),
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
@@ -328,17 +329,17 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
         ),
         if (result.categories.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _sectionTitle(context, '分类占用'),
+          _sectionTitle(context, tr('分类占用')),
           const SizedBox(height: 8),
           for (final stat in result.categories)
             _categoryRow(context, stat, result.totalSize),
         ],
         if (result.largest.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _sectionTitle(context, '最大文件'),
+          _sectionTitle(context, tr('最大文件')),
           const SizedBox(height: 4),
           Text(
-            '点击文件可打开、分享或删除',
+            tr('点击文件可打开、分享或删除'),
             style: Theme.of(context).textTheme.bodySmall
                 ?.copyWith(color: scheme.onSurfaceVariant),
           ),
@@ -346,7 +347,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
         ],
         if (result.duplicates.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _sectionTitle(context, '重复文件'),
+          _sectionTitle(context, tr('重复文件')),
           const SizedBox(height: 8),
           for (final group in result.duplicates) _duplicateCard(context, group),
         ],
@@ -354,7 +355,7 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 16),
             child: Text(
-              '未发现重复文件。',
+              tr('未发现重复文件。'),
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),
           ),
@@ -449,13 +450,13 @@ class _AnalyzerScreenState extends State<AnalyzerScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    '${group.files.length} 个相同文件 · 每个 ${formatBytes(group.size)}',
+                    tr('{p0} 个相同文件 · 每个 {p1}', {'p0': group.files.length, 'p1': formatBytes(group.size)}),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
                 TextButton(
                   onPressed: () => _cleanGroup(group),
-                  child: Text('清理 ${formatBytes(group.reclaimable)}'),
+                  child: Text(tr('清理 {p0}', {'p0': formatBytes(group.reclaimable)})),
                 ),
               ],
             ),

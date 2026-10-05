@@ -28,6 +28,7 @@ import 'open_entry.dart';
 import 'path_breadcrumb.dart';
 import 'search_screen.dart';
 import 'transfer_screen.dart';
+import '../i18n/i18n.dart';
 
 class BrowserScreen extends StatefulWidget {
   const BrowserScreen({
@@ -201,7 +202,7 @@ class _BrowserScreenState extends State<BrowserScreen>
                 : FloatingActionButton.extended(
                     onPressed: _showCreateSheet,
                     icon: const Icon(Icons.add_rounded),
-                    label: const Text('新建'),
+                    label: Text(tr('新建')),
                   ),
             bottomNavigationBar: _buildBottomBar(context),
           ),
@@ -217,18 +218,18 @@ class _BrowserScreenState extends State<BrowserScreen>
           icon: const Icon(Icons.close_rounded),
           onPressed: _controller.clearSelection,
         ),
-        title: Text('已选择 ${_controller.selectedCount} 项'),
+        title: Text(tr('已选择 {p0} 项', {'p0': _controller.selectedCount})),
         actions: [
           PopupMenuButton<String>(
-            tooltip: '选择',
+            tooltip: tr('选择'),
             icon: const Icon(Icons.checklist_rounded),
             onSelected: _onSelectAction,
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'all', child: Text('全选')),
-              PopupMenuItem(value: 'invert', child: Text('反选')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'all', child: Text(tr('全选'))),
+              PopupMenuItem(value: 'invert', child: Text(tr('反选'))),
               PopupMenuDivider(),
-              PopupMenuItem(value: 'type', child: Text('按类型选择')),
-              PopupMenuItem(value: 'condition', child: Text('按条件选择')),
+              PopupMenuItem(value: 'type', child: Text(tr('按类型选择'))),
+              PopupMenuItem(value: 'condition', child: Text(tr('按条件选择'))),
             ],
           ),
         ],
@@ -241,12 +242,12 @@ class _BrowserScreenState extends State<BrowserScreen>
       leading: Row(
         children: [
           IconButton(
-            tooltip: '后退',
+            tooltip: tr('后退'),
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: _handleBack,
           ),
           IconButton(
-            tooltip: '前进',
+            tooltip: tr('前进'),
             icon: const Icon(Icons.arrow_forward_rounded),
             onPressed: _canGoForward
                 ? () => _goHistory(_historyIndex + 1)
@@ -263,19 +264,19 @@ class _BrowserScreenState extends State<BrowserScreen>
       ),
       actions: [
         IconButton(
-          tooltip: _isFavorite ? '取消收藏' : '收藏',
+          tooltip: _isFavorite ? tr('取消收藏') : tr('收藏'),
           icon: Icon(
             _isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
           ),
           onPressed: _toggleFavorite,
         ),
         IconButton(
-          tooltip: '搜索',
+          tooltip: tr('搜索'),
           icon: const Icon(Icons.search_rounded),
           onPressed: _openSearch,
         ),
         IconButton(
-          tooltip: '传输',
+          tooltip: tr('传输'),
           icon: Badge(
             isLabelVisible: TransferQueue.instance.activeCount > 0,
             label: Text('${TransferQueue.instance.activeCount}'),
@@ -288,10 +289,10 @@ class _BrowserScreenState extends State<BrowserScreen>
           },
         ),
         PopupMenuButton<String>(
-          tooltip: '更多',
+          tooltip: tr('更多'),
           onSelected: _onMenuSelected,
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'refresh', child: Text('刷新')),
+            PopupMenuItem(value: 'refresh', child: Text(tr('刷新'))),
             PopupMenuItem(
               value: 'hidden',
               child: Row(
@@ -301,31 +302,31 @@ class _BrowserScreenState extends State<BrowserScreen>
                   else
                     const SizedBox(width: 18),
                   const SizedBox(width: 8),
-                  const Text('显示隐藏文件'),
+                  Text(tr('显示隐藏文件')),
                 ],
               ),
             ),
             const PopupMenuDivider(),
-            const PopupMenuItem(value: 'folder', child: Text('新建文件夹')),
-            const PopupMenuItem(value: 'file', child: Text('新建文件')),
+            PopupMenuItem(value: 'folder', child: Text(tr('新建文件夹'))),
+            PopupMenuItem(value: 'file', child: Text(tr('新建文件'))),
             PopupMenuItem(
               value: 'paste',
               enabled: !TransferClipboard.instance.isEmpty,
-              child: Text('粘贴到此处 (${TransferClipboard.instance.count})'),
+              child: Text(tr('粘贴到此处 ({p0})', {'p0': TransferClipboard.instance.count})),
             ),
             const PopupMenuDivider(),
             PopupMenuItem(
               value: 'view',
               child: Text(
-                ViewStore.instance.grid ? '切换为列表视图' : '切换为网格视图',
+                ViewStore.instance.grid ? tr('切换为列表视图') : tr('切换为网格视图'),
               ),
             ),
             PopupMenuItem(
               value: 'iconSize',
-              child: Text('图标大小（${ViewStore.instance.iconSizeLabel}）'),
+              child: Text(tr('图标大小（{p0}）', {'p0': ViewStore.instance.iconSizeLabel})),
             ),
             const PopupMenuDivider(),
-            const PopupMenuItem(value: 'sort', child: Text('排序方式')),
+            PopupMenuItem(value: 'sort', child: Text(tr('排序方式'))),
           ],
         ),
       ],
@@ -362,7 +363,7 @@ class _BrowserScreenState extends State<BrowserScreen>
           Center(
             child: FilledButton.tonal(
               onPressed: _controller.refresh,
-              child: const Text('重试'),
+              child: Text(tr('重试')),
             ),
           ),
         ],
@@ -382,7 +383,7 @@ class _BrowserScreenState extends State<BrowserScreen>
           const SizedBox(height: 12),
           Center(
             child: Text(
-              '空文件夹',
+              tr('空文件夹'),
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -454,22 +455,22 @@ class _BrowserScreenState extends State<BrowserScreen>
           children: [
             _BarAction(
               icon: Icons.ios_share_rounded,
-              label: '复制',
+              label: tr('复制'),
               onTap: () => _copySelection(move: false),
             ),
             _BarAction(
               icon: Icons.drive_file_move_rounded,
-              label: '移动',
+              label: tr('移动'),
               onTap: () => _copySelection(move: true),
             ),
             _BarAction(
               icon: Icons.delete_outline_rounded,
-              label: '删除',
+              label: tr('删除'),
               onTap: _deleteSelection,
             ),
             _BarAction(
               icon: Icons.more_horiz_rounded,
-              label: '更多',
+              label: tr('更多'),
               onTap: _showSelectionSheet,
             ),
           ],
@@ -497,14 +498,14 @@ class _BrowserScreenState extends State<BrowserScreen>
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '已${clipboard.isMove ? '剪切' : '复制'} ${clipboard.count} 项',
+                    tr('已{p0} {p1} 项', {'p0': clipboard.isMove ? tr('剪切') : tr('复制'), 'p1': clipboard.count}),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                TextButton(onPressed: clipboard.clear, child: const Text('取消')),
+                TextButton(onPressed: clipboard.clear, child: Text(tr('取消'))),
                 const SizedBox(width: 4),
-                FilledButton(onPressed: _paste, child: const Text('粘贴')),
+                FilledButton(onPressed: _paste, child: Text(tr('粘贴'))),
               ],
             ),
           ),
@@ -532,10 +533,10 @@ class _BrowserScreenState extends State<BrowserScreen>
     try {
       if (_isFavorite) {
         await FavoritesStore.instance.remove(_path);
-        _snack('已取消收藏');
+        _snack(tr('已取消收藏'));
       } else {
         await FavoritesStore.instance.add(_title, _path);
-        _snack('已收藏「$_title」');
+        _snack(tr('已收藏「{_title}」', {'_title': _title}));
       }
     } catch (error) {
       _snack('$error');
@@ -587,9 +588,9 @@ class _BrowserScreenState extends State<BrowserScreen>
               ListTile(
                 leading: const Icon(Icons.photo_size_select_large_rounded),
                 title: Text(switch (size) {
-                  'small' => '小',
-                  'large' => '大',
-                  _ => '中',
+                  'small' => tr('小'),
+                  'large' => tr('大'),
+                  _ => tr('中'),
                 }),
                 trailing: ViewStore.instance.iconSize == size
                     ? const Icon(Icons.check_rounded)
@@ -649,7 +650,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('按条件选择'),
+        title: Text(tr('按条件选择')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -657,20 +658,20 @@ class _BrowserScreenState extends State<BrowserScreen>
               TextField(
                 controller: sizeController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '最小大小（MB，可空）'),
+                decoration: InputDecoration(labelText: tr('最小大小（MB，可空）')),
               ),
               TextField(
                 controller: daysController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: '最近 N 天内修改（可空）',
+                decoration: InputDecoration(
+                  labelText: tr('最近 N 天内修改（可空）'),
                 ),
               ),
               TextField(
                 controller: extController,
-                decoration: const InputDecoration(
-                  labelText: '扩展名，逗号分隔（可空）',
-                  hintText: '例如 jpg,png,mp4',
+                decoration: InputDecoration(
+                  labelText: tr('扩展名，逗号分隔（可空）'),
+                  hintText: tr('例如 jpg,png,mp4'),
                 ),
               ),
             ],
@@ -679,11 +680,11 @@ class _BrowserScreenState extends State<BrowserScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('选择'),
+            child: Text(tr('选择')),
           ),
         ],
       ),
@@ -720,15 +721,15 @@ class _BrowserScreenState extends State<BrowserScreen>
   }
 
   String _selectionCategoryLabel(FileCategory category) => switch (category) {
-    FileCategory.folder => '文件夹',
-    FileCategory.image => '图片',
-    FileCategory.video => '视频',
-    FileCategory.audio => '音频',
-    FileCategory.document => '文档',
-    FileCategory.text => '文本',
-    FileCategory.archive => '压缩包',
-    FileCategory.apk => '安装包',
-    FileCategory.other => '其它',
+    FileCategory.folder => tr('文件夹'),
+    FileCategory.image => tr('图片'),
+    FileCategory.video => tr('视频'),
+    FileCategory.audio => tr('音频'),
+    FileCategory.document => tr('文档'),
+    FileCategory.text => tr('文本'),
+    FileCategory.archive => tr('压缩包'),
+    FileCategory.apk => tr('安装包'),
+    FileCategory.other => tr('其它'),
   };
 
   IconData _selectionCategoryIcon(FileCategory category) => switch (category) {
@@ -746,9 +747,9 @@ class _BrowserScreenState extends State<BrowserScreen>
   Future<void> _create({required bool folder}) async {
     final name = await showNameDialog(
       context,
-      title: folder ? '新建文件夹' : '新建文件',
-      hintText: folder ? '文件夹名称' : '文件名',
-      confirmLabel: '创建',
+      title: folder ? tr('新建文件夹') : tr('新建文件'),
+      hintText: folder ? tr('文件夹名称') : tr('文件名'),
+      confirmLabel: tr('创建'),
     );
     if (name == null || name.isEmpty || !mounted) return;
     final path = joinPath(_controller.path, name);
@@ -770,21 +771,21 @@ class _BrowserScreenState extends State<BrowserScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('新建符号链接'),
+        title: Text(tr('新建符号链接')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: targetController,
-                decoration: const InputDecoration(
-                  labelText: '链接目标',
-                  hintText: '绝对路径或相对路径',
+                decoration: InputDecoration(
+                  labelText: tr('链接目标'),
+                  hintText: tr('绝对路径或相对路径'),
                 ),
               ),
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: '链接名称'),
+                decoration: InputDecoration(labelText: tr('链接名称')),
               ),
             ],
           ),
@@ -792,11 +793,11 @@ class _BrowserScreenState extends State<BrowserScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('创建'),
+            child: Text(tr('创建')),
           ),
         ],
       ),
@@ -810,7 +811,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     try {
       await _service.symlink(target, link);
       await _controller.refresh();
-      _snack('已创建符号链接');
+      _snack(tr('已创建符号链接'));
     } catch (error) {
       _snack('$error');
     }
@@ -819,7 +820,7 @@ class _BrowserScreenState extends State<BrowserScreen>
   Future<void> _rename(FileEntry entry) async {
     final name = await showNameDialog(
       context,
-      title: '重命名',
+      title: tr('重命名'),
       initialText: entry.name,
     );
     if (name == null || name.isEmpty || name == entry.name || !mounted) return;
@@ -858,7 +859,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     try {
       await runWithJobProgress<void>(
         context,
-        '正在压缩',
+        tr('正在压缩'),
         (jobId) => _service.archiveCreate(
           paths,
           dest,
@@ -867,7 +868,7 @@ class _BrowserScreenState extends State<BrowserScreen>
         ),
       );
       await _controller.refresh();
-      _snack('已创建「$fileName」');
+      _snack(tr('已创建「{fileName}」', {'fileName': fileName}));
     } catch (error) {
       _snack('$error');
     }
@@ -883,7 +884,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     );
     if (!mounted || !ok) return;
     await _controller.refresh();
-    _snack('已解压到「$folder」');
+    _snack(tr('已解压到「{folder}」', {'folder': folder}));
   }
 
   void _openArchive(FileEntry entry) {
@@ -904,7 +905,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     if (paths.isEmpty) return;
     TransferClipboard.instance.set(paths, move: move);
     _controller.clearSelection();
-    _snack('已${move ? '剪切' : '复制'} ${paths.length} 项');
+    _snack(tr('已{p0} {p1} 项', {'p0': move ? tr('剪切') : tr('复制'), 'p1': paths.length}));
   }
 
   Future<void> _deleteSelection() async {
@@ -919,7 +920,7 @@ class _BrowserScreenState extends State<BrowserScreen>
       final result = await _service.vaultMove(paths);
       _controller.clearSelection();
       await _controller.refresh();
-      _snack('已移入隐私空间 ${result.count} 项', errors: result.errors);
+      _snack(tr('已移入隐私空间 {p0} 项', {'p0': result.count}), errors: result.errors);
     } catch (error) {
       _snack('$error');
     }
@@ -931,19 +932,19 @@ class _BrowserScreenState extends State<BrowserScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('安全删除'),
-        content: Text('将覆盖写入后永久删除 ${paths.length} 项，无法恢复。是否继续？'),
+        title: Text(tr('安全删除')),
+        content: Text(tr('将覆盖写入后永久删除 {p0} 项，无法恢复。是否继续？', {'p0': paths.length})),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('安全删除'),
+            child: Text(tr('安全删除')),
           ),
         ],
       ),
@@ -953,7 +954,7 @@ class _BrowserScreenState extends State<BrowserScreen>
       final result = await _service.secureDelete(paths);
       _controller.clearSelection();
       await _controller.refresh();
-      _snack('已安全删除 ${result.deleted} 项', errors: result.errors);
+      _snack(tr('已安全删除 {p0} 项', {'p0': result.deleted}), errors: result.errors);
     } catch (error) {
       _snack('$error');
     }
@@ -967,25 +968,25 @@ class _BrowserScreenState extends State<BrowserScreen>
       builder: (dialogContext) {
         final scheme = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
-          title: const Text('删除'),
+          title: Text(tr('删除')),
           content: Text(
             allowTrash
-                ? '确定删除选中的 ${paths.length} 项吗？\n移入回收站后可在「回收站」中恢复。'
-                : '确定删除选中的 ${paths.length} 项吗？\n网络位置不支持回收站，将永久删除。',
+                ? tr('确定删除选中的 {p0} 项吗？\n移入回收站后可在「回收站」中恢复。', {'p0': paths.length})
+                : tr('确定删除选中的 {p0} 项吗？\n网络位置不支持回收站，将永久删除。', {'p0': paths.length}),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('取消'),
+              child: Text(tr('取消')),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text('永久删除', style: TextStyle(color: scheme.error)),
+              child: Text(tr('永久删除'), style: TextStyle(color: scheme.error)),
             ),
             if (allowTrash)
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('移入回收站'),
+                child: Text(tr('移入回收站')),
               ),
           ],
         );
@@ -997,9 +998,9 @@ class _BrowserScreenState extends State<BrowserScreen>
       _controller.clearSelection();
       await _controller.refresh();
       final parts = <String>[];
-      if (result.trashed > 0) parts.add('移入回收站 ${result.trashed} 项');
-      if (result.deleted > 0) parts.add('永久删除 ${result.deleted} 项');
-      _snack(parts.isEmpty ? '删除失败' : parts.join('，'), errors: result.errors);
+      if (result.trashed > 0) parts.add(tr('移入回收站 {p0} 项', {'p0': result.trashed}));
+      if (result.deleted > 0) parts.add(tr('永久删除 {p0} 项', {'p0': result.deleted}));
+      _snack(parts.isEmpty ? tr('删除失败') : parts.join('，'), errors: result.errors);
     } catch (error) {
       _snack('$error');
     }
@@ -1012,31 +1013,31 @@ class _BrowserScreenState extends State<BrowserScreen>
     final move = clipboard.isMove;
     clipboard.clear();
     TransferQueue.instance.enqueue(paths, _controller.path, isMove: move);
-    _snack('已加入传输队列（${paths.length} 项），可在「传输」中查看');
+    _snack(tr('已加入传输队列（{p0} 项），可在「传输」中查看', {'p0': paths.length}));
   }
 
   Future<void> _share(FileEntry entry) async {
     if (entry.isDir) {
-      _snack('暂不支持分享文件夹');
+      _snack(tr('暂不支持分享文件夹'));
       return;
     }
     final ok = await PlatformService.shareFile(
       entry.path,
       mime: mimeOfExtension(entry.extension),
     );
-    if (!ok) _snack('分享失败');
+    if (!ok) _snack(tr('分享失败'));
   }
 
   void _copyPath(List<String> paths) {
     if (paths.isEmpty) return;
     Clipboard.setData(ClipboardData(text: paths.join('\n')));
-    _snack(paths.length == 1 ? '已复制路径' : '已复制 ${paths.length} 条路径');
+    _snack(paths.length == 1 ? tr('已复制路径') : tr('已复制 {p0} 条路径', {'p0': paths.length}));
   }
 
   Future<void> _createShortcut(FileEntry entry) async {
     final ok = await PlatformService.createShortcut(entry.name, entry.path);
     if (!mounted) return;
-    _snack(ok ? '请在系统弹窗中确认' : '当前桌面不支持创建快捷方式');
+    _snack(ok ? tr('请在系统弹窗中确认') : tr('当前桌面不支持创建快捷方式'));
   }
 
   Future<void> _pickLabel(List<String> paths) async {
@@ -1057,7 +1058,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '标签颜色',
+                  tr('标签颜色'),
                   style: Theme.of(sheetContext).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 16),
@@ -1102,7 +1103,7 @@ class _BrowserScreenState extends State<BrowserScreen>
     );
     if (choice == null || !mounted) return;
     await LabelStore.instance.setLabels(paths, choice < 0 ? null : choice);
-    _snack(choice < 0 ? '已移除标签' : '已设置标签');
+    _snack(choice < 0 ? tr('已移除标签') : tr('已设置标签'));
   }
 
   // -------------------------------------------------------------------------
@@ -1121,7 +1122,7 @@ class _BrowserScreenState extends State<BrowserScreen>
             children: [
               ListTile(
                 leading: const Icon(Icons.create_new_folder_rounded),
-                title: const Text('新建文件夹'),
+                title: Text(tr('新建文件夹')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _create(folder: true);
@@ -1129,7 +1130,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.note_add_rounded),
-                title: const Text('新建文件'),
+                title: Text(tr('新建文件')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _create(folder: false);
@@ -1137,7 +1138,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.link_rounded),
-                title: const Text('新建符号链接'),
+                title: Text(tr('新建符号链接')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _createSymlink();
@@ -1146,7 +1147,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               if (!clipboard.isEmpty)
                 ListTile(
                   leading: const Icon(Icons.content_paste_rounded),
-                  title: Text('粘贴 (${clipboard.count} 项)'),
+                  title: Text(tr('粘贴 ({p0} 项)', {'p0': clipboard.count})),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _paste();
@@ -1188,7 +1189,7 @@ class _BrowserScreenState extends State<BrowserScreen>
                       ? Icons.arrow_upward_rounded
                       : Icons.arrow_downward_rounded,
                 ),
-                title: Text(_controller.sortAscending ? '升序' : '降序'),
+                title: Text(_controller.sortAscending ? tr('升序') : tr('降序')),
                 onTap: () {
                   _controller.setSortField(_controller.sortField);
                   Navigator.pop(sheetContext);
@@ -1216,7 +1217,7 @@ class _BrowserScreenState extends State<BrowserScreen>
                       ? Icons.folder_open_rounded
                       : Icons.open_in_new_rounded,
                 ),
-                title: Text(entry.isDir ? '打开' : '打开方式'),
+                title: Text(entry.isDir ? tr('打开') : tr('打开方式')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _openEntry(entry);
@@ -1224,7 +1225,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.drive_file_rename_outline_rounded),
-                title: const Text('重命名'),
+                title: Text(tr('重命名')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _rename(entry);
@@ -1232,7 +1233,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.archive_outlined),
-                title: const Text('压缩'),
+                title: Text(tr('压缩')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _compress([entry.path]);
@@ -1241,7 +1242,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               if (isSupportedArchive(entry.name)) ...[
                 ListTile(
                   leading: const Icon(Icons.unarchive_outlined),
-                  title: const Text('解压到此处'),
+                  title: Text(tr('解压到此处')),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _extract(entry);
@@ -1249,7 +1250,7 @@ class _BrowserScreenState extends State<BrowserScreen>
                 ),
                 ListTile(
                   leading: const Icon(Icons.list_alt_rounded),
-                  title: const Text('查看归档内容'),
+                  title: Text(tr('查看归档内容')),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _openArchive(entry);
@@ -1258,16 +1259,16 @@ class _BrowserScreenState extends State<BrowserScreen>
               ],
               ListTile(
                 leading: const Icon(Icons.copy_rounded),
-                title: const Text('复制'),
+                title: Text(tr('复制')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   TransferClipboard.instance.set([entry.path], move: false);
-                  _snack('已复制到剪贴板');
+                  _snack(tr('已复制到剪贴板'));
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.link_rounded),
-                title: const Text('复制路径'),
+                title: Text(tr('复制路径')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _copyPath([entry.path]);
@@ -1276,7 +1277,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               if (!entry.isDir)
                 ListTile(
                   leading: const Icon(Icons.tag_rounded),
-                  title: const Text('校验和'),
+                  title: Text(tr('校验和')),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     showHashDialog(context, entry);
@@ -1285,7 +1286,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               if (isImageExtension(entry.extension))
                 ListTile(
                   leading: const Icon(Icons.photo_camera_back_outlined),
-                  title: const Text('媒体信息'),
+                  title: Text(tr('媒体信息')),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     showMediaInfoDialog(context, entry);
@@ -1293,7 +1294,7 @@ class _BrowserScreenState extends State<BrowserScreen>
                 ),
               ListTile(
                 leading: const Icon(Icons.label_outline_rounded),
-                title: const Text('标签颜色'),
+                title: Text(tr('标签颜色')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _pickLabel([entry.path]);
@@ -1301,17 +1302,17 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.drive_file_move_rounded),
-                title: const Text('移动'),
+                title: Text(tr('移动')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   TransferClipboard.instance.set([entry.path], move: true);
-                  _snack('已剪切到剪贴板');
+                  _snack(tr('已剪切到剪贴板'));
                 },
               ),
               if (!entry.isDir)
                 ListTile(
                   leading: const Icon(Icons.ios_share_rounded),
-                  title: const Text('分享'),
+                  title: Text(tr('分享')),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _share(entry);
@@ -1320,7 +1321,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               if (entry.isDir)
                 ListTile(
                   leading: const Icon(Icons.add_to_home_screen_rounded),
-                  title: const Text('创建桌面快捷方式'),
+                  title: Text(tr('创建桌面快捷方式')),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _createShortcut(entry);
@@ -1329,7 +1330,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               if (entry.isDir)
                 ListTile(
                   leading: const Icon(Icons.straighten_rounded),
-                  title: const Text('计算大小'),
+                  title: Text(tr('计算大小')),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     showFolderSizeDialog(context, entry);
@@ -1337,7 +1338,7 @@ class _BrowserScreenState extends State<BrowserScreen>
                 ),
               ListTile(
                 leading: const Icon(Icons.info_outline_rounded),
-                title: const Text('详细信息'),
+                title: Text(tr('详细信息')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   showDetailsSheet(context, entry);
@@ -1349,7 +1350,7 @@ class _BrowserScreenState extends State<BrowserScreen>
                   color: Theme.of(sheetContext).colorScheme.error,
                 ),
                 title: Text(
-                  '删除',
+                  tr('删除'),
                   style: TextStyle(
                     color: Theme.of(sheetContext).colorScheme.error,
                   ),
@@ -1377,7 +1378,7 @@ class _BrowserScreenState extends State<BrowserScreen>
             children: [
               ListTile(
                 leading: const Icon(Icons.drive_file_rename_outline_rounded),
-                title: const Text('重命名'),
+                title: Text(tr('重命名')),
                 enabled: _controller.singleSelected != null,
                 onTap: () {
                   final entry = _controller.singleSelected;
@@ -1387,7 +1388,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.archive_outlined),
-                title: const Text('压缩'),
+                title: Text(tr('压缩')),
                 onTap: () {
                   final paths = _controller.selectedEntries
                       .map((e) => e.path)
@@ -1398,7 +1399,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.ios_share_rounded),
-                title: const Text('分享'),
+                title: Text(tr('分享')),
                 enabled:
                     _controller.singleSelected != null &&
                     !_controller.singleSelected!.isDir,
@@ -1410,7 +1411,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.link_rounded),
-                title: const Text('复制路径'),
+                title: Text(tr('复制路径')),
                 onTap: () {
                   final paths = _controller.selectedEntries
                       .map((e) => e.path)
@@ -1421,7 +1422,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.label_outline_rounded),
-                title: const Text('标签颜色'),
+                title: Text(tr('标签颜色')),
                 onTap: () {
                   final paths = _controller.selectedEntries
                       .map((e) => e.path)
@@ -1432,7 +1433,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.lock_outline_rounded),
-                title: const Text('移入隐私空间'),
+                title: Text(tr('移入隐私空间')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _vaultMoveSelection();
@@ -1440,8 +1441,8 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.delete_forever_rounded),
-                title: const Text('安全删除'),
-                subtitle: const Text('覆盖写入后永久删除'),
+                title: Text(tr('安全删除')),
+                subtitle: Text(tr('覆盖写入后永久删除')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _secureDeleteSelection();
@@ -1449,7 +1450,7 @@ class _BrowserScreenState extends State<BrowserScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.info_outline_rounded),
-                title: const Text('详细信息'),
+                title: Text(tr('详细信息')),
                 enabled: _controller.singleSelected != null,
                 onTap: () {
                   final entry = _controller.singleSelected;

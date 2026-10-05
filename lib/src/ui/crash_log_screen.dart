@@ -4,6 +4,7 @@ import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'directory_picker.dart';
+import '../i18n/i18n.dart';
 
 /// 崩溃 / 错误日志查看与导出。
 class CrashLogScreen extends StatefulWidget {
@@ -42,7 +43,7 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
 
   Future<void> _export() async {
     if (_log.text.isEmpty) {
-      _snack('暂无日志可导出');
+      _snack(tr('暂无日志可导出'));
       return;
     }
     final dir = await pickDirectory(
@@ -53,9 +54,9 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
     final path = joinPath(dir, 'ordo_crash.log');
     try {
       await _service.writeText(path, _log.text);
-      _snack('已导出到 $path');
+      _snack(tr('已导出到 {path}', {'path': path}));
     } catch (error) {
-      _snack('导出失败：$error');
+      _snack(tr('导出失败：{error}', {'error': error}));
     }
   }
 
@@ -63,9 +64,9 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
     try {
       await _service.crashClear();
       await _load();
-      _snack('已清空日志');
+      _snack(tr('已清空日志'));
     } catch (error) {
-      _snack('清空失败：$error');
+      _snack(tr('清空失败：{error}', {'error': error}));
     }
   }
 
@@ -80,15 +81,15 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('崩溃日志'),
+        title: Text(tr('崩溃日志')),
         actions: [
           IconButton(
-            tooltip: '导出',
+            tooltip: tr('导出'),
             onPressed: _busy ? null : _export,
             icon: const Icon(Icons.ios_share_rounded),
           ),
           IconButton(
-            tooltip: '清空',
+            tooltip: tr('清空'),
             onPressed: _busy ? null : _clear,
             icon: const Icon(Icons.cleaning_services_outlined),
           ),
@@ -97,12 +98,12 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
       body: _busy
           ? const Center(child: CircularProgressIndicator())
           : _log.text.isEmpty
-          ? const Center(child: Text('暂无日志'))
+          ? Center(child: Text(tr('暂无日志')))
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 Text(
-                  '共 ${_log.lines} 行 · ${_log.path}',
+                  tr('共 {p0} 行 · {p1}', {'p0': _log.lines, 'p1': _log.path}),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),

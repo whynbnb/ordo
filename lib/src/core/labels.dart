@@ -12,14 +12,5 @@ const List<Color> labelPalette = [
   Color(0xFF546E7A), // 灰
 ];
 
-/// 调色板名称。
-const List<String> labelNames = [
-  '红',
-  '橙',
-  '黄',
-  '绿',
-  '蓝',
-  '紫',
-  '青',
-  '灰',
-];
+/// 调色板名称（中文原文，显示时用 `tr` 翻译）。
+List<String> get labelNames => const ['红', '橙', '黄', '绿', '蓝', '紫', '青', '灰'];

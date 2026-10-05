@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/format.dart';
 import '../state/transfer_queue.dart';
+import '../i18n/i18n.dart';
 
 /// 后台传输队列界面。
 class TransferScreen extends StatefulWidget {
@@ -35,11 +36,11 @@ class _TransferScreenState extends State<TransferScreen> {
     final tasks = _queue.tasks;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('传输'),
+        title: Text(tr('传输')),
         actions: [
           if (tasks.isNotEmpty)
             IconButton(
-              tooltip: '清除已完成',
+              tooltip: tr('清除已完成'),
               icon: const Icon(Icons.cleaning_services_outlined),
               onPressed: _queue.clearFinished,
             ),
@@ -48,7 +49,7 @@ class _TransferScreenState extends State<TransferScreen> {
       body: tasks.isEmpty
           ? Center(
               child: Text(
-                '没有传输任务',
+                tr('没有传输任务'),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -69,7 +70,7 @@ class _TransferScreenState extends State<TransferScreen> {
         task.isMove ? Icons.drive_file_move_rounded : Icons.copy_rounded,
         color: scheme.primary,
       ),
-      title: Text('${task.label} ${task.sources.length} 项'),
+      title: Text(tr('{p0} {p1} 项', {'p0': task.label, 'p1': task.sources.length})),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -99,20 +100,20 @@ class _TransferScreenState extends State<TransferScreen> {
           if (task.state == TransferState.running ||
               task.state == TransferState.queued)
             IconButton(
-              tooltip: '取消',
+              tooltip: tr('取消'),
               icon: const Icon(Icons.close_rounded),
               onPressed: () => _queue.cancel(task),
             ),
           if (task.state == TransferState.failed ||
               task.state == TransferState.cancelled)
             IconButton(
-              tooltip: '重试',
+              tooltip: tr('重试'),
               icon: const Icon(Icons.refresh_rounded),
               onPressed: () => _queue.retry(task),
             ),
           if (task.state == TransferState.done)
             IconButton(
-              tooltip: '移除',
+              tooltip: tr('移除'),
               icon: const Icon(Icons.check_rounded, color: Colors.green),
               onPressed: () => _queue.remove(task),
             ),
@@ -124,21 +125,21 @@ class _TransferScreenState extends State<TransferScreen> {
   String _statusText(TransferTask task) {
     switch (task.state) {
       case TransferState.queued:
-        return '排队中';
+        return tr('排队中');
       case TransferState.running:
         final amount = task.total > 0
             ? '${formatBytes(task.done)} / ${formatBytes(task.total)}'
-            : '处理中…';
+            : tr('处理中…');
         final fraction = task.fraction;
         return fraction == null
             ? amount
             : '${(fraction * 100).toStringAsFixed(0)}% · $amount';
       case TransferState.done:
-        return '已完成';
+        return tr('已完成');
       case TransferState.failed:
-        return '失败';
+        return tr('失败');
       case TransferState.cancelled:
-        return '已取消';
+        return tr('已取消');
     }
   }
 }

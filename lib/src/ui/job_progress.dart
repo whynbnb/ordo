@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
+import '../i18n/i18n.dart';
 
 /// 运行一个带进度与取消的长任务，期间显示进度对话框。
 Future<T> runWithJobProgress<T>(
@@ -69,7 +70,7 @@ class _JobProgressDialogState extends State<_JobProgressDialog> {
     final fraction = _progress.fraction;
     final amount = _progress.total > 0
         ? '${formatBytes(_progress.progress)} / ${formatBytes(_progress.total)}'
-        : '处理中…';
+        : tr('处理中…');
     return PopScope(
       canPop: false,
       child: AlertDialog(
@@ -96,7 +97,7 @@ class _JobProgressDialogState extends State<_JobProgressDialog> {
                     setState(() => _cancelling = true);
                     _service.jobCancel(widget.jobId);
                   },
-            child: Text(_cancelling ? '正在取消…' : '取消'),
+            child: Text(_cancelling ? tr('正在取消…') : tr('取消')),
           ),
         ],
       ),

@@ -7,6 +7,7 @@ import '../services/ordo_service.dart';
 import '../state/saved_searches.dart';
 import 'entry_tile.dart';
 import 'open_entry.dart';
+import '../i18n/i18n.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key, required this.root, required this.title});
@@ -107,30 +108,30 @@ class _SearchScreenState extends State<SearchScreen> {
     if (query.isEmpty && !_options.hasFilters) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('请先输入关键词或设置过滤条件')));
+        ..showSnackBar(SnackBar(content: Text(tr('请先输入关键词或设置过滤条件'))));
       return;
     }
     final controller = TextEditingController(text: query);
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('保存搜索'),
+        title: Text(tr('保存搜索')),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: '名称',
+          decoration: InputDecoration(
+            labelText: tr('名称'),
             border: OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('保存'),
+            child: Text(tr('保存')),
           ),
         ],
       ),
@@ -146,7 +147,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('已保存「$name」')));
+      ..showSnackBar(SnackBar(content: Text(tr('已保存「{name}」', {'name': name}))));
   }
 
   Future<void> _showSaved() async {
@@ -161,17 +162,17 @@ class _SearchScreenState extends State<SearchScreen> {
               .where((item) => item.root == widget.root)
               .toList();
           if (items.isEmpty) {
-            return const Padding(
+            return Padding(
               padding: EdgeInsets.all(32),
-              child: Center(child: Text('暂无保存的搜索')),
+              child: Center(child: Text(tr('暂无保存的搜索'))),
             );
           }
           return ListView(
             shrinkWrap: true,
             children: [
-              const ListTile(
+              ListTile(
                 dense: true,
-                title: Text('已保存的搜索'),
+                title: Text(tr('已保存的搜索')),
               ),
               for (final item in items)
                 ListTile(
@@ -203,15 +204,15 @@ class _SearchScreenState extends State<SearchScreen> {
 
   String _describe(SearchOptions options) {
     final parts = <String>[];
-    if (options.kind == 'file') parts.add('文件');
-    if (options.kind == 'dir') parts.add('文件夹');
+    if (options.kind == 'file') parts.add(tr('文件'));
+    if (options.kind == 'dir') parts.add(tr('文件夹'));
     if (options.extensions.isNotEmpty) parts.add(options.extensions.join('/'));
     if (options.minSize > 0) parts.add('≥${options.minSize ~/ (1024 * 1024)}MB');
     if (options.maxSize > 0) parts.add('≤${options.maxSize ~/ (1024 * 1024)}MB');
-    if (options.after > 0) parts.add('按日期');
-    if (options.content) parts.add('含内容');
-    if (options.skipHidden) parts.add('忽略隐藏');
-    return parts.isEmpty ? '全部' : parts.join(' · ');
+    if (options.after > 0) parts.add(tr('按日期'));
+    if (options.content) parts.add(tr('含内容'));
+    if (options.skipHidden) parts.add(tr('忽略隐藏'));
+    return parts.isEmpty ? tr('全部') : parts.join(' · ');
   }
 
   void _applySaved(SavedSearch item) {
@@ -230,7 +231,7 @@ class _SearchScreenState extends State<SearchScreen> {
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             border: InputBorder.none,
-            hintText: '在「${widget.title}」中搜索',
+            hintText: tr('在「{p0}」中搜索', {'p0': widget.title}),
           ),
           onChanged: _onChanged,
           onSubmitted: (value) => _run(value.trim()),
@@ -245,7 +246,7 @@ class _SearchScreenState extends State<SearchScreen> {
               },
             ),
           IconButton(
-            tooltip: '过滤',
+            tooltip: tr('过滤'),
             icon: Badge(
               isLabelVisible: _options.hasFilters,
               child: const Icon(Icons.tune_rounded),
@@ -253,12 +254,12 @@ class _SearchScreenState extends State<SearchScreen> {
             onPressed: _openFilters,
           ),
           IconButton(
-            tooltip: '保存搜索',
+            tooltip: tr('保存搜索'),
             icon: const Icon(Icons.bookmark_add_outlined),
             onPressed: _saveSearch,
           ),
           IconButton(
-            tooltip: '已保存',
+            tooltip: tr('已保存'),
             icon: const Icon(Icons.bookmarks_outlined),
             onPressed: _showSaved,
           ),
@@ -293,7 +294,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              '输入关键词开始搜索',
+              tr('输入关键词开始搜索'),
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -305,7 +306,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (outcome.entries.isEmpty) {
       return Center(
         child: Text(
-          '没有找到匹配的文件',
+          tr('没有找到匹配的文件'),
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -322,9 +323,9 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
               [
-                if (outcome.content) '包含内容匹配',
+                if (outcome.content) tr('包含内容匹配'),
                 if (outcome.truncated)
-                  '结果过多，仅显示前 ${outcome.entries.length} 项',
+                  tr('结果过多，仅显示前 {p0} 项', {'p0': outcome.entries.length}),
               ].join(' · '),
             ),
           ),
@@ -454,17 +455,17 @@ class _FilterSheetState extends State<_FilterSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '过滤条件',
+              tr('过滤条件'),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            Text('类型', style: Theme.of(context).textTheme.labelLarge),
+            Text(tr('类型'), style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: 6),
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'any', label: Text('全部')),
-                ButtonSegment(value: 'file', label: Text('文件')),
-                ButtonSegment(value: 'dir', label: Text('文件夹')),
+              segments: [
+                ButtonSegment(value: 'any', label: Text(tr('全部'))),
+                ButtonSegment(value: 'file', label: Text(tr('文件'))),
+                ButtonSegment(value: 'dir', label: Text(tr('文件夹'))),
               ],
               selected: {_kind},
               onSelectionChanged: (value) =>
@@ -473,9 +474,9 @@ class _FilterSheetState extends State<_FilterSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _extensions,
-              decoration: const InputDecoration(
-                labelText: '扩展名（逗号分隔）',
-                hintText: '如 jpg, png, pdf',
+              decoration: InputDecoration(
+                labelText: tr('扩展名（逗号分隔）'),
+                hintText: tr('如 jpg, png, pdf'),
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -489,8 +490,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: '最小 (MB)',
+                    decoration: InputDecoration(
+                      labelText: tr('最小 (MB)'),
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -503,8 +504,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: '最大 (MB)',
+                    decoration: InputDecoration(
+                      labelText: tr('最大 (MB)'),
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
@@ -515,30 +516,30 @@ class _FilterSheetState extends State<_FilterSheet> {
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
               initialValue: _days,
-              decoration: const InputDecoration(
-                labelText: '修改时间',
+              decoration: InputDecoration(
+                labelText: tr('修改时间'),
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: const [
-                DropdownMenuItem(value: 0, child: Text('不限')),
-                DropdownMenuItem(value: 1, child: Text('今天')),
-                DropdownMenuItem(value: 7, child: Text('近 7 天')),
-                DropdownMenuItem(value: 30, child: Text('近 30 天')),
-                DropdownMenuItem(value: 365, child: Text('近一年')),
+              items: [
+                DropdownMenuItem(value: 0, child: Text(tr('不限'))),
+                DropdownMenuItem(value: 1, child: Text(tr('今天'))),
+                DropdownMenuItem(value: 7, child: Text(tr('近 7 天'))),
+                DropdownMenuItem(value: 30, child: Text(tr('近 30 天'))),
+                DropdownMenuItem(value: 365, child: Text(tr('近一年'))),
               ],
               onChanged: (value) => setState(() => _days = value ?? 0),
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('搜索文件内容'),
-              subtitle: const Text('仅文本类文件，单文件上限 2MB'),
+              title: Text(tr('搜索文件内容')),
+              subtitle: Text(tr('仅文本类文件，单文件上限 2MB')),
               value: _content,
               onChanged: (value) => setState(() => _content = value),
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('忽略隐藏文件'),
+              title: Text(tr('忽略隐藏文件')),
               value: _skipHidden,
               onChanged: (value) => setState(() => _skipHidden = value),
             ),
@@ -548,14 +549,14 @@ class _FilterSheetState extends State<_FilterSheet> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, SearchOptions.none),
-                    child: const Text('重置'),
+                    child: Text(tr('重置')),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: FilledButton(
                     onPressed: _apply,
-                    child: const Text('应用'),
+                    child: Text(tr('应用')),
                   ),
                 ),
               ],

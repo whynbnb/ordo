@@ -4,6 +4,7 @@ import '../core/models.dart';
 import '../core/ordo_exception.dart';
 import '../services/ordo_service.dart';
 import 'settings.dart';
+import '../i18n/i18n.dart';
 
 class BrowserController extends ChangeNotifier {
   BrowserController({required String initialPath, OrdoService? service})
@@ -70,7 +71,7 @@ class BrowserController extends ChangeNotifier {
       _allEntries = const [];
       _visibleCache = null;
     } catch (e) {
-      _error = '加载失败：$e';
+      _error = tr('加载失败：{e}', {'e': e});
       _allEntries = const [];
       _visibleCache = null;
     } finally {

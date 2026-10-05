@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'browser_screen.dart';
+import '../i18n/i18n.dart';
 
 /// 多标签文件浏览：每个标签拥有独立的导航栈（嵌套 Navigator）。
 class TabbedBrowserScreen extends StatefulWidget {
@@ -129,7 +130,7 @@ class _TabbedBrowserScreenState extends State<TabbedBrowserScreen> {
                           children: [
                             Text(
                               _tabs[index].title.isEmpty
-                                  ? '浏览'
+                                  ? tr('浏览')
                                   : _tabs[index].title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -161,7 +162,7 @@ class _TabbedBrowserScreenState extends State<TabbedBrowserScreen> {
             ),
           ),
           IconButton(
-            tooltip: '新建标签页',
+            tooltip: tr('新建标签页'),
             icon: const Icon(Icons.add_rounded),
             onPressed: _addTab,
           ),

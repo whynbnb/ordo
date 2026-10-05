@@ -41,7 +41,7 @@ class OpenWithCategory {
   final String mime;
 }
 
-const List<OpenWithCategory> openWithCategories = [
+List<OpenWithCategory> get openWithCategories => [
   OpenWithCategory('image', '图片', 'image/*'),
   OpenWithCategory('audio', '音频', 'audio/*'),
   OpenWithCategory('video', '视频', 'video/*'),

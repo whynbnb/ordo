@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
+import '../i18n/i18n.dart';
 
 /// 智能清理：分类列出可安全删除的垃圾文件，一键清理。
 class CleanupScreen extends StatefulWidget {
@@ -65,22 +66,22 @@ class _CleanupScreenState extends State<CleanupScreen> {
     if (result == null) return;
     final paths = _selectedPaths(result);
     if (paths.isEmpty) {
-      _snack('没有可清理的项目');
+      _snack(tr('没有可清理的项目'));
       return;
     }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('清理垃圾文件'),
-        content: Text('将永久删除 ${paths.length} 个项目，是否继续？'),
+        title: Text(tr('清理垃圾文件')),
+        content: Text(tr('将永久删除 {p0} 个项目，是否继续？', {'p0': paths.length})),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('删除'),
+            child: Text(tr('删除')),
           ),
         ],
       ),
@@ -93,14 +94,14 @@ class _CleanupScreenState extends State<CleanupScreen> {
       if (!mounted) return;
       _snack(
         deleted.errors.isEmpty
-            ? '已清理 ${deleted.deleted} 项'
-            : '已清理 ${deleted.deleted} 项，${deleted.errors.length} 项失败',
+            ? tr('已清理 {p0} 项', {'p0': deleted.deleted})
+            : tr('已清理 {p0} 项，{p1} 项失败', {'p0': deleted.deleted, 'p1': deleted.errors.length}),
       );
       await _load();
     } catch (error) {
       if (!mounted) return;
       setState(() => _busy = false);
-      _snack('清理失败：$error');
+      _snack(tr('清理失败：{error}', {'error': error}));
     }
   }
 
@@ -118,10 +119,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('清理「${widget.title}」'),
+        title: Text(tr('清理「{p0}」', {'p0': widget.title})),
         actions: [
           IconButton(
-            tooltip: '重新扫描',
+            tooltip: tr('重新扫描'),
             onPressed: _busy ? null : _load,
             icon: const Icon(Icons.refresh_rounded),
           ),
@@ -144,10 +145,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 _summary(context, result),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('临时 / 缓存文件（${result.tempFiles.length}）'),
+                  title: Text(tr('临时 / 缓存文件（{p0}）', {'p0': result.tempFiles.length})),
                   subtitle: Text(
                     result.tempFiles.isEmpty
-                        ? '无'
+                        ? tr('无')
                         : formatBytes(
                             result.tempFiles.fold<int>(
                               0,
@@ -160,13 +161,13 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('空文件（${result.emptyFiles.length}）'),
+                  title: Text(tr('空文件（{p0}）', {'p0': result.emptyFiles.length})),
                   value: _emptyFiles,
                   onChanged: (value) => setState(() => _emptyFiles = value),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('空文件夹（${result.emptyDirs.length}）'),
+                  title: Text(tr('空文件夹（{p0}）', {'p0': result.emptyDirs.length})),
                   value: _emptyDirs,
                   onChanged: (value) => setState(() => _emptyDirs = value),
                 ),
@@ -174,7 +175,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      '结果过多，已截断显示',
+                      tr('结果过多，已截断显示'),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -184,11 +185,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 FilledButton.icon(
                   onPressed: _busy || selectedCount == 0 ? null : _clean,
                   icon: const Icon(Icons.delete_sweep_rounded),
-                  label: Text('清理所选（$selectedCount 项）'),
+                  label: Text(tr('清理所选（{selectedCount} 项）', {'selectedCount': selectedCount})),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '清理会永久删除文件，请确认后再操作。',
+                  tr('清理会永久删除文件，请确认后再操作。'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -209,16 +210,16 @@ class _CleanupScreenState extends State<CleanupScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '发现 ${result.total} 个可清理项目',
+              tr('发现 {p0} 个可清理项目', {'p0': result.total}),
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
-            Text('可释放约 ${formatBytes(result.reclaimable)}'),
+            Text(tr('可释放约 {p0}', {'p0': formatBytes(result.reclaimable)})),
             const SizedBox(height: 4),
             Text(
-              '已扫描 ${result.scanned} 个条目',
+              tr('已扫描 {p0} 个条目', {'p0': result.scanned}),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),

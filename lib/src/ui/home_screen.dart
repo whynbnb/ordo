@@ -28,6 +28,7 @@ import 'server_screen.dart';
 import 'tabbed_browser.dart';
 import 'settings_screen.dart';
 import 'trash_screen.dart';
+import '../i18n/i18n.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.version});
@@ -53,13 +54,13 @@ class _HomeScreenState extends State<HomeScreen>
   Map<String, String> _knownRemovable = const {};
   bool _loadedOnce = false;
 
-  static const _quickCandidates = <_QuickFolder>[
-    _QuickFolder('下载', 'Download', Icons.download_rounded),
-    _QuickFolder('图片', 'Pictures', Icons.photo_library_rounded),
-    _QuickFolder('相机', 'DCIM', Icons.photo_camera_rounded),
-    _QuickFolder('音乐', 'Music', Icons.library_music_rounded),
-    _QuickFolder('视频', 'Movies', Icons.video_library_rounded),
-    _QuickFolder('文档', 'Documents', Icons.folder_special_rounded),
+  List<_QuickFolder> get _quickCandidates => [
+    _QuickFolder(tr('下载'), 'Download', Icons.download_rounded),
+    _QuickFolder(tr('图片'), 'Pictures', Icons.photo_library_rounded),
+    _QuickFolder(tr('相机'), 'DCIM', Icons.photo_camera_rounded),
+    _QuickFolder(tr('音乐'), 'Music', Icons.library_music_rounded),
+    _QuickFolder(tr('视频'), 'Movies', Icons.video_library_rounded),
+    _QuickFolder(tr('文档'), 'Documents', Icons.folder_special_rounded),
   ];
 
   @override
@@ -104,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen>
         break;
       }
     }
-    DropController.instance.setActive(path, '内部存储');
+    DropController.instance.setActive(path, tr('内部存储'));
   }
 
   @override
@@ -211,7 +212,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (added.isNotEmpty) {
       _promptStorageAdded(added.first.key, added.first.value);
     } else if (removed.isNotEmpty) {
-      _snack('外部存储已移除：「${removed.first.value}」');
+      _snack(tr('外部存储已移除：「{p0}」', {'p0': removed.first.value}));
     }
   }
 
@@ -221,10 +222,10 @@ class _HomeScreenState extends State<HomeScreen>
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('已检测到外部存储「$name」'),
+          content: Text(tr('已检测到外部存储「{name}」', {'name': name})),
           duration: const Duration(seconds: 6),
           action: SnackBarAction(
-            label: '打开',
+            label: tr('打开'),
             onPressed: () => _openPath(path, name),
           ),
         ),
@@ -248,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen>
       _roots.isNotEmpty ? _roots.first.path : '/storage/emulated/0';
 
   String get _primaryName =>
-      _roots.isNotEmpty ? _roots.first.name : '内部存储';
+      _roots.isNotEmpty ? _roots.first.name : tr('内部存储');
 
   List<_QuickFolder> get _orderedQuickFolders {
     final order = HomeLayoutStore.instance.quick;
@@ -275,8 +276,8 @@ class _HomeScreenState extends State<HomeScreen>
       margin: EdgeInsets.zero,
       child: ListTile(
         leading: Icon(_toolIcon(id)),
-        title: Text(tool.title),
-        subtitle: Text(tool.subtitle),
+        title: Text(tr(tool.title)),
+        subtitle: Text(tr(tool.subtitle)),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: () => _openTool(id),
       ),
@@ -336,10 +337,10 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('安序'),
+        title: Text(tr('安序')),
         actions: [
           IconButton(
-            tooltip: '首页布局',
+            tooltip: tr('首页布局'),
             icon: const Icon(Icons.dashboard_customize_outlined),
             onPressed: () {
               Navigator.of(context).push(
@@ -350,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen>
             },
           ),
           IconButton(
-            tooltip: '设置',
+            tooltip: tr('设置'),
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
               Navigator.of(context).push(
@@ -359,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen>
             },
           ),
           IconButton(
-            tooltip: '文件服务器',
+            tooltip: tr('文件服务器'),
             icon: const Icon(Icons.router_rounded),
             onPressed: () {
               Navigator.of(context)
@@ -374,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen>
             },
           ),
           IconButton(
-            tooltip: '关于',
+            tooltip: tr('关于'),
             icon: const Icon(Icons.info_outline_rounded),
             onPressed: _showAbout,
           ),
@@ -408,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(height: 16),
                   FilledButton.tonal(
                     onPressed: () => _load(),
-                    child: const Text('重试'),
+                    child: Text(tr('重试')),
                   ),
                 ],
               ),
@@ -421,12 +422,12 @@ class _HomeScreenState extends State<HomeScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        _sectionTitle('存储'),
+        _sectionTitle(tr('存储')),
         const SizedBox(height: 8),
         if (_roots.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: Text('未发现可用的存储卷')),
+            child: Center(child: Text(tr('未发现可用的存储卷'))),
           )
         else
           for (final root in _roots) ...[
@@ -438,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         if (_orderedQuickFolders.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _sectionTitle('常用'),
+          _sectionTitle(tr('常用')),
           const SizedBox(height: 12),
           GridView.count(
             crossAxisCount: 3,
@@ -458,7 +459,7 @@ class _HomeScreenState extends State<HomeScreen>
         ],
         if (_favorites.items.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _sectionTitle('收藏'),
+          _sectionTitle(tr('收藏')),
           const SizedBox(height: 8),
           for (final favorite in _favorites.items) ...[
             _FavoriteCard(
@@ -473,20 +474,20 @@ class _HomeScreenState extends State<HomeScreen>
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _sectionTitle('网络位置')),
+            Expanded(child: _sectionTitle(tr('网络位置'))),
             PopupMenuButton<String>(
-              tooltip: '更多',
+              tooltip: tr('更多'),
               icon: const Icon(Icons.more_vert_rounded),
               onSelected: _onNetworkMenu,
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'import', child: Text('导入连接')),
-                PopupMenuItem(value: 'export', child: Text('导出连接')),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'import', child: Text(tr('导入连接'))),
+                PopupMenuItem(value: 'export', child: Text(tr('导出连接'))),
               ],
             ),
             TextButton.icon(
               onPressed: () => _editConnection(null),
               icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('添加'),
+              label: Text(tr('添加')),
             ),
           ],
         ),
@@ -505,14 +506,14 @@ class _HomeScreenState extends State<HomeScreen>
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              '添加 WebDAV / FTP / SMB 连接后可在此访问。',
+              tr('添加 WebDAV / FTP / SMB 连接后可在此访问。'),
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
         const SizedBox(height: 24),
-        _sectionTitle('工具'),
+        _sectionTitle(tr('工具')),
         const SizedBox(height: 8),
         for (final id in HomeLayoutStore.instance.tools) ...[
           _toolCard(context, id),
@@ -521,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen>
         const SizedBox(height: 24),
         Center(
           child: Text(
-            '安序 Ordo${widget.version == null ? '' : ' · v${widget.version}'}',
+            tr('安序 Ordo{p0}', {'p0': widget.version == null ? '' : ' · v${widget.version}'}),
             style: Theme.of(context).textTheme.bodySmall
                 ?.copyWith(color: Theme.of(context).colorScheme.outline),
           ),
@@ -548,9 +549,9 @@ class _HomeScreenState extends State<HomeScreen>
     final path = joinPath(dir, 'ordo_connections.json');
     try {
       await _service.writeText(path, _connections.exportJson());
-      _snack('已导出到 $path');
+      _snack(tr('已导出到 {path}', {'path': path}));
     } catch (error) {
-      _snack('导出失败：$error');
+      _snack(tr('导出失败：{error}', {'error': error}));
     }
   }
 
@@ -563,9 +564,9 @@ class _HomeScreenState extends State<HomeScreen>
     try {
       final text = (await _service.readText(file)).content;
       final count = await _connections.importJson(text);
-      _snack('已导入 $count 个连接');
+      _snack(tr('已导入 {count} 个连接', {'count': count}));
     } catch (error) {
-      _snack('导入失败：$error');
+      _snack(tr('导入失败：{error}', {'error': error}));
     }
   }
 
@@ -575,7 +576,7 @@ class _HomeScreenState extends State<HomeScreen>
       ..remove('password');
     final data = jsonEncode({'app': 'ordo', 'version': 1, 'profile': json});
     if (!mounted) return;
-    await showQrDialog(context, title: '连接二维码', data: data);
+    await showQrDialog(context, title: tr('连接二维码'), data: data);
   }
 
   Future<void> _editConnection(ConnectionProfile? existing) async {
@@ -583,28 +584,28 @@ class _HomeScreenState extends State<HomeScreen>
     if (result == null || !mounted) return;
     try {
       await _connections.save(result);
-      _snack('已保存「${result.name}」');
+      _snack(tr('已保存「{p0}」', {'p0': result.name}));
     } catch (error) {
       _snack('$error');
     }
   }
 
   Future<void> _testConnection(ConnectionProfile profile) async {
-    _snack('正在测试「${profile.name}」…');
+    _snack(tr('正在测试「{p0}」…', {'p0': profile.name}));
     try {
       await _connections.test(profile);
-      _snack('连接成功：${profile.name}');
+      _snack(tr('连接成功：{p0}', {'p0': profile.name}));
     } catch (error) {
-      _snack('连接失败：$error');
+      _snack(tr('连接失败：{error}', {'error': error}));
     }
   }
 
   Future<void> _deleteConnection(ConnectionProfile profile) async {
     final confirmed = await showConfirmDialog(
       context,
-      title: '删除连接',
-      message: '确定删除「${profile.name}」吗？',
-      confirmLabel: '删除',
+      title: tr('删除连接'),
+      message: tr('确定删除「{p0}」吗？', {'p0': profile.name}),
+      confirmLabel: tr('删除'),
       destructive: true,
     );
     if (!confirmed || !mounted) return;
@@ -663,15 +664,14 @@ class _HomeScreenState extends State<HomeScreen>
   void _showAbout() {
     showAboutDialog(
       context: context,
-      applicationName: '安序 Ordo',
+      applicationName: tr('安序 Ordo'),
       applicationVersion: widget.version == null
           ? 'v1.0'
           : 'v${widget.version}',
       applicationIcon: const Icon(Icons.folder_rounded, size: 40),
-      children: const [
+      children: [
         Text(
-          '一个使用 Flutter + Rust 构建的安卓文件管理器。'
-          '所有文件操作均由本地 Rust 核心完成。',
+          tr('一个使用 Flutter + Rust 构建的安卓文件管理器。所有文件操作均由本地 Rust 核心完成。'),
         ),
       ],
     );
@@ -748,8 +748,7 @@ class _StorageCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '已用 ${formatBytes(root.used)} / 共 ${formatBytes(root.total)}'
-                '   可用 ${formatBytes(root.free)}',
+                tr('已用 {p0} / 共 {p1}   可用 {p2}', {'p0': formatBytes(root.used), 'p1': formatBytes(root.total), 'p2': formatBytes(root.free)}),
                 style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: scheme.onSurfaceVariant),
               ),
@@ -765,7 +764,7 @@ class _StorageCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        '系统未向本应用开放该卷的访问权限',
+                        tr('系统未向本应用开放该卷的访问权限'),
                         style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: scheme.error),
                       ),
@@ -866,7 +865,7 @@ class _ConnectionCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         trailing: PopupMenuButton<String>(
-          tooltip: '更多',
+          tooltip: tr('更多'),
           onSelected: (value) {
             switch (value) {
               case 'edit':
@@ -879,11 +878,11 @@ class _ConnectionCard extends StatelessWidget {
                 onDelete();
             }
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'edit', child: Text('编辑')),
-            PopupMenuItem(value: 'test', child: Text('测试连接')),
-            PopupMenuItem(value: 'qr', child: Text('二维码')),
-            PopupMenuItem(value: 'delete', child: Text('删除')),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'edit', child: Text(tr('编辑'))),
+            PopupMenuItem(value: 'test', child: Text(tr('测试连接'))),
+            PopupMenuItem(value: 'qr', child: Text(tr('二维码'))),
+            PopupMenuItem(value: 'delete', child: Text(tr('删除'))),
           ],
         ),
       ),
@@ -925,7 +924,7 @@ class _FavoriteCard extends StatelessWidget {
         title: Text(favorite.name),
         subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: IconButton(
-          tooltip: '移除收藏',
+          tooltip: tr('移除收藏'),
           icon: const Icon(Icons.close_rounded),
           onPressed: onRemove,
         ),

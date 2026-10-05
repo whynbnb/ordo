@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/models.dart';
+import '../i18n/i18n.dart';
 
 /// 打开连接编辑器；返回编辑后的配置，取消则返回 null。
 Future<ConnectionProfile?> showConnectionEditor(
@@ -71,23 +72,23 @@ class _ConnectionEditScreenState extends State<_ConnectionEditScreen> {
   }
 
   String get _hostHint => switch (_kind) {
-    'webdav' => '例如 dav.example.com 或 https://dav.example.com/dav',
-    'smb' => '例如 192.168.1.10',
-    'sftp' => '例如 sftp.example.com',
-    _ => '例如 ftp.example.com',
+    'webdav' => tr('例如 dav.example.com 或 https://dav.example.com/dav'),
+    'smb' => tr('例如 192.168.1.10'),
+    'sftp' => tr('例如 sftp.example.com'),
+    _ => tr('例如 ftp.example.com'),
   };
 
   String get _portHint => switch (_kind) {
-    'webdav' => '443 / 80（留空自动）',
-    'smb' => '445（留空自动）',
-    'sftp' => '22（留空自动）',
-    _ => '21（留空自动）',
+    'webdav' => tr('443 / 80（留空自动）'),
+    'smb' => tr('445（留空自动）'),
+    'sftp' => tr('22（留空自动）'),
+    _ => tr('21（留空自动）'),
   };
 
   void _submit() {
     final host = _host.text.trim();
     if (host.isEmpty) {
-      setState(() => _error = '请填写服务器地址');
+      setState(() => _error = tr('请填写服务器地址'));
       return;
     }
     final initial = widget.initial ?? ConnectionProfile.empty;
@@ -111,8 +112,8 @@ class _ConnectionEditScreenState extends State<_ConnectionEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.initial == null ? '添加连接' : '编辑连接'),
-        actions: [TextButton(onPressed: _submit, child: const Text('保存'))],
+        title: Text(widget.initial == null ? tr('添加连接') : tr('编辑连接')),
+        actions: [TextButton(onPressed: _submit, child: Text(tr('保存')))],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -131,44 +132,44 @@ class _ConnectionEditScreenState extends State<_ConnectionEditScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          _field(_name, '名称（可选）', Icons.label_outline_rounded),
-          _field(_host, '服务器地址', Icons.dns_rounded, hint: _hostHint),
+          _field(_name, tr('名称（可选）'), Icons.label_outline_rounded),
+          _field(_host, tr('服务器地址'), Icons.dns_rounded, hint: _hostHint),
           _field(
             _port,
-            '端口',
+            tr('端口'),
             Icons.numbers_rounded,
             hint: _portHint,
             keyboardType: TextInputType.number,
           ),
-          _field(_username, '用户名', Icons.person_outline_rounded),
-          _field(_password, '密码', Icons.lock_outline_rounded, obscure: true),
+          _field(_username, tr('用户名'), Icons.person_outline_rounded),
+          _field(_password, tr('密码'), Icons.lock_outline_rounded, obscure: true),
           if (_kind == 'smb') ...[
             _field(
               _share,
-              '共享名（可选）',
+              tr('共享名（可选）'),
               Icons.share_rounded,
-              hint: '留空则浏览服务器上的全部共享',
+              hint: tr('留空则浏览服务器上的全部共享'),
             ),
-            _field(_domain, '域（可选）', Icons.badge_outlined),
+            _field(_domain, tr('域（可选）'), Icons.badge_outlined),
           ],
           _field(
             _basePath,
-            _kind == 'smb' ? '共享内初始目录（可选）' : '初始目录（可选）',
+            _kind == 'smb' ? tr('共享内初始目录（可选）') : tr('初始目录（可选）'),
             Icons.folder_open_rounded,
-            hint: _kind == 'smb' ? '例如 docs（留空为共享根）' : '例如 /public',
+            hint: _kind == 'smb' ? tr('例如 docs（留空为共享根）') : tr('例如 /public'),
           ),
           if (_kind == 'webdav')
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('使用 HTTPS'),
+              title: Text(tr('使用 HTTPS')),
               value: _secure,
               onChanged: (value) => setState(() => _secure = value),
             ),
           if (_kind == 'webdav')
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('信任自签名证书'),
-              subtitle: const Text('跳过 TLS 证书校验（不安全）'),
+              title: Text(tr('信任自签名证书')),
+              subtitle: Text(tr('跳过 TLS 证书校验（不安全）')),
               value: _insecureTls,
               onChanged: (value) => setState(() => _insecureTls = value),
             ),
@@ -180,7 +181,7 @@ class _ConnectionEditScreenState extends State<_ConnectionEditScreen> {
             ),
           ],
           const SizedBox(height: 24),
-          FilledButton(onPressed: _submit, child: const Text('保存')),
+          FilledButton(onPressed: _submit, child: Text(tr('保存'))),
         ],
       ),
     );

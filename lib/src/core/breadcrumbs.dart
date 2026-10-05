@@ -1,4 +1,5 @@
 import 'format.dart';
+import '../i18n/i18n.dart';
 
 /// 路径中的一段（用于面包屑导航）。
 class PathCrumb {
@@ -33,7 +34,7 @@ List<PathCrumb> breadcrumbsFor(String path) {
   const internal = '/storage/emulated/0';
   final crumbs = <PathCrumb>[];
   if (path == internal || path.startsWith('$internal/')) {
-    crumbs.add(const PathCrumb('内部存储', internal));
+    crumbs.add(PathCrumb(tr('内部存储'), internal));
     var acc = internal;
     for (final segment in path.substring(internal.length).split('/')) {
       if (segment.isEmpty) continue;

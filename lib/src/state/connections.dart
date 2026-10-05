@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/models.dart';
 import '../services/ordo_service.dart';
+import '../i18n/i18n.dart';
 
 /// 远程连接配置的全局状态。
 class ConnectionStore extends ChangeNotifier {
@@ -77,7 +78,7 @@ class ConnectionStore extends ChangeNotifier {
     final decoded = jsonDecode(text);
     final raw = decoded is Map ? decoded['profiles'] : decoded;
     if (raw is! List) {
-      throw const FormatException('文件格式不正确');
+      throw FormatException(tr('文件格式不正确'));
     }
     var count = 0;
     for (final item in raw) {

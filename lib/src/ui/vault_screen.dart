@@ -4,6 +4,7 @@ import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'directory_picker.dart';
+import '../i18n/i18n.dart';
 
 /// 隐私空间：文件存放在应用私有目录，常规文件浏览器中不可见。
 class VaultScreen extends StatefulWidget {
@@ -63,7 +64,7 @@ class _VaultScreenState extends State<VaultScreen> {
     if (dest == null || !mounted) return;
     try {
       final result = await _service.vaultRestore(_selected.toList(), dest);
-      _snack('已还原 ${result.count} 项', errors: result.errors);
+      _snack(tr('已还原 {p0} 项', {'p0': result.count}), errors: result.errors);
       await _load();
     } catch (error) {
       _snack('$error');
@@ -75,19 +76,19 @@ class _VaultScreenState extends State<VaultScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('彻底删除'),
-        content: Text('将覆盖写入后删除 ${_selected.length} 项，无法恢复。是否继续？'),
+        title: Text(tr('彻底删除')),
+        content: Text(tr('将覆盖写入后删除 {p0} 项，无法恢复。是否继续？', {'p0': _selected.length})),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('删除'),
+            child: Text(tr('删除')),
           ),
         ],
       ),
@@ -95,7 +96,7 @@ class _VaultScreenState extends State<VaultScreen> {
     if (confirmed != true || !mounted) return;
     try {
       final result = await _service.vaultDelete(_selected.toList());
-      _snack('已删除 ${result.deleted} 项', errors: result.errors);
+      _snack(tr('已删除 {p0} 项', {'p0': result.deleted}), errors: result.errors);
       await _load();
     } catch (error) {
       _snack('$error');
@@ -116,15 +117,15 @@ class _VaultScreenState extends State<VaultScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('隐私空间'),
+        title: Text(tr('隐私空间')),
         actions: [
           IconButton(
-            tooltip: '还原到…',
+            tooltip: tr('还原到…'),
             onPressed: _selected.isEmpty ? null : _restore,
             icon: const Icon(Icons.unarchive_outlined),
           ),
           IconButton(
-            tooltip: '彻底删除',
+            tooltip: tr('彻底删除'),
             onPressed: _selected.isEmpty ? null : _delete,
             icon: const Icon(Icons.delete_forever_outlined),
           ),
@@ -149,7 +150,7 @@ class _VaultScreenState extends State<VaultScreen> {
                     vertical: 8,
                   ),
                   child: Text(
-                    '文件保存在应用私有目录，其它应用与文件管理器无法直接访问。',
+                    tr('文件保存在应用私有目录，其它应用与文件管理器无法直接访问。'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -157,7 +158,7 @@ class _VaultScreenState extends State<VaultScreen> {
                   child: _items.isEmpty
                       ? Center(
                           child: Text(
-                            '隐私空间为空',
+                            tr('隐私空间为空'),
                             style: TextStyle(
                               color: Theme.of(
                                 context,
@@ -185,7 +186,7 @@ class _VaultScreenState extends State<VaultScreen> {
                               ),
                               subtitle: Text(
                                 entry.isDir
-                                    ? '文件夹'
+                                    ? tr('文件夹')
                                     : '${formatBytes(entry.size)} · '
                                           '${formatDate(entry.modified)}',
                               ),
@@ -209,11 +210,11 @@ class _VaultScreenState extends State<VaultScreen> {
                             }
                           }),
                           child: Text(
-                            _selected.length == _items.length ? '取消全选' : '全选',
+                            _selected.length == _items.length ? tr('取消全选') : tr('全选'),
                           ),
                         ),
                         const Spacer(),
-                        Text('已选 ${_selected.length} 项'),
+                        Text(tr('已选 {p0} 项', {'p0': _selected.length})),
                       ],
                     ),
                   ),

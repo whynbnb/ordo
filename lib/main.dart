@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'src/i18n/locale_store.dart';
 import 'src/services/ordo_service.dart';
 import 'src/services/platform_service.dart';
 import 'src/state/drop_controller.dart';
@@ -11,6 +13,7 @@ import 'src/state/route_observer.dart';
 import 'src/state/storage_events.dart';
 import 'src/state/theme_store.dart';
 import 'src/ui/startup_gate.dart';
+import './src/i18n/i18n.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,8 +23,9 @@ void main() {
   StorageEvents.instance.register();
   // 桌面快捷方式打开指定路径。
   PlatformService.setOpenPathHandler(openPathFromShortcut);
-  // 载入主题偏好（异步，加载完成后重建界面）。
+  // 载入主题与语言偏好（异步，加载完成后重建界面）。
   ThemeStore.instance.load();
+  LocaleStore.instance.load();
 
   // 记录 Flutter 与 Dart 未捕获错误，便于在设置中导出排查。
   FlutterError.onError = (details) {
@@ -49,15 +53,22 @@ class OrdoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: ThemeStore.instance,
+      listenable: Listenable.merge([ThemeStore.instance, LocaleStore.instance]),
       builder: (context, _) {
         final store = ThemeStore.instance;
         return MaterialApp(
-          title: '安序',
+          title: tr('安序'),
           debugShowCheckedModeBanner: false,
           navigatorKey: ordoNavigatorKey,
           scaffoldMessengerKey: DropController.messengerKey,
           navigatorObservers: [ordoRouteObserver],
+          locale: LocaleStore.instance.locale,
+          supportedLocales: const [Locale('zh'), Locale('en')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           theme: _buildTheme(store.seed, Brightness.light),
           darkTheme: store.isBlack
               ? _buildBlackTheme(store.seed)

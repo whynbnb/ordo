@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'prefs_store.dart';
+import '../i18n/i18n.dart';
 
 /// 文件列表的显示方式（列表 / 网格、图标大小）。
 class ViewStore extends ChangeNotifier {
@@ -52,8 +53,8 @@ class ViewStore extends ChangeNotifier {
   }
 
   String get iconSizeLabel => switch (_iconSize) {
-    'small' => '小',
-    'large' => '大',
-    _ => '中',
+    'small' => tr('小'),
+    'large' => tr('大'),
+    _ => tr('中'),
   };
 }

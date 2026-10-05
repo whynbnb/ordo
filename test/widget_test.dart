@@ -1,7 +1,28 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ordo/src/core/format.dart';
+import 'package:ordo/src/i18n/i18n.dart';
 
 void main() {
+  group('i18n', () {
+    test('english dictionary has common entries', () {
+      expect(enTranslations['取消'], 'Cancel');
+      expect(enTranslations['保存'], 'Save');
+      expect(enTranslations['删除'], 'Delete');
+      expect(
+        enTranslations['启动失败：{error}'],
+        'Start failed: {error}',
+      );
+    });
+
+    test('rust error maps', () {
+      expect(enErrorMessages['未找到'], 'Not found');
+      expect(
+        enErrorPrefixes.any((e) => e.$1 == '打开失败：'),
+        isTrue,
+      );
+    });
+  });
+
   group('formatBytes', () {
     test('formats common sizes', () {
       expect(formatBytes(0), '0 B');

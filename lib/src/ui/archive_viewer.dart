@@ -5,6 +5,7 @@ import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'archive_actions.dart';
+import '../i18n/i18n.dart';
 
 /// 查看归档（ZIP / TAR / TAR.GZ）内容，可整体解压或单独提取条目。
 class ArchiveViewerScreen extends StatefulWidget {
@@ -64,7 +65,7 @@ class _ArchiveViewerScreenState extends State<ArchiveViewerScreen> {
       dest: dest,
     );
     if (!mounted || !ok) return;
-    _snack('已解压到「$folder」');
+    _snack(tr('已解压到「{folder}」', {'folder': folder}));
     Navigator.of(context).pop();
   }
 
@@ -76,7 +77,7 @@ class _ArchiveViewerScreenState extends State<ArchiveViewerScreen> {
       only: entry.name,
     );
     if (!mounted || !ok) return;
-    _snack('已提取「${entry.name}」');
+    _snack(tr('已提取「{p0}」', {'p0': entry.name}));
   }
 
   void _snack(String message) {
@@ -98,7 +99,7 @@ class _ArchiveViewerScreenState extends State<ArchiveViewerScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: '解压到此处',
+            tooltip: tr('解压到此处'),
             icon: const Icon(Icons.unarchive_rounded),
             onPressed: _loading ? null : _extractAll,
           ),
@@ -123,7 +124,7 @@ class _ArchiveViewerScreenState extends State<ArchiveViewerScreen> {
     if (_entries.isEmpty) {
       return Center(
         child: Text(
-          '空归档',
+          tr('空归档'),
           style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );
@@ -137,7 +138,7 @@ class _ArchiveViewerScreenState extends State<ArchiveViewerScreen> {
           return ListTile(
             dense: true,
             leading: const Icon(Icons.info_outline_rounded),
-            title: Text('${_entries.length} 个条目${label == null ? '' : ' · $label'}'),
+            title: Text(tr('{p0} 个条目{p1}', {'p0': _entries.length, 'p1': label == null ? '' : ' · $label'})),
           );
         }
         final entry = _entries[index - 1];
@@ -155,8 +156,8 @@ class _ArchiveViewerScreenState extends State<ArchiveViewerScreen> {
               ? null
               : Text(
                   entry.encrypted
-                      ? '${formatBytes(entry.size)} · 已加密'
-                      : '${formatBytes(entry.size)}（压缩后 ${formatBytes(entry.compressed)}）',
+                      ? tr('{p0} · 已加密', {'p0': formatBytes(entry.size)})
+                      : tr('{p0}（压缩后 {p1}）', {'p0': formatBytes(entry.size), 'p1': formatBytes(entry.compressed)}),
                 ),
           trailing: entry.isDir
               ? null

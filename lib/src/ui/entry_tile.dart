@@ -5,6 +5,7 @@ import '../core/format.dart';
 import '../core/models.dart';
 import 'entry_visuals.dart';
 import 'thumbnail.dart';
+import '../i18n/i18n.dart';
 
 class EntryTile extends StatelessWidget {
   const EntryTile({
@@ -92,7 +93,7 @@ class EntryTile extends StatelessWidget {
               if (!selectionMode && onMenu != null)
                 IconButton(
                   icon: const Icon(Icons.more_vert_rounded),
-                  tooltip: '更多',
+                  tooltip: tr('更多'),
                   onPressed: onMenu,
                 ),
               if (labelColor != null)

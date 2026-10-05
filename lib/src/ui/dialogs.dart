@@ -5,14 +5,15 @@ import '../core/format.dart';
 import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'entry_visuals.dart';
+import '../i18n/i18n.dart';
 
 /// 文本输入对话框，用于新建 / 重命名。
 Future<String?> showNameDialog(
   BuildContext context, {
   required String title,
   String initialText = '',
-  String hintText = '名称',
-  String confirmLabel = '确定',
+  String? hintText,
+  String? confirmLabel,
 }) {
   final controller = TextEditingController(text: initialText);
   return showDialog<String>(
@@ -24,17 +25,17 @@ Future<String?> showNameDialog(
           controller: controller,
           autofocus: true,
           textInputAction: TextInputAction.done,
-          decoration: InputDecoration(hintText: hintText),
+          decoration: InputDecoration(hintText: hintText ?? tr('名称')),
           onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: Text(confirmLabel),
+            child: Text(confirmLabel ?? tr('确定')),
           ),
         ],
       );
@@ -46,7 +47,7 @@ Future<bool> showConfirmDialog(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmLabel = '确定',
+  String? confirmLabel,
   bool destructive = false,
 }) async {
   final result = await showDialog<bool>(
@@ -58,7 +59,7 @@ Future<bool> showConfirmDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             style: destructive
@@ -68,7 +69,7 @@ Future<bool> showConfirmDialog(
                   )
                 : null,
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(confirmLabel),
+            child: Text(confirmLabel ?? tr('确定')),
           ),
         ],
       );
@@ -80,22 +81,22 @@ Future<bool> showConfirmDialog(
 Future<void> showDetailsSheet(BuildContext context, FileEntry entry) {
   final scheme = Theme.of(context).colorScheme;
   final rows = <(String, String)>[
-    ('名称', entry.name),
-    ('路径', entry.path),
+    (tr('名称'), entry.name),
+    (tr('路径'), entry.path),
     (
-      '类型',
+      tr('类型'),
       entry.isDir
-          ? '文件夹'
+          ? tr('文件夹')
           : (entry.extension.isEmpty
-                ? '文件'
-                : '${entry.extension.toUpperCase()} 文件'),
+                ? tr('文件')
+                : tr('{p0} 文件', {'p0': entry.extension.toUpperCase()})),
     ),
-    if (!entry.isDir) ('大小', formatBytes(entry.size)),
-    ('修改时间', formatDate(entry.modified)),
-    ('创建时间', formatDate(entry.created)),
-    ('可读', entry.readable ? '是' : '否'),
-    ('可写', entry.writable ? '是' : '否'),
-    if (entry.isSymlink) ('符号链接', '是'),
+    if (!entry.isDir) (tr('大小'), formatBytes(entry.size)),
+    (tr('修改时间'), formatDate(entry.modified)),
+    (tr('创建时间'), formatDate(entry.created)),
+    (tr('可读'), entry.readable ? tr('是') : tr('否')),
+    (tr('可写'), entry.writable ? tr('是') : tr('否')),
+    if (entry.isSymlink) (tr('符号链接'), tr('是')),
   ];
 
   return showModalBottomSheet<void>(
@@ -119,7 +120,7 @@ Future<void> showDetailsSheet(BuildContext context, FileEntry entry) {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '详细信息',
+                      tr('详细信息'),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
@@ -209,13 +210,13 @@ class _HashDialogState extends State<_HashDialog> {
     Clipboard.setData(ClipboardData(text: value));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('已复制')));
+      ..showSnackBar(SnackBar(content: Text(tr('已复制'))));
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('校验和'),
+      title: Text(tr('校验和')),
       content: SizedBox(
         width: 360,
         child: _loading
@@ -238,7 +239,7 @@ class _HashDialogState extends State<_HashDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
+          child: Text(tr('关闭')),
         ),
       ],
     );
@@ -258,7 +259,7 @@ class _HashDialogState extends State<_HashDialog> {
             const Spacer(),
             if (value != null)
               IconButton(
-                tooltip: '复制',
+                tooltip: tr('复制'),
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.copy_rounded, size: 18),
                 onPressed: () => _copy(value.hash),
@@ -353,12 +354,12 @@ class _FolderSizeDialogState extends State<_FolderSizeDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '共 ${formatBytes(_result!.size)}',
+                  tr('共 {p0}', {'p0': formatBytes(_result!.size)}),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '${_result!.files} 个文件 · ${_result!.dirs} 个文件夹',
+                  tr('{p0} 个文件 · {p1} 个文件夹', {'p0': _result!.files, 'p1': _result!.dirs}),
                   style: TextStyle(color: scheme.onSurfaceVariant),
                 ),
               ],
@@ -366,11 +367,11 @@ class _FolderSizeDialogState extends State<_FolderSizeDialog> {
       actions: [
         TextButton(
           onPressed: _loading ? null : _compute,
-          child: const Text('重新计算'),
+          child: Text(tr('重新计算')),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
+          child: Text(tr('关闭')),
         ),
       ],
     );
@@ -428,27 +429,27 @@ class _MediaInfoDialogState extends State<_MediaInfoDialog> {
 
   List<(String, String)> get _rows {
     final rows = <(String, String)>[
-      ('文件', widget.entry.name),
+      (tr('文件'), widget.entry.name),
       (
-        '大小',
+        tr('大小'),
         formatBytes((_info['size'] as num?)?.toInt() ?? widget.entry.size),
       ),
     ];
     final width = (_info['width'] as num?)?.toInt();
     final height = (_info['height'] as num?)?.toInt();
     if (width != null && height != null) {
-      rows.add(('尺寸', '$width × $height'));
+      rows.add((tr('尺寸'), '$width × $height'));
     }
     void add(String key, String label) {
       final value = _info[key];
       if (value != null && '$value'.isNotEmpty) rows.add((label, '$value'));
     }
 
-    add('date_taken', '拍摄时间');
-    add('camera', '相机');
-    add('orientation', '方向');
-    add('f_number', '光圈');
-    add('exposure_time', '曝光时间');
+    add('date_taken', tr('拍摄时间'));
+    add('camera', tr('相机'));
+    add('orientation', tr('方向'));
+    add('f_number', tr('光圈'));
+    add('exposure_time', tr('曝光时间'));
     add('iso', 'ISO');
     return rows;
   }
@@ -457,7 +458,7 @@ class _MediaInfoDialogState extends State<_MediaInfoDialog> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
-      title: const Text('媒体信息'),
+      title: Text(tr('媒体信息')),
       content: _loading
           ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
@@ -493,7 +494,7 @@ class _MediaInfoDialogState extends State<_MediaInfoDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
+          child: Text(tr('关闭')),
         ),
       ],
     );

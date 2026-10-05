@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/ordo_service.dart';
 import 'job_progress.dart';
+import '../i18n/i18n.dart';
 
 /// 归档格式。
 enum ArchiveFormat { zip, tar, tarGz }
@@ -52,7 +53,7 @@ Future<ArchiveFormat?> pickArchiveFormat(BuildContext context) {
               ),
               title: Text(format.label),
               subtitle: Text(
-                format == ArchiveFormat.zip ? '支持 AES 加密' : '不支持加密',
+                format == ArchiveFormat.zip ? tr('支持 AES 加密') : tr('不支持加密'),
               ),
               onTap: () => Navigator.pop(sheetContext, format),
             ),
@@ -73,16 +74,16 @@ Future<String?> askArchivePassword(BuildContext context, String title) async {
         controller: controller,
         autofocus: true,
         obscureText: true,
-        decoration: const InputDecoration(labelText: '密码'),
+        decoration: InputDecoration(labelText: tr('密码')),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('取消'),
+          child: Text(tr('取消')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(dialogContext, controller.text),
-          child: const Text('确定'),
+          child: Text(tr('确定')),
         ),
       ],
     ),
@@ -103,7 +104,7 @@ Future<bool> runArchiveExtract(
     try {
       await runWithJobProgress<void>(
         context,
-        only == null ? '正在解压' : '正在提取',
+        only == null ? tr('正在解压') : tr('正在提取'),
         (jobId) => OrdoService.instance.archiveExtract(
           archivePath,
           dest,
@@ -115,8 +116,8 @@ Future<bool> runArchiveExtract(
       return true;
     } catch (error) {
       final message = '$error';
-      if (message.contains('需要密码') && context.mounted) {
-        final input = await askArchivePassword(context, '压缩包已加密');
+      if (message.contains(tr('需要密码')) && context.mounted) {
+        final input = await askArchivePassword(context, tr('压缩包已加密'));
         if (input == null) return false;
         password = input;
         continue;
@@ -179,7 +180,7 @@ class _CompressDialogState extends State<_CompressDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('压缩'),
+      title: Text(tr('压缩')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -187,15 +188,15 @@ class _CompressDialogState extends State<_CompressDialog> {
             TextField(
               controller: _nameController,
               autofocus: true,
-              decoration: const InputDecoration(labelText: '文件名'),
+              decoration: InputDecoration(labelText: tr('文件名')),
             ),
             if (widget.allowPassword)
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: '密码（可选）',
-                  hintText: '留空则不加密',
+                decoration: InputDecoration(
+                  labelText: tr('密码（可选）'),
+                  hintText: tr('留空则不加密'),
                 ),
               ),
           ],
@@ -204,7 +205,7 @@ class _CompressDialogState extends State<_CompressDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(tr('取消')),
         ),
         FilledButton(
           onPressed: () {
@@ -215,7 +216,7 @@ class _CompressDialogState extends State<_CompressDialog> {
               password: widget.allowPassword ? _passwordController.text : '',
             ));
           },
-          child: const Text('压缩'),
+          child: Text(tr('压缩')),
         ),
       ],
     );

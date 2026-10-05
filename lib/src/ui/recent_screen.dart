@@ -4,6 +4,7 @@ import '../core/models.dart';
 import '../state/recent_store.dart';
 import 'browser_screen.dart';
 import 'open_entry.dart';
+import '../i18n/i18n.dart';
 
 /// 最近访问记录。
 class RecentScreen extends StatefulWidget {
@@ -66,16 +67,16 @@ class _RecentScreenState extends State<RecentScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('清空最近访问'),
-        content: const Text('确定清空全部最近访问记录吗？'),
+        title: Text(tr('清空最近访问')),
+        content: Text(tr('确定清空全部最近访问记录吗？')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(tr('取消')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('清空'),
+            child: Text(tr('清空')),
           ),
         ],
       ),
@@ -89,11 +90,11 @@ class _RecentScreenState extends State<RecentScreen> {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('最近访问'),
+        title: Text(tr('最近访问')),
         actions: [
           if (items.isNotEmpty)
             IconButton(
-              tooltip: '清空',
+              tooltip: tr('清空'),
               icon: const Icon(Icons.delete_sweep_outlined),
               onPressed: _clear,
             ),
@@ -102,7 +103,7 @@ class _RecentScreenState extends State<RecentScreen> {
       body: items.isEmpty
           ? Center(
               child: Text(
-                '暂无最近访问',
+                tr('暂无最近访问'),
                 style: TextStyle(color: scheme.onSurfaceVariant),
               ),
             )
@@ -145,10 +146,10 @@ class _RecentScreenState extends State<RecentScreen> {
     final diff = DateTime.now().difference(
       DateTime.fromMillisecondsSinceEpoch(millis),
     );
-    if (diff.inMinutes < 1) return '刚刚';
-    if (diff.inHours < 1) return '${diff.inMinutes} 分钟前';
-    if (diff.inDays < 1) return '${diff.inHours} 小时前';
-    if (diff.inDays < 30) return '${diff.inDays} 天前';
+    if (diff.inMinutes < 1) return tr('刚刚');
+    if (diff.inHours < 1) return tr('{p0} 分钟前', {'p0': diff.inMinutes});
+    if (diff.inDays < 1) return tr('{p0} 小时前', {'p0': diff.inHours});
+    if (diff.inDays < 30) return tr('{p0} 天前', {'p0': diff.inDays});
     final date = DateTime.fromMillisecondsSinceEpoch(millis);
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-'
         '${date.day.toString().padLeft(2, '0')}';

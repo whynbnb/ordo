@@ -8,6 +8,7 @@ import '../core/models.dart';
 import '../services/ordo_service.dart';
 import 'directory_picker.dart';
 import 'qr_dialog.dart';
+import '../i18n/i18n.dart';
 
 /// 在本机开启 HTTP/WebDAV 与 FTP 服务器，供同一局域网内的其他设备访问。
 class ServerScreen extends StatefulWidget {
@@ -111,11 +112,11 @@ class _ServerScreenState extends State<ServerScreen> {
 
   Future<void> _start() async {
     if (!_http && !_ftp) {
-      _snack('请至少启用一种服务器');
+      _snack(tr('请至少启用一种服务器'));
       return;
     }
     if (_root.text.trim().isEmpty) {
-      _snack('请选择要共享的目录');
+      _snack(tr('请选择要共享的目录'));
       return;
     }
     setState(() => _busy = true);
@@ -128,11 +129,11 @@ class _ServerScreenState extends State<ServerScreen> {
         _status = status;
         _busy = false;
       });
-      _snack('服务器已启动');
+      _snack(tr('服务器已启动'));
     } catch (error) {
       if (!mounted) return;
       setState(() => _busy = false);
-      _snack('启动失败：$error');
+      _snack(tr('启动失败：{error}', {'error': error}));
     }
   }
 
@@ -148,7 +149,7 @@ class _ServerScreenState extends State<ServerScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _busy = false);
-      _snack('停止失败：$error');
+      _snack(tr('停止失败：{error}', {'error': error}));
     }
   }
 
@@ -172,7 +173,7 @@ class _ServerScreenState extends State<ServerScreen> {
       await _service.serverLogClear();
       await _refreshLog();
     } catch (error) {
-      _snack('清空失败：$error');
+      _snack(tr('清空失败：{error}', {'error': error}));
     }
   }
 
@@ -207,7 +208,7 @@ class _ServerScreenState extends State<ServerScreen> {
 
   Future<void> _copy(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
-    _snack('已复制：$text');
+    _snack(tr('已复制：{text}', {'text': text}));
   }
 
   @override
@@ -216,10 +217,10 @@ class _ServerScreenState extends State<ServerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('文件服务器'),
+        title: Text(tr('文件服务器')),
         actions: [
           IconButton(
-            tooltip: '刷新状态',
+            tooltip: tr('刷新状态'),
             onPressed: _busy ? null : _load,
             icon: const Icon(Icons.refresh_rounded),
           ),
@@ -241,7 +242,7 @@ class _ServerScreenState extends State<ServerScreen> {
                     ),
                   ),
                 if (running) _statusCard(context, _status!),
-                _section('共享目录'),
+                _section(tr('共享目录')),
                 Card(
                   elevation: 0,
                   color: Theme.of(context).colorScheme.surfaceContainerHighest
@@ -249,56 +250,56 @@ class _ServerScreenState extends State<ServerScreen> {
                   child: ListTile(
                     leading: const Icon(Icons.folder_rounded),
                     title: Text(
-                      _root.text.isEmpty ? '未选择' : _root.text,
+                      _root.text.isEmpty ? tr('未选择') : _root.text,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     trailing: TextButton(
                       onPressed: _busy ? null : _pickRoot,
-                      child: const Text('选择'),
+                      child: Text(tr('选择')),
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
-                _section('协议'),
+                _section(tr('协议')),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('HTTP / WebDAV'),
-                  subtitle: const Text('浏览器访问，可映射为网络驱动器'),
+                  subtitle: Text(tr('浏览器访问，可映射为网络驱动器')),
                   value: _http,
                   onChanged: _busy
                       ? null
                       : (value) => setState(() => _http = value),
                 ),
-                if (_http) _portField(_httpPort, 'HTTP 端口', '默认 8080'),
+                if (_http) _portField(_httpPort, tr('HTTP 端口'), tr('默认 8080')),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('FTP'),
-                  subtitle: const Text('供 FTP 客户端 / 文件管理器连接'),
+                  subtitle: Text(tr('供 FTP 客户端 / 文件管理器连接')),
                   value: _ftp,
                   onChanged: _busy
                       ? null
                       : (value) => setState(() => _ftp = value),
                 ),
-                if (_ftp) _portField(_ftpPort, 'FTP 端口', '默认 2121'),
+                if (_ftp) _portField(_ftpPort, tr('FTP 端口'), tr('默认 2121')),
                 const SizedBox(height: 8),
-                _section('访问控制'),
+                _section(tr('访问控制')),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('需要用户名与密码'),
+                  title: Text(tr('需要用户名与密码')),
                   value: _auth,
                   onChanged: _busy
                       ? null
                       : (value) => setState(() => _auth = value),
                 ),
                 if (_auth) ...[
-                  _textField(_username, '用户名'),
-                  _textField(_password, '密码', obscure: true),
+                  _textField(_username, tr('用户名')),
+                  _textField(_password, tr('密码'), obscure: true),
                 ],
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('只读模式'),
-                  subtitle: const Text('仅允许浏览与下载，禁止上传 / 删除'),
+                  title: Text(tr('只读模式')),
+                  subtitle: Text(tr('仅允许浏览与下载，禁止上传 / 删除')),
                   value: _readOnly,
                   onChanged: _busy
                       ? null
@@ -307,18 +308,18 @@ class _ServerScreenState extends State<ServerScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(child: _section('多用户')),
+                    Expanded(child: _section(tr('多用户'))),
                     TextButton.icon(
                       onPressed: _busy ? null : () => _editUser(),
                       icon: const Icon(Icons.add_rounded, size: 18),
-                      label: const Text('添加用户'),
+                      label: Text(tr('添加用户')),
                     ),
                   ],
                 ),
                 Text(
                   _users.isEmpty
-                      ? '未配置多用户时，使用上方的单账号（若启用）。'
-                      : '已启用多用户：上方单账号设置不再生效；每个账号可限定子目录与只读。',
+                      ? tr('未配置多用户时，使用上方的单账号（若启用）。')
+                      : tr('已启用多用户：上方单账号设置不再生效；每个账号可限定子目录与只读。'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -333,19 +334,19 @@ class _ServerScreenState extends State<ServerScreen> {
                       leading: const Icon(Icons.person_rounded),
                       title: Text(_users[i].username),
                       subtitle: Text(
-                        '${_users[i].path.isEmpty ? '根目录' : _users[i].path}'
-                        '${_users[i].readOnly ? ' · 只读' : ''}',
+                        '${_users[i].path.isEmpty ? tr('根目录') : _users[i].path}'
+                        '${_users[i].readOnly ? tr(' · 只读') : ''}',
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            tooltip: '编辑',
+                            tooltip: tr('编辑'),
                             icon: const Icon(Icons.edit_outlined, size: 18),
                             onPressed: _busy ? null : () => _editUser(i),
                           ),
                           IconButton(
-                            tooltip: '删除',
+                            tooltip: tr('删除'),
                             icon: const Icon(
                               Icons.delete_outline_rounded,
                               size: 18,
@@ -364,12 +365,11 @@ class _ServerScreenState extends State<ServerScreen> {
                         ? Icons.stop_circle_outlined
                         : Icons.play_circle_outline_rounded,
                   ),
-                  label: Text(running ? '停止服务器' : '启动服务器'),
+                  label: Text(running ? tr('停止服务器') : tr('启动服务器')),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '提示：其他设备需与本机处于同一局域网。'
-                  'FTP 为明文传输，请仅在可信网络中使用。',
+                  tr('提示：其他设备需与本机处于同一局域网。FTP 为明文传输，请仅在可信网络中使用。'),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -378,14 +378,14 @@ class _ServerScreenState extends State<ServerScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(child: _section('访问日志')),
+                      Expanded(child: _section(tr('访问日志'))),
                       TextButton.icon(
                         onPressed: _refreshLog,
                         icon: const Icon(Icons.refresh_rounded, size: 18),
-                        label: const Text('刷新'),
+                        label: Text(tr('刷新')),
                       ),
                       IconButton(
-                        tooltip: '清空',
+                        tooltip: tr('清空'),
                         onPressed: _clearLog,
                         icon: const Icon(
                           Icons.cleaning_services_outlined,
@@ -414,7 +414,7 @@ class _ServerScreenState extends State<ServerScreen> {
                     ),
                   if ((_log?.entries ?? const []).isEmpty)
                     Text(
-                      '暂无访问记录',
+                      tr('暂无访问记录'),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -461,15 +461,15 @@ class _ServerScreenState extends State<ServerScreen> {
                 Icon(Icons.check_circle_rounded, color: scheme.primary),
                 const SizedBox(width: 8),
                 Text(
-                  '正在运行',
+                  tr('正在运行'),
                   style: Theme.of(context).textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
                 if (status.readOnly)
-                  const Chip(
+                  Chip(
                     visualDensity: VisualDensity.compact,
-                    label: Text('只读'),
+                    label: Text(tr('只读')),
                   ),
               ],
             ),
@@ -495,7 +495,7 @@ class _ServerScreenState extends State<ServerScreen> {
               ),
             const SizedBox(height: 4),
             Text(
-              '本机地址：${status.host}',
+              tr('本机地址：{p0}', {'p0': status.host}),
               style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
@@ -527,12 +527,12 @@ class _ServerScreenState extends State<ServerScreen> {
             ),
           ),
           IconButton(
-            tooltip: '二维码',
+            tooltip: tr('二维码'),
             icon: const Icon(Icons.qr_code_rounded, size: 18),
             onPressed: () => showQrDialog(context, title: label, data: url),
           ),
           IconButton(
-            tooltip: '复制',
+            tooltip: tr('复制'),
             icon: const Icon(Icons.copy_rounded, size: 18),
             onPressed: () => _copy(url),
           ),
@@ -628,7 +628,7 @@ class _UserDialogState extends State<_UserDialog> {
     if (username.isEmpty || _password.text.isEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('用户名与密码不能为空')));
+        ..showSnackBar(SnackBar(content: Text(tr('用户名与密码不能为空'))));
       return;
     }
     Navigator.pop(
@@ -645,15 +645,15 @@ class _UserDialogState extends State<_UserDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.initial == null ? '添加用户' : '编辑用户'),
+      title: Text(widget.initial == null ? tr('添加用户') : tr('编辑用户')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _username,
-              decoration: const InputDecoration(
-                labelText: '用户名',
+              decoration: InputDecoration(
+                labelText: tr('用户名'),
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -662,8 +662,8 @@ class _UserDialogState extends State<_UserDialog> {
             TextField(
               controller: _password,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: '密码',
+              decoration: InputDecoration(
+                labelText: tr('密码'),
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -671,9 +671,9 @@ class _UserDialogState extends State<_UserDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: _path,
-              decoration: const InputDecoration(
-                labelText: '限定子目录（可选）',
-                hintText: '相对共享根，如 Photos',
+              decoration: InputDecoration(
+                labelText: tr('限定子目录（可选）'),
+                hintText: tr('相对共享根，如 Photos'),
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -681,7 +681,7 @@ class _UserDialogState extends State<_UserDialog> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               dense: true,
-              title: const Text('该账号只读'),
+              title: Text(tr('该账号只读')),
               value: _readOnly,
               onChanged: (value) => setState(() => _readOnly = value),
             ),
@@ -691,9 +691,9 @@ class _UserDialogState extends State<_UserDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(tr('取消')),
         ),
-        FilledButton(onPressed: _submit, child: const Text('确定')),
+        FilledButton(onPressed: _submit, child: Text(tr('确定'))),
       ],
     );
   }

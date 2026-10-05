@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/ordo_service.dart';
+import '../i18n/i18n.dart';
 
 /// 显示二维码（内容由 Rust 生成的 PNG 渲染）。
 Future<void> showQrDialog(
@@ -61,7 +62,7 @@ class _QrDialogState extends State<_QrDialog> {
     Clipboard.setData(ClipboardData(text: widget.data));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('已复制')));
+      ..showSnackBar(SnackBar(content: Text(tr('已复制'))));
   }
 
   @override
@@ -81,7 +82,7 @@ class _QrDialogState extends State<_QrDialog> {
                 if (_bytes != null)
                   Image.memory(_bytes!, width: 240, height: 240)
                 else
-                  const Text('无法生成二维码'),
+                  Text(tr('无法生成二维码')),
                 const SizedBox(height: 12),
                 SelectableText(
                   widget.data,
@@ -92,10 +93,10 @@ class _QrDialogState extends State<_QrDialog> {
               ],
             ),
       actions: [
-        TextButton(onPressed: _copy, child: const Text('复制内容')),
+        TextButton(onPressed: _copy, child: Text(tr('复制内容'))),
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
+          child: Text(tr('关闭')),
         ),
       ],
     );

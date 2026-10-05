@@ -9,11 +9,13 @@ class HomeTool {
   const HomeTool(this.id, this.title, this.subtitle);
 
   final String id;
+
+  /// 中文原文字典 key，显示时用 `tr(title)` 翻译。
   final String title;
   final String subtitle;
 }
 
-const List<HomeTool> homeTools = [
+List<HomeTool> get homeTools => [
   HomeTool('recent', '最近访问', '最近打开的文件与文件夹'),
   HomeTool('trash', '回收站', '查看与恢复已删除的文件'),
   HomeTool('analyzer', '存储分析', '分类占用、大文件与重复文件'),

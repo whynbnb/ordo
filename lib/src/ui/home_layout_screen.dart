@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../state/home_layout.dart';
+import '../i18n/i18n.dart';
 
-const Map<String, String> _quickLabels = {
+Map<String, String> _quickLabels = {
   'Download': '下载',
   'Pictures': '图片',
   'DCIM': '相机',
@@ -71,7 +72,7 @@ class _HomeLayoutScreenState extends State<HomeLayoutScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('首页布局'),
+        title: Text(tr('首页布局')),
         actions: [
           TextButton(
             onPressed: () async {
@@ -84,17 +85,17 @@ class _HomeLayoutScreenState extends State<HomeLayoutScreen> {
                 _visibleQuick = _quickOrder.toSet();
               });
             },
-            child: const Text('重置'),
+            child: Text(tr('重置')),
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          _header('工具'),
+          _header(tr('工具')),
           for (var i = 0; i < _toolOrder.length; i++) _toolRow(i),
           const SizedBox(height: 24),
-          _header('常用目录'),
+          _header(tr('常用目录')),
           for (var i = 0; i < _quickOrder.length; i++) _quickRow(i),
         ],
       ),
@@ -136,8 +137,12 @@ class _HomeLayoutScreenState extends State<HomeLayoutScreen> {
             _saveTools();
           },
         ),
-        title: Text(tool.title),
-        subtitle: Text(tool.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(tr(tool.title)),
+        subtitle: Text(
+          tr(tool.subtitle),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: _moveButtons(
           index,
           _toolOrder.length,
@@ -172,7 +177,7 @@ class _HomeLayoutScreenState extends State<HomeLayoutScreen> {
             _saveQuick();
           },
         ),
-        title: Text(_quickLabels[id] ?? id),
+        title: Text(tr(_quickLabels[id] ?? id)),
         trailing: _moveButtons(index, _quickOrder.length, (delta) {
           _move(_quickOrder, index, delta);
           _saveQuick();
@@ -186,12 +191,12 @@ class _HomeLayoutScreenState extends State<HomeLayoutScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          tooltip: '上移',
+          tooltip: tr('上移'),
           icon: const Icon(Icons.keyboard_arrow_up_rounded),
           onPressed: index == 0 ? null : () => onMove(-1),
         ),
         IconButton(
-          tooltip: '下移',
+          tooltip: tr('下移'),
           icon: const Icon(Icons.keyboard_arrow_down_rounded),
           onPressed: index == length - 1 ? null : () => onMove(1),
         ),

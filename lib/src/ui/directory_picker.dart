@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/models.dart';
 import '../core/ordo_exception.dart';
 import '../services/ordo_service.dart';
+import '../i18n/i18n.dart';
 
 /// 打开目录选择器，返回所选目录的绝对路径（取消返回 null）。
 Future<String?> pickDirectory(BuildContext context, {String? initial}) {
@@ -77,11 +78,11 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('选择目录'),
+        title: Text(tr('选择目录')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(_path),
-            child: const Text('选择'),
+            child: Text(tr('选择')),
           ),
         ],
       ),
@@ -121,7 +122,7 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
         if (_path != '/')
           ListTile(
             leading: const Icon(Icons.arrow_upward_rounded),
-            title: const Text('上级目录'),
+            title: Text(tr('上级目录')),
             onTap: _goUp,
           ),
         for (final dir in _dirs)
@@ -135,7 +136,7 @@ class _DirectoryPickerState extends State<_DirectoryPicker> {
             onTap: () => _enter(dir.path),
           ),
         if (_dirs.isEmpty && _path == '/')
-          const ListTile(title: Text('没有可进入的子目录')),
+          ListTile(title: Text(tr('没有可进入的子目录'))),
       ],
     );
   }

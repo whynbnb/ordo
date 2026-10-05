@@ -9,6 +9,7 @@ import '../state/prefs_store.dart';
 import '../state/recent_store.dart';
 import 'browser_screen.dart';
 import 'viewer_screen.dart';
+import '../i18n/i18n.dart';
 
 /// 打开一个条目：文件夹进入浏览；图片 / 音频 / 文本在应用内预览；其余交给系统。
 ///
@@ -49,7 +50,7 @@ Future<void> openWithDefault(BuildContext context, FileEntry entry) async {
       final cached = await OrdoService.instance.downloadToCache(path);
       path = cached.path;
     } catch (error) {
-      if (context.mounted) _snack(context, '打开失败：$error');
+      if (context.mounted) _snack(context, tr('打开失败：{error}', {'error': error}));
       return;
     }
   }
@@ -63,7 +64,7 @@ Future<void> openWithDefault(BuildContext context, FileEntry entry) async {
     activity: target?.activity,
   );
   if (!ok && context.mounted) {
-    _snack(context, '没有找到可以打开此文件的应用');
+    _snack(context, tr('没有找到可以打开此文件的应用'));
   }
 }
 

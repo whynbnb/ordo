@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart';
+import '../i18n/i18n.dart';
 
 enum SortField { name, size, modified, type }
 
 extension SortFieldLabel on SortField {
   String get label => switch (this) {
-    SortField.name => '名称',
-    SortField.size => '大小',
-    SortField.modified => '修改时间',
-    SortField.type => '类型',
+    SortField.name => tr('名称'),
+    SortField.size => tr('大小'),
+    SortField.modified => tr('修改时间'),
+    SortField.type => tr('类型'),
   };
 }
 
