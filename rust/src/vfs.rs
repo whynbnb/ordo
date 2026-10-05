@@ -378,9 +378,50 @@ pub fn move_entries(sources: &[String], dest: &str, job: Option<&Job>) -> Value 
 
 pub fn search(root: &str, query: &str, limit: usize) -> Result<Value, String> {
     if is_remote(root) {
-        return Err("网络位置暂不支持搜索".into());
+        return search_remote(root, query, limit);
     }
     api::search(root, query, limit)
+}
+
+fn search_remote(root: &str, query: &str, limit: usize) -> Result<Value, String> {
+    let needle = query.trim().to_lowercase();
+    if needle.is_empty() {
+        return Ok(json!({ "entries": [], "truncated": false, "scanned": 0 }));
+    }
+    let mut results: Vec<FileEntry> = Vec::new();
+    let mut scanned = 0u64;
+    let mut truncated = false;
+    let mut stack = vec![root.to_string()];
+
+    while let Some(dir) = stack.pop() {
+        if results.len() >= limit || scanned >= 20_000 {
+            truncated = true;
+            break;
+        }
+        let Ok(entries) = list(&dir) else {
+            continue;
+        };
+        for entry in entries {
+            scanned += 1;
+            if entry.name.to_lowercase().contains(&needle) {
+                results.push(entry.clone());
+                if results.len() >= limit {
+                    truncated = true;
+                    break;
+                }
+            }
+            if entry.is_dir {
+                stack.push(entry.path);
+            }
+        }
+    }
+
+    results.sort_by(|a, b| {
+        b.is_dir
+            .cmp(&a.is_dir)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(json!({ "entries": results, "truncated": truncated, "scanned": scanned }))
 }
 
 // ---------------------------------------------------------------------------

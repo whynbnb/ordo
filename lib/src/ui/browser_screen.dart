@@ -466,10 +466,6 @@ class _BrowserScreenState extends State<BrowserScreen>
   }
 
   void _openSearch() {
-    if (isRemotePath(_path)) {
-      _snack('网络位置暂不支持搜索');
-      return;
-    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SearchScreen(root: _path, title: _title),
