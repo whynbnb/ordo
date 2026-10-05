@@ -28,8 +28,98 @@ class PlatformService {
     }
   }
 
-  static Future<bool> openFile(String path, {String? mime}) async {
-    return await _invokeBool('openFile', {'path': path, 'mime': mime});
+  static Future<bool> openFile(
+    String path, {
+    String? mime,
+    String? package,
+    String? activity,
+  }) async {
+    return await _invokeBool('openFile', {
+      'path': path,
+      'mime': mime,
+      'package': package,
+      'activity': activity,
+    });
+  }
+
+  /// 查询能处理某 MIME 的应用（用于设置「默认打开方式」）。
+  static Future<List<Map<String, dynamic>>> resolveActivities(
+    String mime,
+  ) async {
+    try {
+      final result = await _channel.invokeListMethod<dynamic>(
+        'resolveActivities',
+        {'mime': mime},
+      );
+      if (result == null) return const [];
+      return result
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
+    } on PlatformException {
+      return const [];
+    } on MissingPluginException {
+      return const [];
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 应用内音频预览（系统 MediaPlayer）
+  // -------------------------------------------------------------------------
+
+  /// 加载音频，返回时长（毫秒）；失败返回 -1。
+  static Future<int> audioLoad(String path) async {
+    try {
+      return await _channel.invokeMethod<int>('audioLoad', {'path': path}) ?? -1;
+    } on PlatformException {
+      return -1;
+    } on MissingPluginException {
+      return -1;
+    }
+  }
+
+  static Future<void> audioPlay() => _invokeVoid('audioPlay');
+
+  static Future<void> audioPause() => _invokeVoid('audioPause');
+
+  static Future<void> audioSeek(int ms) async {
+    try {
+      await _channel.invokeMethod<void>('audioSeek', {'ms': ms});
+    } on PlatformException {
+      // 忽略。
+    } on MissingPluginException {
+      // 忽略。
+    }
+  }
+
+  static Future<void> audioStop() => _invokeVoid('audioStop');
+
+  static Future<({int position, int duration, bool playing})>
+  audioStatus() async {
+    try {
+      final result = await _channel.invokeMapMethod<String, dynamic>(
+        'audioStatus',
+      );
+      return (
+        position: (result?['position'] as num?)?.toInt() ?? 0,
+        duration: (result?['duration'] as num?)?.toInt() ?? 0,
+        playing: result?['playing'] as bool? ?? false,
+      );
+    } on PlatformException {
+      return (position: 0, duration: 0, playing: false);
+    } on MissingPluginException {
+      return (position: 0, duration: 0, playing: false);
+    }
+  }
+
+  static Future<void> _invokeVoid(String method) async {
+    try {
+      await _channel.invokeMethod<void>(method);
+    } on PlatformException {
+      // 忽略。
+    } on MissingPluginException {
+      // 忽略。
+    }
   }
 
   static Future<bool> shareFile(String path, {String? mime}) async {

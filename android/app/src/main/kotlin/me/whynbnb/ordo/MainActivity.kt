@@ -3,6 +3,7 @@ package me.whynbnb.ordo
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -10,6 +11,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.hardware.usb.UsbManager
 import android.media.MediaMetadataRetriever
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -47,6 +49,9 @@ class MainActivity : FlutterActivity() {
     private var lastVolumeSignature: String? = null
     private var pendingStorageCheck: Runnable? = null
 
+    // 应用内音频预览使用的播放器。
+    private var audioPlayer: MediaPlayer? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -57,11 +62,37 @@ class MainActivity : FlutterActivity() {
                 "hasStoragePermission" -> result.success(hasStoragePermission())
                 "requestStoragePermission" -> requestStoragePermission(result)
                 "openFile" -> result.success(
-                    viewFile(call.argument("path"), call.argument("mime"))
+                    viewFile(
+                        call.argument("path"),
+                        call.argument("mime"),
+                        call.argument("package"),
+                        call.argument("activity"),
+                    )
                 )
                 "shareFile" -> result.success(
                     sendFile(call.argument("path"), call.argument("mime"))
                 )
+                "resolveActivities" -> result.success(
+                    resolveActivities(call.argument("mime"))
+                )
+                "audioLoad" -> audioLoad(call.argument("path"), result)
+                "audioPlay" -> {
+                    audioPlayer?.start()
+                    result.success(true)
+                }
+                "audioPause" -> {
+                    if (audioPlayer?.isPlaying == true) audioPlayer?.pause()
+                    result.success(true)
+                }
+                "audioSeek" -> {
+                    audioPlayer?.seekTo(call.argument<Int>("ms") ?: 0)
+                    result.success(true)
+                }
+                "audioStatus" -> result.success(audioStatus())
+                "audioStop" -> {
+                    audioRelease()
+                    result.success(true)
+                }
                 "sdkInt" -> result.success(Build.VERSION.SDK_INT)
                 "storageVolumes" -> result.success(storageVolumes())
                 "videoThumbnail" -> result.success(videoThumbnail(call.argument("path")))
@@ -174,6 +205,7 @@ class MainActivity : FlutterActivity() {
         storageReceiver = null
         pendingStorageCheck?.let { mainHandler.removeCallbacks(it) }
         pendingStorageCheck = null
+        audioRelease()
         super.onDestroy()
     }
 
@@ -396,7 +428,12 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun viewFile(path: String?, mime: String?): Boolean {
+    private fun viewFile(
+        path: String?,
+        mime: String?,
+        pkg: String?,
+        activity: String?,
+    ): Boolean {
         val file = path?.let { File(it) } ?: return false
         if (!file.exists()) return false
         return try {
@@ -405,13 +442,110 @@ class MainActivity : FlutterActivity() {
                 setDataAndType(uri, mime ?: guessMime(path))
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(Intent.createChooser(intent, "打开方式"))
+            if (!pkg.isNullOrEmpty()) {
+                // 用户指定的默认应用：直接跳到它；否则弹出选择器。
+                if (!activity.isNullOrEmpty()) {
+                    intent.component = ComponentName(pkg, activity)
+                } else {
+                    intent.setPackage(pkg)
+                }
+                startActivity(intent)
+            } else {
+                startActivity(Intent.createChooser(intent, "打开方式"))
+            }
             true
         } catch (_: ActivityNotFoundException) {
             false
         } catch (_: Exception) {
             false
         }
+    }
+
+    /** 查询能处理某 MIME 的应用（用于设置「默认打开方式」）。 */
+    private fun resolveActivities(mime: String?): List<Map<String, Any?>> {
+        val type = if (mime.isNullOrEmpty()) "*/*" else mime
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(Uri.parse("content://$packageName.fileprovider/"), type)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val infos = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.queryIntentActivities(
+                    intent,
+                    PackageManager.ResolveInfoFlags.of(
+                        PackageManager.MATCH_DEFAULT_ONLY.toLong()
+                    ),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val seen = HashSet<String>()
+        val apps = mutableListOf<Map<String, Any?>>()
+        for (info in infos) {
+            val info2 = info.activityInfo ?: continue
+            val appPackage = info2.packageName ?: continue
+            if (appPackage == packageName) continue
+            if (!seen.add(appPackage)) continue
+            apps.add(
+                mapOf(
+                    "label" to info.loadLabel(packageManager).toString(),
+                    "package" to appPackage,
+                    "activity" to info2.name,
+                )
+            )
+        }
+        apps.sortBy { (it["label"] as? String)?.lowercase().orEmpty() }
+        return apps
+    }
+
+    // -----------------------------------------------------------------------
+    // 应用内音频预览（系统 MediaPlayer，不依赖任何第三方包）
+    // -----------------------------------------------------------------------
+
+    private fun audioLoad(path: String?, result: MethodChannel.Result) {
+        audioRelease()
+        if (path.isNullOrEmpty()) {
+            result.success(-1)
+            return
+        }
+        val player = MediaPlayer()
+        audioPlayer = player
+        player.setOnPreparedListener { mp ->
+            result.success(mp.duration)
+        }
+        player.setOnErrorListener { mp, _, _ ->
+            if (audioPlayer === mp) audioPlayer = null
+            runCatching { mp.release() }
+            result.success(-1)
+            true
+        }
+        try {
+            player.setDataSource(path)
+            player.prepareAsync()
+        } catch (_: Exception) {
+            audioRelease()
+            result.success(-1)
+        }
+    }
+
+    private fun audioStatus(): Map<String, Any?> {
+        val player = audioPlayer
+            ?: return mapOf("position" to 0, "duration" to 0, "playing" to false)
+        val duration = runCatching { player.duration }.getOrDefault(0)
+        val position = runCatching { player.currentPosition }.getOrDefault(0)
+        val playing = runCatching { player.isPlaying }.getOrDefault(false)
+        return mapOf("position" to position, "duration" to duration, "playing" to playing)
+    }
+
+    private fun audioRelease() {
+        val player = audioPlayer ?: return
+        audioPlayer = null
+        runCatching { if (player.isPlaying) player.stop() }
+        runCatching { player.release() }
     }
 
     private fun sendFile(path: String?, mime: String?): Boolean {

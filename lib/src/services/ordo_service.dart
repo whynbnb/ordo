@@ -318,4 +318,23 @@ class OrdoService {
         .map((e) => Favorite.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
+
+  // -------------------------------------------------------------------------
+  // 界面偏好（键值）
+  // -------------------------------------------------------------------------
+
+  Future<Map<String, String>> prefsAll() async {
+    final data = _direct('prefAll');
+    return (data as Map).map(
+      (key, value) => MapEntry(key.toString(), value.toString()),
+    );
+  }
+
+  Future<void> prefSet(String key, String value) async {
+    _direct('prefSet', [key, value]);
+  }
+
+  Future<void> prefRemove(String key) async {
+    _direct('prefRemove', [key]);
+  }
 }

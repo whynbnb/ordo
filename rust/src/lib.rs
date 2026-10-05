@@ -12,6 +12,7 @@ mod favorites;
 mod importer;
 mod jobs;
 mod model;
+mod prefs;
 mod remote;
 mod server;
 mod storage;
@@ -628,6 +629,40 @@ pub unsafe extern "C" fn ordo_favorite_add(
 pub unsafe extern "C" fn ordo_favorite_remove(path: *const c_char) -> *mut c_char {
     guard(|| match read_str(path) {
         Ok(path) => result(favorites::remove(&path)),
+        Err(e) => err(e),
+    })
+}
+
+// ---------------------------------------------------------------------------
+// 导出函数：界面偏好（键值）
+// ---------------------------------------------------------------------------
+
+/// 读取全部偏好项。
+#[no_mangle]
+pub extern "C" fn ordo_pref_all() -> *mut c_char {
+    guard(|| ok(prefs::all()))
+}
+
+/// 写入一个偏好项。
+///
+/// # Safety
+/// FFI 边界：两个指针均为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_pref_set(key: *const c_char, value: *const c_char) -> *mut c_char {
+    guard(|| match (read_str(key), read_str(value)) {
+        (Ok(key), Ok(value)) => result(prefs::set(&key, &value).map(|_| serde_json::Value::Null)),
+        (Err(e), _) | (_, Err(e)) => err(e),
+    })
+}
+
+/// 删除一个偏好项。
+///
+/// # Safety
+/// FFI 边界：指针为合法 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ordo_pref_remove(key: *const c_char) -> *mut c_char {
+    guard(|| match read_str(key) {
+        Ok(key) => result(prefs::remove(&key).map(|_| serde_json::Value::Null)),
         Err(e) => err(e),
     })
 }

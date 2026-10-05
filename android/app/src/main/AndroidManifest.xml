@@ -95,6 +95,10 @@
         <!-- 打开/分享文件时需要查询可处理的应用。 -->
         <intent>
             <action android:name="android.intent.action.VIEW"/>
+            <data android:mimeType="*/*"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="content"/>
         </intent>
         <intent>

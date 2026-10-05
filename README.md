@@ -23,7 +23,12 @@ An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutte
 - Sorting (name / size / modified time / type, ascending / descending), show / hide hidden files
 - **Image / video thumbnails** (images are decoded and scaled by Rust and cached; videos use the system media framework)
 - Recursive search by name
-- Details sheet; in-app preview for text and images, everything else is handed to the system "Open with"; share files
+- Details sheet; **in-app preview for images / audio / text** (text can be lightly
+  edited and saved), while video and other files are handed to the system "Open with";
+  share files
+- **Settings**: choose a default app to open images / audio / video / text / PDF /
+  APK and more (otherwise the system picker is shown every time); preferences are
+  persisted in the app's private directory
 
 ### ZIP
 
@@ -80,6 +85,7 @@ rust/                     Rust core (cdylib)
   src/storage.rs          storage volume discovery (internal / SD card / USB)
   src/importer.rs         drag & drop import (fd -> local / remote)
   src/favorites.rs        favorites persistence
+  src/prefs.rs            UI preferences persistence (default open-with app, etc.)
   src/trash.rs            recycle bin (trash / restore / empty)
   src/jobs.rs             long-running job progress and cancellation
   src/archive.rs          ZIP create / extract

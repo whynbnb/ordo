@@ -116,6 +116,28 @@ bool isImageExtension(String extension) =>
 bool isVideoExtension(String extension) =>
     _video.contains(extension.toLowerCase());
 
+/// 是否为音频。
+bool isAudioExtension(String extension) =>
+    _audio.contains(extension.toLowerCase());
+
+/// 能否在应用内预览（图片 / 音频 / 文本）。视频不做应用内预览。
+bool isPreviewableExtension(String extension) {
+  final ext = extension.toLowerCase();
+  return _image.contains(ext) || _audio.contains(ext) || _text.contains(ext);
+}
+
+/// 「默认打开方式」使用的分类键。
+String openWithCategory(String extension) {
+  final ext = extension.toLowerCase();
+  if (ext == 'apk' || ext == 'apks' || ext == 'xapk') return 'apk';
+  if (_image.contains(ext)) return 'image';
+  if (_audio.contains(ext)) return 'audio';
+  if (_video.contains(ext)) return 'video';
+  if (_text.contains(ext)) return 'text';
+  if (ext == 'pdf') return 'pdf';
+  return 'other';
+}
+
 const Map<String, String> _mimeByExtension = {
   'txt': 'text/plain',
   'md': 'text/markdown',

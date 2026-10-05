@@ -162,6 +162,15 @@ class _OrdoBindings {
   late final _Dart1 favoriteRemove = _lib.lookupFunction<_Native1, _Dart1>(
     'ordo_favorite_remove',
   );
+  late final _DartZero prefAll = _lib.lookupFunction<_NativeZero, _DartZero>(
+    'ordo_pref_all',
+  );
+  late final _Dart2 prefSet = _lib.lookupFunction<_Native2, _Dart2>(
+    'ordo_pref_set',
+  );
+  late final _Dart1 prefRemove = _lib.lookupFunction<_Native1, _Dart1>(
+    'ordo_pref_remove',
+  );
   late final _DartZero trashList = _lib.lookupFunction<_NativeZero, _DartZero>(
     'ordo_trash_list',
   );
@@ -387,6 +396,27 @@ dynamic nativeExecute(String op, List<Object?> args) {
             args[0] as String,
             (path) => bindings.favoriteRemove(path),
           ),
+        ),
+      );
+    case 'prefAll':
+      return _decode(_take(bindings, bindings.prefAll()));
+    case 'prefSet':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (key) {
+            return _withCString(
+              args[1] as String,
+              (value) => bindings.prefSet(key, value),
+            );
+          }),
+        ),
+      );
+    case 'prefRemove':
+      return _decode(
+        _take(
+          bindings,
+          _withCString(args[0] as String, (key) => bindings.prefRemove(key)),
         ),
       );
     case 'trashList':

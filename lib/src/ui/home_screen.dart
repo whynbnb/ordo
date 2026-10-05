@@ -15,6 +15,7 @@ import 'dialogs.dart';
 import 'drop_overlay.dart';
 import 'analyzer_screen.dart';
 import 'server_screen.dart';
+import 'settings_screen.dart';
 import 'trash_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -231,6 +232,15 @@ class _HomeScreenState extends State<HomeScreen>
       appBar: AppBar(
         title: const Text('安序'),
         actions: [
+          IconButton(
+            tooltip: '设置',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
           IconButton(
             tooltip: '文件服务器',
             icon: const Icon(Icons.router_rounded),
