@@ -1,123 +1,130 @@
-# 安序 Ordo
+# Ordo 安序
 
-一个使用 **Flutter + Rust** 构建的安卓文件管理器。
+**English** | [中文](README.zh-CN.md)
 
-- 界面（Flutter）：Material 3，简洁实用。
-- 核心（Rust）：所有文件系统操作都在 Rust 中完成，通过一层极简的 C ABI
-  以 JSON 形式与 Flutter 通信。
-- 面向普通（非 root）安卓设备，使用「所有文件访问权限」（Android 11+）或
-  旧版读写权限。
+An Android file manager built with **Flutter + Rust**: the UI is drawn by Flutter, and every file operation is performed by Rust.
 
-> 本项目**不使用** Flutter 自带的文件读写 API，也**不引入任何文件相关的第三方
-> 包**。Dart 侧只负责界面与 FFI 调用，实际的读 / 写 / 复制 / 移动 / 删除 / 搜索
-> 全部由 Rust 标准库实现。
+- UI (Flutter): Material 3, clean and practical.
+- Core (Rust): all filesystem work happens in Rust and is exposed to Flutter over a minimal C ABI with JSON payloads.
+- Targets ordinary (non-root) Android devices, using "All files access" (Android 11+) or the legacy read/write permissions.
 
-## 功能
+> This project does **not** use Flutter's built-in file I/O APIs, and does **not** depend on any file-related third-party package. Dart only handles the UI and FFI calls; reading, writing, copying, moving, deleting, searching, archiving and analysis are all implemented in Rust.
 
-- 浏览内部存储、可移动存储卡与可插拔 USB 存储（U 盘 / 移动硬盘），展示容量占用
-  - 支持热插拔：插拔 U 盘 / 存储卡时自动刷新列表并提示，插入 USB 存储时系统会像其它文件管理器一样询问是否用安序打开
-- 常用目录快捷入口（下载 / 图片 / 相机 / 音乐 / 视频 / 文档）
-- 新建文件夹 / 文件、重命名、删除（默认移入回收站，可恢复 / 清空）
-- 复制 / 剪切 / 粘贴（跨目录），大文件带进度与取消
-- **图片 / 视频缩略图**（图片由 Rust 解码缩放并缓存，视频借助系统媒体框架）
-- 按名称递归搜索
-- 排序（名称 / 大小 / 修改时间 / 类型，升序 / 降序）
-- 显示 / 隐藏隐藏文件
-- 可点击的路径面包屑；收藏夹（书签）
-- ZIP 压缩 / 解压 / 查看内容
-- 存储分析：分类占用、最大文件、重复文件（可一键清理）
-- 应用内预览文本与图片，其余文件交给系统「打开方式」
-- 分享文件
-- **远程位置**：WebDAV、FTP、SMB，全部由 Rust 实现
-  - 连接管理（增删改、测试连接），配置保存在应用私有目录
-  - 与本地文件列表一致地浏览、新建、重命名、删除
-  - 远程与本地之间复制 / 剪切 / 粘贴（流式读写）
-  - 远程文件可在应用内预览，或下载到缓存后交给系统打开
-- **本机文件服务器**：在手机上直接开启 HTTP/WebDAV 与 FTP，供同一局域网设备访问
-  - 浏览器可直接浏览 / 下载；Windows / macOS / Linux 可映射为网络驱动器（WebDAV）
-  - FTP 客户端 / 文件管理器可读写，支持被动（PASV/EPSV）与主动（PORT/EPRT）模式
-  - 可选用户名密码、只读模式；配置持久化，端口可自定义
-- **跨应用拖放导入**：在分屏 / 多窗口下，把相册等其它应用里的文件直接拖入安序窗口，
-  即可复制到当前浏览的目录（Android 系统拖放由原生层接收，文件写入仍由 Rust 完成）
+## Features
 
-> 说明：跨应用拖放依赖 Android 的多窗口能力（Android 7.0+，分屏或 Android 14+ 的
-> 系统拖放）；Flutter 框架本身不提供该能力，这里用原生 `View.OnDragListener` 自行实现。
+### Local file management
 
-> 说明：FTP 目前仅支持明文（未实现 FTPS）；WebDAV 支持 HTTPS 且可选择信任自签名证书。
-> SMB 的共享名可以留空，此时连接根目录会列出服务器上的全部共享。
-> 作为服务端时，FTP 同样为明文传输，请仅在可信局域网中使用。
->
-> 外部介质：应用会解析 `/proc/self/mountinfo` 并借助 Android `StorageManager`
-> 识别存储卡与可插拔 USB 存储；插拔时会监听系统存储广播自动刷新并提示，
-> 回到前台或下拉刷新也会更新列表。部分设备若未向应用开放 USB 卷的底层路径，
-> 会仍然列出该卷并标注「未开放访问」，而不是直接隐藏（受系统限制）。
+- Browse internal storage, removable SD cards and pluggable USB storage (flash drives / portable SSDs), with capacity usage
+- **Hot-plug support**: listens to system storage broadcasts and refreshes automatically when a USB drive / SD card is inserted or removed; plugging in USB storage also makes Android offer Ordo, just like other file managers
+- Quick-access folders (Downloads / Pictures / Camera / Music / Videos / Documents)
+- Tappable path breadcrumb; favorites (bookmarks)
+- New folder / file, rename, delete (moved to the recycle bin by default, restorable / emptiable)
+- Multi-select, copy / cut / paste (across directories), with progress and cancel for large transfers
+- Sorting (name / size / modified time / type, ascending / descending), show / hide hidden files
+- **Image / video thumbnails** (images are decoded and scaled by Rust and cached; videos use the system media framework)
+- Recursive search by name
+- Details sheet; in-app preview for text and images, everything else is handed to the system "Open with"; share files
 
-## 架构
+### ZIP
+
+- Create / extract archives, and browse archive contents
+
+### Storage analysis
+
+- Usage by category (images / video / audio / documents / archives / installers / text / other)
+- Largest-files list with direct actions: open, open containing folder, share, move to recycle bin, delete permanently
+- Duplicate detection (same size + SHA-256, two-pass), with one-tap cleanup
+
+### Remote locations (WebDAV / FTP / SMB, fully implemented in Rust)
+
+- Connection management (add / edit / delete, test connection); profiles are stored in the app's private directory
+- Browsing, creating, renaming and deleting that behave like local storage, plus copy / move between local and remote (streamed)
+- Remote files can be previewed in-app, or downloaded to cache and opened with the system
+- Files dragged in from other apps can be dropped straight into a remote folder
+
+### On-device file server (HTTP/WebDAV + FTP)
+
+- Start the server right on the phone and access it from other devices on the same LAN
+- Browsers can browse / download directly; Windows / macOS / Linux can mount it as a network drive (WebDAV)
+- FTP supports passive (PASV/EPSV) and active (PORT/EPRT) modes, read/write
+- Optional username / password and read-only mode; configuration is persisted and ports are configurable
+
+### Cross-app drag & drop import
+
+- In split-screen / multi-window, drag files from other apps (e.g. the gallery) straight into an Ordo window and they are copied into the folder you are currently viewing (local or remote)
+- Android system drag & drop is received by the native layer, while the actual file write is still done by Rust
+
+> This relies on Android's multi-window support (split-screen on Android 7.0+, or system drag & drop on Android 14+). Flutter does not provide this capability, so it is implemented natively with `View.OnDragListener`.
+
+## Notes and limitations
+
+- FTP is currently plaintext only (no FTPS). WebDAV supports HTTPS, with an option to trust self-signed certificates.
+- The SMB share name may be left empty; the connection root then lists every share on the server.
+- When acting as a server, FTP is also plaintext — use it only on a trusted LAN.
+- External media: the app parses `/proc/self/mountinfo` and uses Android's `StorageManager` to detect SD cards and pluggable USB storage. Insertion / removal refreshes the list automatically, and returning to the foreground or pull-to-refresh also updates it. On some devices that do not expose the USB volume's underlying path to apps, the volume is still listed and marked "access not granted" instead of being hidden (a system limitation).
+- Connection passwords are stored in the app's private directory in `ordo_connections.json` (plaintext, accessible only to this app).
+- The app has no analytics or telemetry and uploads nothing to the developer; network traffic only occurs for the remote connections you configure and the local file server you start.
+
+## Architecture
 
 ```
-lib/                      Flutter 界面与 FFI 绑定
-  src/ffi/native.dart     dart:ffi 绑定 + 后台 isolate 调度
-  src/services/           文件系统门面 / 平台通道
-  src/state/              浏览状态、排序偏好、剪贴板、连接配置
-  src/ui/                 各页面与组件
-rust/                     Rust 核心（cdylib）
-  src/lib.rs              C ABI 导出与 panic 防护
-  src/api.rs              本地文件系统实现
-  src/vfs.rs              统一门面：本地路径与远程 URI 走同一接口
-  src/storage.rs          存储卷发现（内部 / 存储卡 / USB）
-  src/importer.rs         跨应用拖放文件的导入（fd → 文件）
-  src/favorites.rs        收藏夹持久化
-  src/trash.rs            回收站（移入 / 恢复 / 清空）
-  src/jobs.rs             长任务进度与取消
-  src/archive.rs          ZIP 压缩 / 解压
-  src/thumbnail.rs        图片缩略图解码与缓存
-  src/analyze.rs          存储分析（分类 / 大文件 / 重复）
-  src/remote/             WebDAV / FTP / SMB 客户端与连接会话
-  src/server/             HTTP/WebDAV 与 FTP 服务端
-  src/model.rs            元数据模型
-android/                  Android 工程
-  app/.../MainActivity.kt 存储权限、文件打开 / 分享、跨应用拖放接收
-  app/build.gradle.kts    调用 cargo-ndk 编译 Rust 并放入 jniLibs
-scripts/                  手动构建脚本
+lib/                      Flutter UI and FFI bindings
+  src/ffi/native.dart     dart:ffi bindings + background isolate dispatch
+  src/services/           filesystem facade / platform channels
+  src/state/              browsing state, sorting prefs, clipboard, connections, drag & drop
+  src/ui/                 screens and widgets
+rust/                     Rust core (cdylib)
+  src/lib.rs              C ABI exports and panic guard
+  src/api.rs              local filesystem implementation
+  src/vfs.rs              unified facade: local paths and remote URIs share one interface
+  src/storage.rs          storage volume discovery (internal / SD card / USB)
+  src/importer.rs         drag & drop import (fd -> local / remote)
+  src/favorites.rs        favorites persistence
+  src/trash.rs            recycle bin (trash / restore / empty)
+  src/jobs.rs             long-running job progress and cancellation
+  src/archive.rs          ZIP create / extract
+  src/thumbnail.rs        image thumbnail decode and cache
+  src/analyze.rs          storage analysis (categories / largest / duplicates)
+  src/remote/             WebDAV / FTP / SMB clients and connection sessions
+  src/server/             HTTP/WebDAV and FTP servers
+  src/model.rs            metadata models
+android/                  Android project
+  app/.../MainActivity.kt storage permissions, open / share, cross-app drop, USB events
+  app/build.gradle.kts    runs cargo-ndk to build Rust into jniLibs
+scripts/                  manual build scripts
 ```
 
-远程位置以 URI 形式表示：`<scheme>://<连接ID>/路径`，例如
-`smb://ab12cd/文档/report.pdf`。Dart 侧只传字符串，协议实现与连接复用都在
-Rust 中完成。连接密码保存在应用私有目录的 `ordo_connections.json`（明文，
-仅本应用可访问）。
+Remote locations are represented as URIs: `<scheme>://<connection-id>/path`, for example
+`smb://ab12cd/Documents/report.pdf`. Dart only passes strings; protocol implementation and connection reuse live entirely in Rust.
 
-所有原生函数的返回值都是 `{"ok":true,"data":...}` 或
-`{"ok":false,"error":"..."}`，字符串内存由 Rust 分配、Dart 释放。
+Every native function returns either `{"ok":true,"data":...}` or
+`{"ok":false,"error":"..."}`; strings are allocated by Rust and freed by Dart.
 
-## 版本
+## Version
 
-应用版本号以仓库根目录的 `VERSION` 文件为唯一来源，当前为 **1.0**（两段式
-`主版本.次版本`）。Rust 核心通过 `include_str!` 读取该文件并随 `ping` 返回，
-Android 的 `versionName` 由 Gradle 读取同一文件；`pubspec.yaml` 因 Dart 要求
-三段式而保留 `1.0.0+build`，仅用于 Flutter 工具链。
+The app version is sourced from a single file, `VERSION` at the repository root, currently **1.0** (two-part `major.minor`). The Rust core reads it with `include_str!` and returns it via `ping`; Android's `versionName` is read from the same file by Gradle. `pubspec.yaml` keeps `1.0.0+build` because Dart requires three parts — it is only used by the Flutter toolchain.
 
-## 环境要求
+## Requirements
 
-- Flutter（已启用 Android 工具链）
-- Rust 与 Android 目标：
+- Flutter (with the Android toolchain enabled)
+- Rust and the Android targets:
   ```sh
   rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
   cargo install cargo-ndk
   ```
-- Android NDK（Android Studio 自带，或单独安装并设置 `ANDROID_NDK_HOME`）
+- Android NDK (bundled with Android Studio, or installed separately with `ANDROID_NDK_HOME` set)
 
-## 构建与运行
+## Build and run
 
-Gradle 会在构建 APK 前自动调用 `cargo-ndk` 编译 Rust（见
-`android/app/build.gradle.kts` 中的 `cargoNdkBuild` 任务）：
+Gradle automatically invokes `cargo-ndk` to build the Rust core before building the APK (see the `cargoNdkBuild` task in `android/app/build.gradle.kts`):
 
 ```sh
 flutter run --release
-# 或
+# or
 flutter build apk --release
 ```
 
-只打包 arm64-v8a（Rust 与 Flutter 都只编译该架构）：
+Build arm64-v8a only (both Rust and Flutter are compiled for this ABI):
 
 ```sh
 flutter build apk --release \
@@ -125,30 +132,25 @@ flutter build apk --release \
   -P ordo.rustAbis=arm64-v8a
 ```
 
-手动编译 Rust 核心（产物放入 `android/app/src/main/jniLibs`）：
+Build the Rust core manually (output goes to `android/app/src/main/jniLibs`):
 
 ```sh
 ./scripts/build_rust_android.sh
 ```
 
-首次启动时应用会请求「所有文件访问权限」，请按提示前往系统设置授权。
+On first launch the app asks for "All files access"; follow the prompt to grant it in system settings.
 
-## 测试
+## Testing
 
 ```sh
-# Rust 单元测试
+# Rust unit tests
 cargo test --manifest-path rust/Cargo.toml
 
-# Dart 单元测试（含纯逻辑）
+# Dart unit tests (pure logic)
 flutter test
 
-# 桌面端可用动态库跑完整的 Dart <-> Rust 集成测试
+# Full Dart <-> Rust integration tests on desktop using the dynamic library
 cargo build --manifest-path rust/Cargo.toml
 ORDO_CORE_LIB="$PWD/rust/target/debug/libordo_core.dylib" \
   flutter test test/ffi_integration_test.dart
 ```
-
-## 说明
-
-- 应用不会联网，也不会上传任何数据。
-- 所有文件操作均在设备本地完成。
